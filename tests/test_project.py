@@ -9,9 +9,11 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
+from kcdw.collector import report_dates
 from kcdw.geometry import point_in_polygon
 from kcdw.intervals import duration, expand_grid_values, expand_valid_time
-from kcdw.renderer import render
+from kcdw.prompt import build_prompt
+from kcdw.renderer import render, window_state
 from kcdw.validation import ValidationError, validate_analysis, validate_snapshot_readiness
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +25,21 @@ class ProjectTests(unittest.TestCase):
     def setUpClass(cls):
         cls.snapshot = json.loads((FIX / "sample_snapshot.json").read_text())
         cls.analysis = json.loads((FIX / "sample_analysis.json").read_text())
+
+    def test_report_dates_include_current_local_day(self):
+        before_midnight_utc = datetime(2026, 9, 4, 3, 59, tzinfo=timezone.utc)
+        after_midnight_local = datetime(2026, 9, 4, 4, 0, tzinfo=timezone.utc)
+        self.assertEqual(
+            report_dates(before_midnight_utc),
+            ["2026-09-03", "2026-09-04", "2026-09-05", "2026-09-06", "2026-09-07", "2026-09-08", "2026-09-09"],
+        )
+        self.assertEqual(report_dates(after_midnight_local)[0], "2026-09-04")
+        self.assertEqual(len(report_dates(after_midnight_local)), 7)
+
+    def test_window_state_boundaries_use_eastern_time(self):
+        self.assertEqual(window_state("2026-09-03", "08-10", datetime(2026, 9, 3, 11, 59, tzinfo=timezone.utc)), "upcoming")
+        self.assertEqual(window_state("2026-09-03", "08-10", datetime(2026, 9, 3, 12, 0, tzinfo=timezone.utc)), "current")
+        self.assertEqual(window_state("2026-09-03", "08-10", datetime(2026, 9, 3, 14, 0, tzinfo=timezone.utc)), "elapsed")
 
     def test_interval_parsing_and_expansion(self):
         self.assertEqual(duration("PT3H").total_seconds(), 10800)
@@ -36,6 +53,30 @@ class ProjectTests(unittest.TestCase):
         self.assertTrue(point_in_polygon(-74.5, 40.5, square))
         self.assertTrue(point_in_polygon(-75, 40.5, square))
         self.assertFalse(point_in_polygon(-73, 40.5, square))
+
+    def test_validation_rejects_post_8_pm_today_picks(self):
+        snapshot = copy.deepcopy(self.snapshot)
+        snapshot["collected_at"] = "2026-09-03T23:59:00Z"
+        for field in ("best_day", "backup_day"):
+            with self.subTest(field=field):
+                value = copy.deepcopy(self.analysis)
+                value["source_collected_at"] = snapshot["collected_at"]
+                value["generated_at"] = "2026-09-04T00:00:00Z"
+                value[field] = snapshot["local_date"]
+                if field == "backup_day":
+                    value["best_day"] = "2026-09-04"
+                with self.assertRaisesRegex(ValidationError, "fully elapsed"):
+                    validate_analysis(value, snapshot)
+
+    def test_validation_allows_today_pick_before_8_pm(self):
+        snapshot = copy.deepcopy(self.snapshot)
+        snapshot["collected_at"] = "2026-09-03T23:58:00Z"
+        value = copy.deepcopy(self.analysis)
+        value["source_collected_at"] = snapshot["collected_at"]
+        value["generated_at"] = "2026-09-03T23:59:00Z"
+        value["best_day"] = snapshot["local_date"]
+        value["backup_day"] = "2026-09-04"
+        self.assertIs(validate_analysis(value, snapshot), value)
 
     def test_validation_rejects_score_duplicate_date_and_timestamp(self):
         bad = copy.deepcopy(self.analysis); bad["days"][0]["windows"][0]["score"] = 91
@@ -52,6 +93,22 @@ class ProjectTests(unittest.TestCase):
         for source in sparse["sources"].values(): source["ok"] = False
         sparse["sources"]["nws_hourly"]["ok"] = True
         with self.assertRaises(ValidationError): validate_snapshot_readiness(sparse)
+
+    def test_prompt_defines_same_day_scoring(self):
+        prompt = build_prompt(self.snapshot)
+        self.assertIn("first report_date is today", prompt)
+        self.assertIn("elapsed windows", prompt)
+
+    def test_render_uses_valid_landmark_and_heading_semantics(self):
+        rendered, _ = render(self.snapshot, self.analysis, datetime(2026, 9, 3, 12, 10, tzinfo=timezone.utc))
+        self.assertIn('<div class="legend" role="group" aria-label="Score legend">', rendered)
+        self.assertNotIn("<h3>", rendered)
+
+    def test_render_marks_today_and_elapsed_windows(self):
+        rendered, _ = render(self.snapshot, self.analysis, datetime(2026, 9, 3, 20, 10, tzinfo=timezone.utc))
+        self.assertIn("Today · Thursday", rendered)
+        self.assertEqual(rendered.count('data-window-state="elapsed"'), 4)
+        self.assertEqual(rendered.count('data-window-state="current"'), 1)
 
     def test_render_escapes_model_text_deterministically(self):
         value = copy.deepcopy(self.analysis); value["summary"] = '<script>alert("x")</script>'

@@ -88,6 +88,11 @@ def _source(fetch, now: datetime) -> dict:
         return {"ok": False, "fetched_at": iso_z(now), "data": None, "error": f"{type(exc).__name__}: {exc}"[:300]}
 
 
+def report_dates(now: datetime) -> list[str]:
+    local_date = now.astimezone(TZ).date()
+    return [(local_date + timedelta(days=i)).isoformat() for i in range(7)]
+
+
 def collect(now: datetime | None = None, client: Client | None = None) -> dict:
     now = (now or datetime.now(UTC)).astimezone(UTC)
     client = client or Client()
@@ -168,7 +173,7 @@ def collect(now: datetime | None = None, client: Client | None = None) -> dict:
     sources["open_meteo"] = _source(open_meteo, now)
 
     local = now.astimezone(TZ)
-    dates = [(local.date() + timedelta(days=i)).isoformat() for i in range(1, 8)]
+    dates = report_dates(now)
     return {"schema_version": 1, "airport": {"id": "KCDW", "name": "Essex County Airport", "latitude": LAT, "longitude": LON, "timezone": str(TZ), "taf_note": "KCDW has no routine TAF; KTEB and KEWR are local proxies."}, "collected_at": iso_z(now), "local_date": local.date().isoformat(), "report_dates": dates, "sources": sources}
 
 

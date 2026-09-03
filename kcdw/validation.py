@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from .common import parse_time
 
@@ -42,6 +43,13 @@ def validate_analysis(value: dict, snapshot: dict) -> dict:
     dates = snapshot["report_dates"]
     if value["best_day"] not in dates or value["backup_day"] not in dates or value["best_day"] == value["backup_day"]:
         raise ValidationError("best/backup day invalid")
+    try:
+        local_tz = ZoneInfo(snapshot["airport"]["timezone"])
+        first_day_cutoff = datetime.fromisoformat(f"{dates[0]}T20:00:00").replace(tzinfo=local_tz)
+    except (KeyError, TypeError, ValueError, IndexError) as exc:
+        raise ValidationError("invalid report timezone or dates") from exc
+    if generated.astimezone(local_tz) >= first_day_cutoff and snapshot["local_date"] in (value["best_day"], value["backup_day"]):
+        raise ValidationError("fully elapsed today cannot be best or backup day")
     _text(value["summary"], "summary", 500)
     if not isinstance(value["controlling_hazards"], list) or not 1 <= len(value["controlling_hazards"]) <= 6:
         raise ValidationError("controlling_hazards must contain 1..6 items")

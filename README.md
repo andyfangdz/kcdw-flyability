@@ -1,8 +1,8 @@
 # KCDW Flyability
 
-A dependency-free Python pipeline that collects current weather evidence for Essex County Airport (KCDW), asks the installed Codex CLI for a strictly structured seven-day interpretation, validates it, and atomically publishes a single self-contained HTML report.
+A dependency-free Python pipeline that collects current weather evidence for Essex County Airport (KCDW), asks the installed Codex CLI for a strictly structured seven-day interpretation covering today plus the following six days, validates it, and atomically publishes a single self-contained HTML report.
 
-The six daily scores cover 08–10, 10–12, 12–14, 14–16, 16–18, and 18–20 America/New_York. A score estimates the chance that an ordinary local VFR pattern session will be *comfortably flyable*. It is not a probability of safety or a go/no-go recommendation.
+The six daily scores cover 08–10, 10–12, 12–14, 14–16, 16–18, and 18–20 America/New_York. Today's elapsed windows remain visible but are dimmed and labeled; the active window is highlighted. A score estimates the chance that an ordinary local VFR pattern session is *comfortably flyable*. It is not a probability of safety or a go/no-go recommendation.
 
 ## Architecture
 
