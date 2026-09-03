@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["generated_at", "source_collected_at", "best_day", "backup_day", "summary", "controlling_hazards", "days"],
+  "properties": {
+    "generated_at": {"type": "string", "format": "date-time"},
+    "source_collected_at": {"type": "string", "format": "date-time"},
+    "best_day": {"type": "string", "format": "date"},
+    "backup_day": {"type": "string", "format": "date"},
+    "summary": {"type": "string", "minLength": 1, "maxLength": 500},
+    "controlling_hazards": {"type": "array", "minItems": 1, "maxItems": 6, "items": {"type": "string", "minLength": 1, "maxLength": 120}},
+    "days": {"type": "array", "minItems": 7, "maxItems": 7, "items": {"$ref": "#/$defs/day"}}
+  },
+  "$defs": {
+    "window": {
+      "type": "object", "additionalProperties": false,
+      "required": ["window", "score", "label", "reason"],
+      "properties": {
+        "window": {"type": "string", "enum": ["08-10", "10-12", "12-14", "14-16", "16-18", "18-20"]},
+        "score": {"type": "integer", "minimum": 0, "maximum": 95, "multipleOf": 5},
+        "label": {"type": "string", "minLength": 1, "maxLength": 32},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 180}
+      }
+    },
+    "day": {
+      "type": "object", "additionalProperties": false,
+      "required": ["date", "confidence", "narrative", "hazards", "windows"],
+      "properties": {
+        "date": {"type": "string", "format": "date"},
+        "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+        "narrative": {"type": "string", "minLength": 1, "maxLength": 360},
+        "hazards": {"type": "array", "maxItems": 5, "items": {"type": "string", "minLength": 1, "maxLength": 100}},
+        "windows": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"$ref": "#/$defs/window"}}
+      }
+    }
+  }
+}

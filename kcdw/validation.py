@@ -1,0 +1,82 @@
+from __future__ import annotations
+
+from datetime import timedelta
+
+from .common import parse_time
+
+WINDOWS = ("08-10", "10-12", "12-14", "14-16", "16-18", "18-20")
+CONFIDENCE = {"high", "medium", "low"}
+
+
+class ValidationError(ValueError):
+    pass
+
+
+def validate_snapshot_readiness(snapshot: dict) -> None:
+    sources = snapshot.get("sources", {})
+    forecast_ok = any(sources.get(k, {}).get("ok") for k in ("nws_hourly", "nws_forecast", "nws_grid", "open_meteo"))
+    context_ok = any(sources.get(k, {}).get("ok") for k in ("okx_afd", "awc_metars", "awc_tafs", "nws_alerts"))
+    total = sum(bool(source.get("ok")) for source in sources.values() if isinstance(source, dict))
+    if not forecast_ok or not context_ok or total < 3:
+        raise ValidationError("insufficient source coverage to replace the report")
+
+
+def _exact(obj: dict, required: set[str], where: str) -> None:
+    if not isinstance(obj, dict) or set(obj) != required:
+        raise ValidationError(f"{where}: expected exactly {sorted(required)}")
+
+
+def _text(value, where: str, maximum: int, *, minimum: int = 1) -> None:
+    if not isinstance(value, str) or not minimum <= len(value.strip()) <= maximum:
+        raise ValidationError(f"{where}: text length must be {minimum}..{maximum}")
+
+
+def validate_analysis(value: dict, snapshot: dict) -> dict:
+    _exact(value, {"generated_at", "source_collected_at", "best_day", "backup_day", "summary", "controlling_hazards", "days"}, "analysis")
+    if value["source_collected_at"] != snapshot["collected_at"]:
+        raise ValidationError("source_collected_at does not match snapshot")
+    generated = parse_time(value["generated_at"])
+    collected = parse_time(snapshot["collected_at"])
+    if generated < collected - timedelta(minutes=2) or generated > collected + timedelta(hours=2):
+        raise ValidationError("generated_at inconsistent with snapshot")
+    dates = snapshot["report_dates"]
+    if value["best_day"] not in dates or value["backup_day"] not in dates or value["best_day"] == value["backup_day"]:
+        raise ValidationError("best/backup day invalid")
+    _text(value["summary"], "summary", 500)
+    if not isinstance(value["controlling_hazards"], list) or not 1 <= len(value["controlling_hazards"]) <= 6:
+        raise ValidationError("controlling_hazards must contain 1..6 items")
+    for hazard in value["controlling_hazards"]:
+        _text(hazard, "hazard", 120)
+    if not isinstance(value["days"], list) or len(value["days"]) != 7:
+        raise ValidationError("exactly seven days required")
+    seen_dates = set()
+    for day in value["days"]:
+        _exact(day, {"date", "confidence", "narrative", "hazards", "windows"}, "day")
+        if day["date"] not in dates or day["date"] in seen_dates:
+            raise ValidationError("unexpected or duplicate day")
+        seen_dates.add(day["date"])
+        if day["confidence"] not in CONFIDENCE:
+            raise ValidationError("invalid confidence")
+        _text(day["narrative"], "narrative", 360)
+        if not isinstance(day["hazards"], list) or len(day["hazards"]) > 5:
+            raise ValidationError("invalid hazards")
+        for hazard in day["hazards"]:
+            _text(hazard, "day hazard", 100)
+        if not isinstance(day["windows"], list) or len(day["windows"]) != 6:
+            raise ValidationError("exactly six windows required")
+        seen_windows = set()
+        for window in day["windows"]:
+            _exact(window, {"window", "score", "label", "reason"}, "window")
+            name, score = window["window"], window["score"]
+            if name not in WINDOWS or name in seen_windows:
+                raise ValidationError("unexpected or duplicate window")
+            seen_windows.add(name)
+            if isinstance(score, bool) or not isinstance(score, int) or not 0 <= score <= 95 or score % 5:
+                raise ValidationError("score must be 0..95 in 5-point increments")
+            _text(window["label"], "window label", 32)
+            _text(window["reason"], "window reason", 180)
+        if seen_windows != set(WINDOWS):
+            raise ValidationError("missing windows")
+    if seen_dates != set(dates):
+        raise ValidationError("missing dates")
+    return value

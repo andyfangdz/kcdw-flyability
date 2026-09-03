@@ -1,0 +1,22 @@
+[Unit]
+Description=KCDW Flyability static web server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/ubuntu/projects/kcdw-flyability
+Environment=HOME=/home/ubuntu
+Environment=PATH=/home/ubuntu/.npm-global/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PORT=8794
+ExecStart=/home/ubuntu/projects/kcdw-flyability/scripts/serve.sh
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=15s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/projects/kcdw-flyability/public
+
+[Install]
+WantedBy=default.target

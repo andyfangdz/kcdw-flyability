@@ -1,0 +1,17 @@
+[Unit]
+Description=Generate KCDW flyability report with Codex
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/ubuntu/projects/kcdw-flyability
+Environment=HOME=/home/ubuntu
+Environment=PATH=/home/ubuntu/.npm-global/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/ubuntu/projects/kcdw-flyability/scripts/update_report.sh
+TimeoutStartSec=15min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/projects/kcdw-flyability/public /home/ubuntu/projects/kcdw-flyability/var /home/ubuntu/.codex

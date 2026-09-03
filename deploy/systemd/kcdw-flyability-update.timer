@@ -1,0 +1,11 @@
+[Unit]
+Description=Hourly KCDW flyability refresh
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=2min
+Unit=kcdw-flyability-update.service
+
+[Install]
+WantedBy=timers.target

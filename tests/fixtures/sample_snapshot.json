@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "airport": {"id":"KCDW","name":"Essex County Airport","latitude":40.8752,"longitude":-74.2814,"timezone":"America/New_York","taf_note":"KCDW has no routine TAF; KTEB and KEWR are local proxies."},
+  "collected_at": "2026-09-03T12:00:00Z",
+  "local_date": "2026-09-03",
+  "report_dates": ["2026-09-04","2026-09-05","2026-09-06","2026-09-07","2026-09-08","2026-09-09","2026-09-10"],
+  "sources": {
+    "nws_points":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":{"properties":{"forecastHourly":"fixture","forecast":"fixture","forecastGridData":"fixture"}},"error":null},
+    "nws_hourly":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":[],"error":null},
+    "nws_forecast":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":[],"error":null},
+    "nws_grid":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":{},"error":null},
+    "okx_afd":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":{"excerpt":"VFR expected in deterministic fixture."},"error":null},
+    "awc_metars":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":[{"icaoId":"KCDW","rawOb":"KCDW 031151Z 29006KT 10SM FEW050 22/14 A3012"}],"error":null},
+    "awc_tafs":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":[],"error":null},
+    "awc_convective_sigmets":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":[],"error":null},
+    "nws_alerts":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":[],"error":null},
+    "open_meteo":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":{"label":"Model guidance — not official aviation guidance","daily":{"time":["2026-09-04","2026-09-05","2026-09-06","2026-09-07","2026-09-08","2026-09-09","2026-09-10"],"sunset":["2026-09-04T19:23","2026-09-05T19:21","2026-09-06T19:20","2026-09-07T19:18","2026-09-08T19:16","2026-09-09T19:15","2026-09-10T19:13"]}},"error":null}
+  }
+}
