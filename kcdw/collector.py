@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
+import struct
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import zlib
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -19,6 +22,11 @@ LAT, LON = 40.8752, -74.2814
 TZ = ZoneInfo("America/New_York")
 USER_AGENT = "kcdw-flyability/1.0 (weather report; contact: local-operator)"
 GRID_FIELDS = ("ceilingHeight", "visibility", "probabilityOfThunder", "probabilityOfPrecipitation", "windSpeed", "windGust", "windDirection", "skyCover", "weather")
+RADAR_SERVICE = "https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer"
+RADAR_BBOX = (-82.0, 38.0, -73.0, 43.0)
+RADAR_SIZE = (900, 500)
+RADAR_FRAMES = 6
+RADAR_MAX_AGE = timedelta(minutes=30)
 
 
 class Client:
@@ -59,6 +67,24 @@ class Client:
                     time.sleep(0.4 * (attempt + 1))
         raise RuntimeError(str(last))
 
+    def get_bytes(self, url: str, maximum: int) -> bytes:
+        request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "image/png"})
+        last = None
+        for attempt in range(self.retries + 1):
+            try:
+                with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                    raw = response.read(maximum + 1)
+                    if len(raw) > maximum:
+                        raise ValueError(f"binary response exceeds {maximum} bytes")
+                    if response.headers.get_content_type() != "image/png" or not raw.startswith(b"\x89PNG\r\n\x1a\n"):
+                        raise ValueError("radar response is not a PNG image")
+                    return raw
+            except (urllib.error.URLError, TimeoutError, ValueError) as exc:
+                last = exc
+                if attempt < self.retries:
+                    time.sleep(0.4 * (attempt + 1))
+        raise RuntimeError(str(last))
+
 
 def _periods(data: dict, limit: int) -> list[dict]:
     keep = ("number", "name", "startTime", "endTime", "isDaytime", "temperature", "temperatureUnit", "probabilityOfPrecipitation", "windSpeed", "windDirection", "shortForecast", "detailedForecast")
@@ -93,13 +119,224 @@ def report_dates(now: datetime) -> list[str]:
     return [(local_date + timedelta(days=i)).isoformat() for i in range(7)]
 
 
-def collect(now: datetime | None = None, client: Client | None = None) -> dict:
+def _decode_rgba_png(image: bytes) -> tuple[int, int, list[bytes]]:
+    """Decode the narrow PNG format emitted by the fixed NOAA export."""
+    if not image.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise ValueError("invalid PNG signature")
+    position = 8
+    width = height = None
+    compressed = bytearray()
+    saw_end = False
+    while position + 12 <= len(image):
+        length = struct.unpack(">I", image[position:position + 4])[0]
+        kind = image[position + 4:position + 8]
+        payload_start = position + 8
+        payload_end = payload_start + length
+        if payload_end + 4 > len(image):
+            raise ValueError("truncated PNG chunk")
+        payload = image[payload_start:payload_end]
+        if kind == b"IHDR":
+            if length != 13:
+                raise ValueError("invalid PNG header")
+            width, height, depth, color_type, compression, filtering, interlace = struct.unpack(">IIBBBBB", payload)
+            if (width, height) != RADAR_SIZE or (depth, color_type, compression, filtering, interlace) != (8, 6, 0, 0, 0):
+                raise ValueError("unexpected radar PNG format or dimensions")
+        elif kind == b"IDAT":
+            compressed.extend(payload)
+        elif kind == b"IEND":
+            saw_end = True
+            break
+        position = payload_end + 4
+    if width is None or height is None or not compressed or not saw_end:
+        raise ValueError("incomplete radar PNG")
+
+    stride = width * 4
+    expected = height * (stride + 1)
+    inflater = zlib.decompressobj()
+    raw = inflater.decompress(bytes(compressed), expected + 1)
+    if len(raw) != expected or not inflater.eof or inflater.unconsumed_tail:
+        raise ValueError("unexpected decompressed radar PNG size")
+
+    rows: list[bytes] = []
+    previous = bytes(stride)
+    offset = 0
+    for _ in range(height):
+        filter_type = raw[offset]
+        scanline = bytearray(raw[offset + 1:offset + 1 + stride])
+        offset += stride + 1
+        for index in range(stride):
+            left = scanline[index - 4] if index >= 4 else 0
+            above = previous[index]
+            upper_left = previous[index - 4] if index >= 4 else 0
+            if filter_type == 0:
+                predictor = 0
+            elif filter_type == 1:
+                predictor = left
+            elif filter_type == 2:
+                predictor = above
+            elif filter_type == 3:
+                predictor = (left + above) // 2
+            elif filter_type == 4:
+                estimate = left + above - upper_left
+                distances = (abs(estimate - left), abs(estimate - above), abs(estimate - upper_left))
+                predictor = (left, above, upper_left)[distances.index(min(distances))]
+            else:
+                raise ValueError("unsupported PNG row filter")
+            scanline[index] = (scanline[index] + predictor) & 0xFF
+        previous = bytes(scanline)
+        rows.append(previous)
+    return width, height, rows
+
+
+def _radar_spatial_summary(image: bytes) -> dict:
+    width, height, rows = _decode_rgba_png(image)
+    west, south, east, north = RADAR_BBOX
+    longitude_nm = 60 * math.cos(math.radians(LAT))
+    nearest = None
+    echo_pixels = 0
+    within_25 = False
+    within_50 = False
+    for y, row in enumerate(rows):
+        latitude = north - (y + 0.5) / height * (north - south)
+        north_nm = (latitude - LAT) * 60
+        for x in range(width):
+            if row[x * 4 + 3] == 0:
+                continue
+            echo_pixels += 1
+            longitude = west + (x + 0.5) / width * (east - west)
+            east_nm = (longitude - LON) * longitude_nm
+            distance = math.hypot(east_nm, north_nm)
+            if distance <= 25:
+                within_25 = True
+            if distance <= 50:
+                within_50 = True
+            if nearest is None or distance < nearest[0]:
+                nearest = (distance, east_nm, north_nm, longitude, latitude)
+
+    result = {
+        "displayed_echo_pixel_fraction_percent": round(echo_pixels / (width * height) * 100, 3),
+        "local_echo_within_25_nm": within_25,
+        "local_echo_within_50_nm": within_50,
+        "nearest_displayed_echo_nm": None,
+        "nearest_displayed_echo_direction": None,
+        "nearest_displayed_echo_position": None,
+    }
+    if nearest is not None:
+        distance, east_nm, north_nm, longitude, latitude = nearest
+        bearing = (math.degrees(math.atan2(east_nm, north_nm)) + 360) % 360
+        directions = ("N", "NE", "E", "SE", "S", "SW", "W", "NW")
+        result.update({
+            "nearest_displayed_echo_nm": round(distance, 1),
+            "nearest_displayed_echo_direction": directions[round(bearing / 45) % 8],
+            "nearest_displayed_echo_position": {"longitude": round(longitude, 3), "latitude": round(latitude, 3)},
+        })
+    return result
+
+
+def collect_radar_loop(client: Client, now: datetime, radar_dir: Path) -> dict:
+    """Download a bounded, time-ordered regional MRMS reflectivity loop."""
+    now = now.astimezone(UTC)
+    query = urllib.parse.urlencode({
+        "where": "name LIKE 'CONUS_L2_BREF_QCD_%'",
+        "outFields": "objectid,name,idp_validtime,idp_ingestdate",
+        "orderByFields": "idp_validtime DESC",
+        "resultRecordCount": str(RADAR_FRAMES * 2),
+        "returnGeometry": "false",
+        "f": "json",
+    })
+    listing = client.get(f"{RADAR_SERVICE}/query?{query}")
+    if not isinstance(listing, dict) or not isinstance(listing.get("features"), list):
+        raise RuntimeError("NOAA radar service returned an invalid frame listing")
+    candidates = []
+    seen_times = set()
+    for feature in listing["features"]:
+        if not isinstance(feature, dict):
+            continue
+        attributes = feature.get("attributes", {})
+        if not isinstance(attributes, dict):
+            continue
+        try:
+            object_id = int(attributes["objectid"])
+            valid = datetime.fromtimestamp(int(attributes["idp_validtime"]) / 1000, UTC)
+            ingest = datetime.fromtimestamp(int(attributes["idp_ingestdate"]) / 1000, UTC)
+        except (KeyError, TypeError, ValueError, OSError):
+            continue
+        if valid > now + timedelta(minutes=5) or valid in seen_times:
+            continue
+        seen_times.add(valid)
+        candidates.append((valid, ingest, object_id, str(attributes.get("name", ""))[:200]))
+    candidates = sorted(candidates)[-RADAR_FRAMES:]
+    if not candidates:
+        raise RuntimeError("NOAA radar service returned no usable CONUS frames")
+    latest_age = now - candidates[-1][0]
+    if latest_age > RADAR_MAX_AGE:
+        raise RuntimeError(f"latest NOAA radar frame is stale by {int(latest_age.total_seconds())} seconds")
+
+    radar_dir.mkdir(parents=True, exist_ok=True)
+    bbox = ",".join(str(value) for value in RADAR_BBOX)
+    size = ",".join(str(value) for value in RADAR_SIZE)
+    frames = []
+    for attachment, (valid, ingest, object_id, name) in enumerate(candidates, start=1):
+        mosaic_rule = json.dumps(
+            {"mosaicMethod": "esriMosaicLockRaster", "lockRasterIds": [object_id]},
+            separators=(",", ":"),
+        )
+        export = urllib.parse.urlencode({
+            "bbox": bbox,
+            "bboxSR": "4326",
+            "imageSR": "4326",
+            "size": size,
+            "format": "png32",
+            "interpolation": "RSP_NearestNeighbor",
+            "mosaicRule": mosaic_rule,
+            "f": "image",
+        })
+        image = client.get_bytes(f"{RADAR_SERVICE}/exportImage?{export}", 1_000_000)
+        path = radar_dir / f"frame-{attachment:02d}.png"
+        temporary = path.with_suffix(".png.tmp")
+        temporary.write_bytes(image)
+        temporary.replace(path)
+        frames.append({
+            "attachment": attachment,
+            "valid_at": iso_z(valid),
+            "ingested_at": iso_z(ingest),
+            "object_id": object_id,
+            "name": name,
+            **_radar_spatial_summary(image),
+        })
+
+    width, height = RADAR_SIZE
+    west, south, east, north = RADAR_BBOX
+    kcdw_pixel = {
+        "x": round((LON - west) / (east - west) * width),
+        "y": round((north - LAT) / (north - south) * height),
+    }
+    return {
+        "provider": "NOAA/NWS MRMS time-enabled base reflectivity ImageServer",
+        "service_url": RADAR_SERVICE,
+        "product": "CONUS 1 km quality-controlled base reflectivity",
+        "bbox": list(RADAR_BBOX),
+        "image_size": list(RADAR_SIZE),
+        "kcdw_pixel": kcdw_pixel,
+        "frame_order": "oldest_to_newest",
+        "latest_age_seconds": max(0, int(latest_age.total_seconds())),
+        "stale": False,
+        "frames": frames,
+        "interpretation_note": "Attached images contain radar reflectivity only, without a basemap. Black or transparent areas have no displayed reflectivity; use the supplied bounding box and KCDW pixel location.",
+    }
+
+
+def collect(now: datetime | None = None, client: Client | None = None, radar_dir: Path | None = None) -> dict:
     now = (now or datetime.now(UTC)).astimezone(UTC)
     client = client or Client()
     points_url = f"https://api.weather.gov/points/{LAT},{LON}"
     points = _source(lambda: client.get(points_url), now)
     props = points.get("data", {}).get("properties", {}) if points["ok"] else {}
-    sources: dict[str, dict] = {"nws_points": points}
+    radar_dir = radar_dir or Path("var/radar")
+    sources: dict[str, dict] = {
+        "radar_mosaic": _source(lambda: collect_radar_loop(client, now, radar_dir), now),
+        "nws_points": points,
+    }
     sources["nws_hourly"] = _source(lambda: _periods(client.get(props["forecastHourly"]), 180), now) if props else _source(lambda: (_ for _ in ()).throw(RuntimeError("points unavailable")), now)
     sources["nws_forecast"] = _source(lambda: _periods(client.get(props["forecast"]), 16), now) if props else _source(lambda: (_ for _ in ()).throw(RuntimeError("points unavailable")), now)
 
@@ -180,8 +417,11 @@ def collect(now: datetime | None = None, client: Client | None = None) -> dict:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", default="var/snapshot.json")
+    parser.add_argument("--radar-dir", help="directory for ordered radar PNG attachments")
     args = parser.parse_args(argv)
-    atomic_write(args.output, json.dumps(collect(), indent=2, sort_keys=True) + "\n")
+    output = Path(args.output)
+    radar_dir = Path(args.radar_dir) if args.radar_dir else output.with_name(f"{output.stem}.radar")
+    atomic_write(output, json.dumps(collect(radar_dir=radar_dir), indent=2, sort_keys=True) + "\n")
     return 0
 
 

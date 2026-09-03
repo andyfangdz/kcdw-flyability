@@ -20,7 +20,7 @@
         "window": {"type": "string", "enum": ["08-10", "10-12", "12-14", "14-16", "16-18", "18-20"]},
         "score": {"type": "integer", "minimum": 0, "maximum": 95, "multipleOf": 5},
         "label": {"type": "string", "minLength": 1, "maxLength": 32},
-        "reason": {"type": "string", "minLength": 1, "maxLength": 180}
+        "reason": {"type": "string", "minLength": 1, "maxLength": 300}
       }
     },
     "day": {
