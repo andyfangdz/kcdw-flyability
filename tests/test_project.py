@@ -8,6 +8,7 @@ import struct
 import subprocess
 import tempfile
 import unittest
+import urllib.parse
 import zlib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -66,6 +67,54 @@ def snapshot_with_radar(snapshot: dict, frame_count: int = 2) -> dict:
         "error": None,
     }
     return value
+
+
+def weather_next_payload(count: int = 192) -> dict:
+    start = datetime(2026, 9, 3, 12, tzinfo=timezone.utc)
+    times = [int((start + timedelta(hours=index)).timestamp()) for index in range(count)]
+    units = {
+        "time": "unixtime",
+        "temperature_2m": "°C",
+        "temperature_2m_spread": "K",
+        "precipitation": "inch",
+        "precipitation_spread": "inch",
+        "cloud_cover_low": "%",
+        "cloud_cover_low_spread": "%",
+        "cloud_cover_mid": "%",
+        "cloud_cover_mid_spread": "%",
+        "cloud_cover_high": "%",
+        "cloud_cover_high_spread": "%",
+        "wind_speed_10m": "kn",
+        "wind_speed_10m_spread": "kn",
+        "wind_direction_10m": "°",
+        "pressure_msl": "hPa",
+        "pressure_msl_spread": "hPa",
+        "weather_code": "wmo code",
+    }
+    hourly: dict[str, list] = {"time": times}
+    for name in units:
+        if name != "time":
+            hourly[name] = [0.0] * count
+    hourly["pressure_msl"] = [1013.0] * count
+    return {
+        "latitude": 41.0,
+        "longitude": -74.25,
+        "timezone": "GMT",
+        "utc_offset_seconds": 0,
+        "hourly_units": units,
+        "hourly": hourly,
+    }
+
+
+def ensemble_metadata(update_interval_seconds: int = 43_200) -> dict:
+    return {
+        "last_run_initialisation_time": 1_788_415_200,
+        "last_run_modification_time": 1_788_433_200,
+        "last_run_availability_time": 1_788_433_500,
+        "temporal_resolution_seconds": 21_600,
+        "update_interval_seconds": update_interval_seconds,
+        "data_end_time": 1_789_711_200,
+    }
 
 
 class ProjectTests(unittest.TestCase):
@@ -168,6 +217,106 @@ class ProjectTests(unittest.TestCase):
                     Path(tmp),
                 )
 
+    def test_collect_weather_next2_uses_exact_bounded_model_contract(self):
+        class WeatherNextClient:
+            def get(self, url):
+                if url.endswith("/static/meta.json"):
+                    self.metadata_url = url
+                    return ensemble_metadata()
+                self.url = url
+                return weather_next_payload()
+
+        client = WeatherNextClient()
+        now = datetime(2026, 9, 3, 12, 34, tzinfo=timezone.utc)
+        result = collector.collect_weather_next(client, now)
+        parsed = urllib.parse.urlparse(client.url)
+        query = urllib.parse.parse_qs(parsed.query)
+
+        self.assertEqual(parsed.scheme + "://" + parsed.netloc + parsed.path, collector.WEATHER_NEXT_ENDPOINT)
+        self.assertEqual(query["models"], ["google_weathernext2_ensemble_mean"])
+        self.assertEqual(query["forecast_hours"], ["192"])
+        self.assertEqual(query["timezone"], ["GMT"])
+        self.assertEqual(query["timeformat"], ["unixtime"])
+        self.assertEqual(query["wind_speed_unit"], ["kn"])
+        self.assertEqual(result["model"], "WeatherNext 2")
+        self.assertEqual(result["model_id"], "google_weathernext2_ensemble_mean")
+        self.assertEqual(result["ensemble_members"], 64)
+        self.assertEqual(result["statistics"], ["mean", "spread"])
+        self.assertEqual(result["native_timestep_hours"], 6)
+        self.assertEqual(result["returned_timestep_hours"], 1)
+        self.assertEqual(result["initialization_time"], "2026-09-03T06:00:00Z")
+        self.assertEqual(result["availability_time"], "2026-09-03T11:05:00Z")
+        self.assertIn("google_weathernext2_ensemble_mean", client.metadata_url)
+        self.assertEqual(result["hourly"]["time"][0], "2026-09-03T12:00:00Z")
+        self.assertEqual(len(result["hourly"]["time"]), 192)
+
+    def test_collect_weather_next2_rejects_malformed_times_units_and_values(self):
+        cases = []
+        wrong_units = weather_next_payload()
+        wrong_units["hourly_units"]["wind_speed_10m"] = "mph"
+        cases.append(("units", wrong_units))
+        wrong_time = weather_next_payload()
+        wrong_time["hourly"]["time"][10] += 60
+        cases.append(("hourly", wrong_time))
+        missing_value = weather_next_payload()
+        missing_value["hourly"]["cloud_cover_low"][20] = None
+        cases.append(("numeric", missing_value))
+
+        invalid_values = {
+            "temperature_2m": 1e100,
+            "temperature_2m_spread": 101.0,
+            "precipitation": 51.0,
+            "precipitation_spread": 51.0,
+            "cloud_cover_low": 101.0,
+            "cloud_cover_low_spread": 101.0,
+            "wind_speed_10m": 301.0,
+            "wind_speed_10m_spread": 301.0,
+            "wind_direction_10m": 361.0,
+            "pressure_msl": -1.0,
+            "pressure_msl_spread": 151.0,
+            "weather_code": 99.5,
+        }
+        for variable, value in invalid_values.items():
+            payload = weather_next_payload()
+            payload["hourly"][variable][0] = value
+            cases.append((variable, payload))
+
+        unsupported_weather_code = weather_next_payload()
+        unsupported_weather_code["hourly"]["weather_code"][0] = 4
+        cases.append(("unsupported weather code", unsupported_weather_code))
+
+        for label, payload in cases:
+            with self.subTest(label=label):
+                client = mock.Mock()
+                client.get.side_effect = [ensemble_metadata(), payload]
+                with self.assertRaises(ValueError):
+                    collector.collect_weather_next(
+                        client,
+                        datetime(2026, 9, 3, 12, 34, tzinfo=timezone.utc),
+                    )
+
+    def test_collect_aifs_ens_uses_exact_bounded_model_contract(self):
+        class AifsClient:
+            def get(self, url):
+                if url.endswith("/static/meta.json"):
+                    return ensemble_metadata(21_600)
+                self.url = url
+                return weather_next_payload()
+
+        client = AifsClient()
+        result = collector.collect_aifs_ens(
+            client,
+            datetime(2026, 9, 3, 12, 34, tzinfo=timezone.utc),
+        )
+        query = urllib.parse.parse_qs(urllib.parse.urlparse(client.url).query)
+        self.assertEqual(query["models"], ["ecmwf_aifs025_ensemble_mean"])
+        self.assertEqual(query["forecast_hours"], ["192"])
+        self.assertEqual(result["model"], "ECMWF AIFS-ENS")
+        self.assertEqual(result["model_id"], "ecmwf_aifs025_ensemble_mean")
+        self.assertEqual(result["ensemble_members"], 51)
+        self.assertEqual(result["update_frequency_hours"], 6)
+        self.assertEqual(result["forecast_horizon_days"], 15)
+
     def test_validation_rejects_post_8_pm_today_picks(self):
         snapshot = copy.deepcopy(self.snapshot)
         snapshot["collected_at"] = "2026-09-03T23:59:00Z"
@@ -208,6 +357,28 @@ class ProjectTests(unittest.TestCase):
         sparse["sources"]["nws_hourly"]["ok"] = True
         with self.assertRaises(ValidationError): validate_snapshot_readiness(sparse)
 
+    def test_long_range_ensembles_cannot_satisfy_short_term_forecast_quorum(self):
+        snapshot = copy.deepcopy(self.snapshot)
+        for source in snapshot["sources"].values():
+            source["ok"] = False
+        now = datetime(2026, 9, 3, 12, 34, tzinfo=timezone.utc)
+        for source_key, collect, update_interval in (
+            ("weather_next", collector.collect_weather_next, 43_200),
+            ("aifs_ens", collector.collect_aifs_ens, 21_600),
+        ):
+            client = mock.Mock()
+            client.get.side_effect = [ensemble_metadata(update_interval), weather_next_payload()]
+            snapshot["sources"][source_key] = {
+                "ok": True,
+                "fetched_at": snapshot["collected_at"],
+                "data": collect(client, now),
+                "error": None,
+            }
+        snapshot["sources"]["nws_alerts"]["ok"] = True
+        snapshot["sources"]["nws_alerts"]["data"] = {"features": []}
+        with self.assertRaisesRegex(ValidationError, "insufficient source coverage"):
+            validate_snapshot_readiness(snapshot)
+
     def test_snapshot_readiness_rejects_radar_marked_available_without_fresh_frames(self):
         snapshot = copy.deepcopy(self.snapshot)
         snapshot["sources"]["radar_mosaic"] = {
@@ -220,6 +391,66 @@ class ProjectTests(unittest.TestCase):
             validate_snapshot_readiness(snapshot)
         with self.assertRaisesRegex(ValidationError, "radar"):
             validate_snapshot_readiness(snapshot_with_radar(self.snapshot, 7))
+
+    def test_snapshot_readiness_validates_available_weather_next_source(self):
+        snapshot = copy.deepcopy(self.snapshot)
+        client = mock.Mock()
+        client.get.side_effect = [ensemble_metadata(), weather_next_payload()]
+        snapshot["sources"]["weather_next"] = {
+            "ok": True,
+            "fetched_at": snapshot["collected_at"],
+            "data": collector.collect_weather_next(
+                client,
+                datetime(2026, 9, 3, 12, 34, tzinfo=timezone.utc),
+            ),
+            "error": None,
+        }
+        validate_snapshot_readiness(snapshot)
+        bad_spread = copy.deepcopy(snapshot)
+        bad_spread["sources"]["weather_next"]["data"]["hourly"]["precipitation_spread"][0] = -1
+        with self.assertRaisesRegex(ValidationError, "WeatherNext"):
+            validate_snapshot_readiness(bad_spread)
+        snapshot["sources"]["weather_next"]["data"]["hourly_units"]["precipitation"] = "mm"
+        with self.assertRaisesRegex(ValidationError, "WeatherNext"):
+            validate_snapshot_readiness(snapshot)
+
+    def test_snapshot_readiness_reapplies_all_ensemble_physical_bounds(self):
+        snapshot = copy.deepcopy(self.snapshot)
+        client = mock.Mock()
+        client.get.side_effect = [ensemble_metadata(), weather_next_payload()]
+        snapshot["sources"]["weather_next"] = {
+            "ok": True,
+            "fetched_at": snapshot["collected_at"],
+            "data": collector.collect_weather_next(
+                client,
+                datetime(2026, 9, 3, 12, 34, tzinfo=timezone.utc),
+            ),
+            "error": None,
+        }
+        invalid_values = {
+            "temperature_2m": 1e100,
+            "temperature_2m_spread": 101.0,
+            "precipitation": 51.0,
+            "precipitation_spread": 51.0,
+            "cloud_cover_low": 101.0,
+            "cloud_cover_low_spread": 101.0,
+            "wind_speed_10m": 301.0,
+            "wind_speed_10m_spread": 301.0,
+            "wind_direction_10m": 361.0,
+            "pressure_msl": -1.0,
+            "pressure_msl_spread": 151.0,
+            "weather_code": 99.5,
+        }
+        for variable, value in invalid_values.items():
+            with self.subTest(variable=variable):
+                bad = copy.deepcopy(snapshot)
+                bad["sources"]["weather_next"]["data"]["hourly"][variable][0] = value
+                with self.assertRaisesRegex(ValidationError, "WeatherNext"):
+                    validate_snapshot_readiness(bad)
+        bad = copy.deepcopy(snapshot)
+        bad["sources"]["weather_next"]["data"]["hourly"]["weather_code"][0] = 4
+        with self.assertRaisesRegex(ValidationError, "WeatherNext"):
+            validate_snapshot_readiness(bad)
 
     def test_prompt_defines_same_day_scoring(self):
         prompt = build_prompt(self.snapshot)
@@ -249,6 +480,23 @@ class ProjectTests(unittest.TestCase):
             "complete sentence within 300 characters",
             "Attached radar images are ordered oldest to newest",
             "deterministic spatial metrics",
+        )
+        for guidance in required_guidance:
+            with self.subTest(guidance=guidance):
+                self.assertIn(guidance, prompt)
+
+    def test_prompt_favors_weather_next2_only_for_longer_range(self):
+        prompt = build_prompt(self.snapshot)
+        required_guidance = (
+            "WeatherNext 2 is the preferred model guidance beyond 48 hours",
+            "Preferred model guidance does not mean preferred evidence overall",
+            "official NWS forecasts, AFD reasoning, and SPC outlooks remain higher-authority",
+            "ensemble mean and spread together",
+            "Use AIFS-ENS as the independent comparison and fallback model guidance",
+            "Do not average model disagreement away",
+            "native six-hour guidance interpolated to hourly steps",
+            "low-cloud fraction is not a ceiling",
+            "Never relabel WeatherNext 2 data as WeatherNext 3",
         )
         for guidance in required_guidance:
             with self.subTest(guidance=guidance):
@@ -302,6 +550,26 @@ class ProjectTests(unittest.TestCase):
         self.assertIn("NOAA/NWS MRMS radar loop", rendered)
         self.assertIn("Latest frame 2026-09-03T12:05:00Z", rendered)
         self.assertIn("no displayed echo within 50 NM; nearest displayed echo 57.0 NM N", rendered)
+
+    def test_render_lists_long_range_ensembles_and_open_meteo_attribution(self):
+        snapshot = copy.deepcopy(self.snapshot)
+        snapshot["sources"]["weather_next"] = {
+            "ok": True,
+            "fetched_at": snapshot["collected_at"],
+            "data": {"model": "WeatherNext 2"},
+            "error": None,
+        }
+        snapshot["sources"]["aifs_ens"] = {
+            "ok": True,
+            "fetched_at": snapshot["collected_at"],
+            "data": {"model": "ECMWF AIFS-ENS"},
+            "error": None,
+        }
+        rendered, _ = render(snapshot, self.analysis, datetime(2026, 9, 3, 12, 10, tzinfo=timezone.utc))
+        self.assertIn("Google WeatherNext 2 ensemble guidance", rendered)
+        self.assertIn("ECMWF AIFS-ENS ensemble guidance", rendered)
+        self.assertIn('href="https://open-meteo.com/"', rendered)
+        self.assertIn("Weather data by Open-Meteo.com", rendered)
 
     def test_render_marks_today_and_elapsed_windows(self):
         rendered, _ = render(self.snapshot, self.analysis, datetime(2026, 9, 3, 20, 10, tzinfo=timezone.utc))

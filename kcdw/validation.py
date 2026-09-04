@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from .common import parse_time
+from .ensemble_guidance import validate_ensemble_guidance
 
 WINDOWS = ("08-10", "10-12", "12-14", "14-16", "16-18", "18-20")
 CONFIDENCE = {"high", "medium", "low"}
@@ -43,6 +44,18 @@ def validate_snapshot_readiness(snapshot: dict) -> None:
             raise ValidationError("radar frames must be complete and ordered oldest to newest")
         if frame_times[-1] > collected + timedelta(minutes=5) or collected - frame_times[-1] > timedelta(minutes=30):
             raise ValidationError("radar latest frame is not fresh at collection time")
+    for source_key, model_id, label in (
+        ("weather_next", "google_weathernext2_ensemble_mean", "WeatherNext 2"),
+        ("aifs_ens", "ecmwf_aifs025_ensemble_mean", "AIFS-ENS"),
+    ):
+        source = sources.get(source_key, {})
+        if isinstance(source, dict) and source.get("ok"):
+            try:
+                if source.get("fetched_at") != snapshot.get("collected_at"):
+                    raise ValueError("ensemble fetch time does not match collection time")
+                validate_ensemble_guidance(source.get("data"), model_id, parse_time(snapshot["collected_at"]))
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValidationError(f"{label} source marked available with invalid guidance") from exc
     forecast_ok = any(sources.get(k, {}).get("ok") for k in ("nws_hourly", "nws_forecast", "nws_grid", "open_meteo"))
     context_ok = any(sources.get(k, {}).get("ok") for k in ("okx_afd", "awc_metars", "awc_tafs", "nws_alerts"))
     total = sum(bool(source.get("ok")) for source in sources.values() if isinstance(source, dict))

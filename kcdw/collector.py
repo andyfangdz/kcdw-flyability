@@ -15,6 +15,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .common import UTC, atomic_write, iso_z
+from .ensemble_guidance import WEATHER_NEXT_ENDPOINT, collect_aifs_ens, collect_weather_next
 from .geometry import geometry_contains
 from .intervals import expand_grid_values
 
@@ -336,6 +337,8 @@ def collect(now: datetime | None = None, client: Client | None = None, radar_dir
     sources: dict[str, dict] = {
         "radar_mosaic": _source(lambda: collect_radar_loop(client, now, radar_dir), now),
         "nws_points": points,
+        "weather_next": _source(lambda: collect_weather_next(client, now), now),
+        "aifs_ens": _source(lambda: collect_aifs_ens(client, now), now),
     }
     sources["nws_hourly"] = _source(lambda: _periods(client.get(props["forecastHourly"]), 180), now) if props else _source(lambda: (_ for _ in ()).throw(RuntimeError("points unavailable")), now)
     sources["nws_forecast"] = _source(lambda: _periods(client.get(props["forecast"]), 16), now) if props else _source(lambda: (_ for _ in ()).throw(RuntimeError("points unavailable")), now)
