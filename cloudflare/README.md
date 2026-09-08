@@ -8,7 +8,7 @@ The host generates forecasts. The Worker serves the latest report and historical
 
 Each `reports/<reverse-run-timestamp>-<run-id>.json` object contains the rendered HTML, validated analysis, health metadata, and change summary. Reverse timestamp keys let R2 list the newest reports first with cursor pagination. Raw snapshots, prompts, credentials, and Codex logs stay on the generator host.
 
-`POST /api/publish` requires the `PUBLISH_TOKEN` Worker secret. It accepts a bounded complete report, stores it conditionally without overwriting an existing ID, then updates `latest.json` with an ETag compare-and-swap. Repeated identical uploads are safe. Backfills cannot replace newer assessments. If updating the pointer fails, the complete report remains in history and publication can be retried.
+`POST /api/publish` requires the `PUBLISH_TOKEN` Worker secret. It accepts a bounded complete report, stores it conditionally without overwriting an existing ID, then updates `latest.json` with an ETag compare-and-swap. The pointer also contains the freshness threshold, allowing health requests to avoid loading the report body. Repeated identical uploads are safe. Backfills cannot replace newer assessments. If updating the pointer fails, the complete report remains in history and publication can be retried.
 
 The host validates the full analysis before upload. The Worker checks the transport contract and matching timestamps; the publisher credential is trusted to submit the rendered HTML. Read requests cannot mutate R2. No user-supplied object path is passed through to the bucket.
 

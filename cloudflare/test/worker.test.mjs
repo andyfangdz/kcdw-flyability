@@ -52,3 +52,18 @@ test('history follows R2 continuation cursors',async()=>{
   const second=await (await request('/api/history?cursor='+encodeURIComponent(first.cursor))).json();assert.ok(second.reports.length>0);
   assert.equal(new Set([...first.reports,...second.reports].map(r=>r.run_id)).size,56);
 });
+
+test('health uses the small publication pointer and supports older pointers',async()=>{
+  const bucket=await mf.getR2Bucket('REPORTS');
+  const pointer=await (await bucket.get('latest.json')).json();
+  assert.equal(pointer.stale_after,5400);
+  const modern=await (await request('/health.json')).json();
+  assert.equal(modern.generated_at,pointer.assessed_at);
+  assert.equal(modern.stale,true);
+  const {stale_after,...legacy}=pointer;
+  await bucket.put('latest.json',JSON.stringify(legacy));
+  const compatible=await (await request('/health.json')).json();
+  assert.equal(compatible.generated_at,modern.generated_at);
+  assert.equal(compatible.stale_after,modern.stale_after);
+  await bucket.put('latest.json',JSON.stringify(pointer));
+});
