@@ -1,21 +1,140 @@
 {
   "schema_version": 1,
-  "airport": {"id":"KCDW","name":"Essex County Airport","latitude":40.8752,"longitude":-74.2814,"timezone":"America/New_York","taf_note":"KCDW has no routine TAF; KTEB and KEWR are local proxies."},
+  "airport": {
+    "id": "KCDW",
+    "name": "Essex County Airport",
+    "latitude": 40.8752,
+    "longitude": -74.2814,
+    "timezone": "America/New_York",
+    "taf_note": "KCDW has no routine TAF; KTEB and KEWR are local proxies."
+  },
   "collected_at": "2026-09-03T12:00:00Z",
   "local_date": "2026-09-03",
-  "report_dates": ["2026-09-03","2026-09-04","2026-09-05","2026-09-06","2026-09-07","2026-09-08","2026-09-09"],
+  "report_dates": [
+    "2026-09-03",
+    "2026-09-04",
+    "2026-09-05",
+    "2026-09-06",
+    "2026-09-07",
+    "2026-09-08",
+    "2026-09-09"
+  ],
   "sources": {
-    "nws_points":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":{"properties":{"forecastHourly":"fixture","forecast":"fixture","forecastGridData":"fixture"}},"error":null},
-    "nws_hourly":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":[],"error":null},
-    "nws_forecast":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":[],"error":null},
-    "nws_grid":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":{},"error":null},
-    "okx_afd":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":{"excerpt":"VFR expected in deterministic fixture."},"error":null},
-    "awc_metars":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":[{"icaoId":"KCDW","rawOb":"KCDW 031151Z 29006KT 10SM FEW050 22/14 A3012"}],"error":null},
-    "awc_tafs":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":[],"error":null},
-    "awc_convective_sigmets":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":[],"error":null},
-    "nws_alerts":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":[],"error":null},
-    "weather_next":{"ok":false,"fetched_at":"2026-09-03T12:00:00Z","data":null,"error":"Deterministic fixture omits live WeatherNext 2 guidance"},
-    "aifs_ens":{"ok":false,"fetched_at":"2026-09-03T12:00:00Z","data":null,"error":"Deterministic fixture omits live AIFS-ENS guidance"},
-    "open_meteo":{"ok":true,"fetched_at":"2026-09-03T12:00:00Z","data":{"label":"Model guidance — not official aviation guidance","daily":{"time":["2026-09-03","2026-09-04","2026-09-05","2026-09-06","2026-09-07","2026-09-08","2026-09-09"],"sunset":["2026-09-03T19:24","2026-09-04T19:23","2026-09-05T19:21","2026-09-06T19:20","2026-09-07T19:18","2026-09-08T19:16","2026-09-09T19:15"]}},"error":null}
+    "nws_points": {
+      "ok": true,
+      "fetched_at": "2026-09-03T12:00:00Z",
+      "data": {
+        "properties": {
+          "forecastHourly": "fixture",
+          "forecast": "fixture",
+          "forecastGridData": "fixture"
+        }
+      },
+      "error": null
+    },
+    "nws_hourly": {
+      "ok": true,
+      "fetched_at": "2026-09-03T12:00:00Z",
+      "data": [
+        {
+          "startTime": "2026-09-03T12:00:00Z",
+          "endTime": "2026-09-03T15:00:00Z",
+          "shortForecast": "Mostly sunny",
+          "windSpeed": "5 mph"
+        }
+      ],
+      "error": null
+    },
+    "nws_forecast": {
+      "ok": true,
+      "fetched_at": "2026-09-03T12:00:00Z",
+      "data": [],
+      "error": null
+    },
+    "nws_grid": {
+      "ok": true,
+      "fetched_at": "2026-09-03T12:00:00Z",
+      "data": {},
+      "error": null
+    },
+    "okx_afd": {
+      "ok": true,
+      "fetched_at": "2026-09-03T12:00:00Z",
+      "data": {
+        "excerpt": "VFR expected in deterministic fixture.",
+        "issuanceTime": "2026-09-03T11:00:00Z"
+      },
+      "error": null
+    },
+    "awc_metars": {
+      "ok": true,
+      "fetched_at": "2026-09-03T12:00:00Z",
+      "data": [
+        {
+          "icaoId": "KCDW",
+          "rawOb": "KCDW 031151Z 29006KT 10SM FEW050 22/14 A3012",
+          "obsTime": 1788436260
+        }
+      ],
+      "error": null
+    },
+    "awc_tafs": {
+      "ok": true,
+      "fetched_at": "2026-09-03T12:00:00Z",
+      "data": [],
+      "error": null
+    },
+    "awc_convective_sigmets": {
+      "ok": true,
+      "fetched_at": "2026-09-03T12:00:00Z",
+      "data": [],
+      "error": null
+    },
+    "nws_alerts": {
+      "ok": true,
+      "fetched_at": "2026-09-03T12:00:00Z",
+      "data": [],
+      "error": null
+    },
+    "weather_next": {
+      "ok": false,
+      "fetched_at": "2026-09-03T12:00:00Z",
+      "data": null,
+      "error": "Deterministic fixture omits live WeatherNext 2 guidance"
+    },
+    "aifs_ens": {
+      "ok": false,
+      "fetched_at": "2026-09-03T12:00:00Z",
+      "data": null,
+      "error": "Deterministic fixture omits live AIFS-ENS guidance"
+    },
+    "open_meteo": {
+      "ok": true,
+      "fetched_at": "2026-09-03T12:00:00Z",
+      "data": {
+        "label": "Model guidance \u2014 not official aviation guidance",
+        "daily": {
+          "time": [
+            "2026-09-03",
+            "2026-09-04",
+            "2026-09-05",
+            "2026-09-06",
+            "2026-09-07",
+            "2026-09-08",
+            "2026-09-09"
+          ],
+          "sunset": [
+            "2026-09-03T19:24",
+            "2026-09-04T19:23",
+            "2026-09-05T19:21",
+            "2026-09-06T19:20",
+            "2026-09-07T19:18",
+            "2026-09-08T19:16",
+            "2026-09-09T19:15"
+          ]
+        }
+      },
+      "error": null
+    }
   }
 }

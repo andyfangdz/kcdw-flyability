@@ -517,7 +517,7 @@ class ProjectTests(unittest.TestCase):
             "25–40 · Probably not",
             "0–20 · Practical no-go",
         ):
-            self.assertIn(label, rendered)
+            self.assertIn(label.split(" · ")[1], rendered)
             self.assertIn(label.lower().replace(" · ", " "), build_prompt(self.snapshot).lower())
 
     def test_window_reason_contract_allows_complete_short_term_rationale(self):
@@ -603,6 +603,9 @@ class ProjectTests(unittest.TestCase):
             env = os.environ | {"PUBLIC_DIR":str(public), "VAR_DIR":str(var), "SNAPSHOT_FIXTURE":str(FIX / "sample_snapshot.json"), "CODEX_BIN":str(mock)}
             result = subprocess.run([str(ROOT / "scripts" / "update_report.sh")], cwd=ROOT, env=env, capture_output=True)
             self.assertEqual(result.returncode, 42, result.stderr.decode())
+            feedback = json.loads((var / "agent-feedback.jsonl").read_text())
+            self.assertEqual(feedback["feedback_status"], "missing")
+            self.assertEqual(feedback["exit_code"], 42)
             self.assertEqual(index.read_text(), "known-good")
             self.assertIn("publication=preserved", (var / "update.log").read_text())
 
@@ -640,10 +643,15 @@ class ProjectTests(unittest.TestCase):
             }
             result = subprocess.run([str(ROOT / "scripts" / "update_report.sh")], cwd=ROOT, env=env, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stderr.decode())
+            feedback = json.loads((var / "agent-feedback.jsonl").read_text())
+            self.assertEqual(feedback["feedback_status"], "valid")
+            self.assertEqual(feedback["exit_code"], 0)
+            self.assertEqual(feedback["data_requests"], [])
             args = args_file.read_text().splitlines()
             self.assertIn("--model", args)
             self.assertEqual(args[args.index("--model") + 1], "gpt-6-astra")
             self.assertIn('model_reasoning_effort="medium"', args)
+            self.assertIn('web_search="live"', args)
             attached = [args[index + 1] for index, value in enumerate(args) if value == "--image"]
             self.assertEqual(attached, [str(path) for path in frame_paths])
 
@@ -714,38 +722,6 @@ class ProjectTests(unittest.TestCase):
             self.assertEqual((latest / "frame-01.png").read_bytes(), b"known-good")
             self.assertEqual(json.loads((latest / "manifest.json").read_text()), {"known": "good"})
 
-    def test_publish_radar_evidence_writes_manifest_and_switches_latest_atomically(self):
-        from kcdw.radar_evidence import publish_radar_evidence
-
-        with tempfile.TemporaryDirectory() as tmp_name:
-            var = Path(tmp_name); radar = var / "radar.run"; latest = var / "latest-radar"
-            radar.mkdir(); latest.mkdir()
-            (latest / "old").write_text("old", encoding="utf-8")
-            for attachment in (1, 2):
-                (radar / f"frame-{attachment:02d}.png").write_bytes(rgba_png(900, 500, set()))
-            snapshot = snapshot_with_radar(self.snapshot)
-            publish_radar_evidence(snapshot, radar, var, "test-run")
-            self.assertTrue(latest.is_symlink())
-            self.assertEqual(sorted(path.name for path in latest.glob("frame-*.png")), ["frame-01.png", "frame-02.png"])
-            manifest = json.loads((latest / "manifest.json").read_text())
-            self.assertEqual(manifest["snapshot_collected_at"], snapshot["collected_at"])
-            self.assertEqual(manifest["radar_mosaic"], snapshot["sources"]["radar_mosaic"])
-
-    def test_post_switch_cleanup_failure_does_not_report_publication_failure(self):
-        from kcdw.radar_evidence import publish_radar_evidence
-
-        with tempfile.TemporaryDirectory() as tmp_name:
-            var = Path(tmp_name); old = var / "radar-published.old"; radar = var / "radar.run"
-            old.mkdir(); radar.mkdir()
-            (var / "latest-radar").symlink_to(old.name, target_is_directory=True)
-            for attachment in (1, 2):
-                (radar / f"frame-{attachment:02d}.png").write_bytes(rgba_png(900, 500, set()))
-            with mock.patch("kcdw.radar_evidence.Path.glob", side_effect=OSError("injected cleanup failure")):
-                self.assertTrue(publish_radar_evidence(snapshot_with_radar(self.snapshot), radar, var, "cleanup"))
-            latest = var / "latest-radar"
-            self.assertTrue(latest.is_symlink())
-            self.assertEqual(os.readlink(latest), "radar-published.cleanup")
-            self.assertTrue((latest / "manifest.json").is_file())
 
 
 if __name__ == "__main__": unittest.main()

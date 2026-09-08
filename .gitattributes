@@ -1,0 +1,3 @@
+# Preserve original fixed-width NOAA station cards, including empty trailing fields.
+tests/fixtures/nbh_kcdw.txt whitespace=-blank-at-eol
+tests/fixtures/nbs_kcdw.txt whitespace=-blank-at-eol

@@ -20,6 +20,7 @@ prompt="$VAR_DIR/prompt.${run_id}.txt"
 analysis="$VAR_DIR/analysis.${run_id}.json"
 html_tmp="$VAR_DIR/index.${run_id}.html"
 health_tmp="$VAR_DIR/health.${run_id}.json"
+codex_log="$VAR_DIR/codex.${run_id}.log"
 managed_radar=0
 if [[ -n "${RADAR_DIR:-}" ]]; then
   radar_dir="$RADAR_DIR"
@@ -28,7 +29,15 @@ else
   managed_radar=1
 fi
 cleanup() {
-  rm -f "$snapshot" "$prompt" "$analysis" "$html_tmp" "$health_tmp"
+  run_rc=$?
+  if ! python3 -m kcdw.feedback record "$VAR_DIR/agent-feedback.jsonl" "$run_id" "$snapshot" "$analysis" "$run_rc"; then
+    log "feedback=failed"
+  fi
+  if ! python3 -m kcdw.runs finish "$VAR_DIR" "$run_id" "$snapshot" "$analysis" "$prompt" "$radar_dir" "$codex_log" --exit-code "$run_rc"; then
+    log "archive=failed"
+  fi
+  if [[ -f "$codex_log" ]]; then cat "$codex_log" >> "$VAR_DIR/codex.log"; fi
+  rm -f "$codex_log" "$snapshot" "$prompt" "$analysis" "$html_tmp" "$health_tmp"
   if (( managed_radar )); then rm -rf -- "$radar_dir"; fi
 }
 trap cleanup EXIT
@@ -37,7 +46,7 @@ log() { printf '%s run=%s %s\n' "$(date -u +%FT%TZ)" "$run_id" "$*" >> "$VAR_DIR
 if [[ -n "${SNAPSHOT_FIXTURE:-}" ]]; then
   cp "$SNAPSHOT_FIXTURE" "$snapshot"
 else
-  python3 -m kcdw.collector --output "$snapshot" --radar-dir "$radar_dir"
+  python3 -m kcdw.collector --output "$snapshot" --radar-dir "$radar_dir" --cache-dir "$VAR_DIR/cache/nbm"
 fi
 collected="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["collected_at"])' "$snapshot")"
 log "collector=success collected_at=$collected"
@@ -70,27 +79,45 @@ codex_bin="${CODEX_BIN:-codex}"
 codex_version="$($codex_bin --version 2>&1 | head -n 1 | tr -cd '[:alnum:]. _/-')"
 log "codex_version=${codex_version:-unknown}"
 set +e
-timeout "${CODEX_TIMEOUT:-12m}" "$codex_bin" exec --model gpt-6-astra -c 'model_reasoning_effort="medium"' --ephemeral --sandbox read-only --color never --output-schema schema/analysis.schema.json --output-last-message "$analysis" "${radar_args[@]}" - < "$prompt" >>"$VAR_DIR/codex.log" 2>&1
+timeout "${CODEX_TIMEOUT:-12m}" "$codex_bin" -c 'web_search="live"' exec --model gpt-6-astra -c 'model_reasoning_effort="medium"' --ephemeral --sandbox read-only --color never --output-schema schema/analysis.schema.json --output-last-message "$analysis" "${radar_args[@]}" - < "$prompt" >"$codex_log" 2>&1
 codex_rc=$?
 set -e
 log "codex_exit=$codex_rc"
 if (( codex_rc != 0 )); then log "validation=not_run publication=preserved"; exit "$codex_rc"; fi
 
-if ! python3 -m kcdw.renderer "$snapshot" "$analysis" --output "$html_tmp" --health "$health_tmp"; then
+previous_args=()
+cloud_config="${CLOUD_PUBLISH_CONFIG:-$VAR_DIR/cloudflare.json}"
+if [[ -f "$cloud_config" ]]; then
+  if python3 -m kcdw.cloud_publish --config "$cloud_config" previous "$VAR_DIR/cloud-previous.json"; then
+    previous_args=(--previous "$VAR_DIR/cloud-previous.json")
+    log "previous_assessment=cloudflare"
+  else
+    log "previous_assessment=cloudflare_unavailable fallback=local"
+  fi
+fi
+if (( ${#previous_args[@]} )); then
+  :
+elif [[ -f "$VAR_DIR/current/analysis.json" ]]; then
+  previous_args=(--previous "$VAR_DIR/current/analysis.json")
+elif [[ -f "$VAR_DIR/latest-analysis.json" ]]; then
+  previous_args=(--previous "$VAR_DIR/latest-analysis.json")
+fi
+if ! python3 -m kcdw.renderer "$snapshot" "$analysis" --output "$html_tmp" --health "$health_tmp" "${previous_args[@]}"; then
   log "validation=failed publication=preserved"
   exit 1
 fi
 log "validation=success"
-if (( managed_radar )) && (( radar_count > 0 )); then
-  if ! radar_publication="$(python3 -m kcdw.radar_evidence publish "$snapshot" "$radar_dir" "$VAR_DIR" "$run_id")" || [[ "$radar_publication" != "published" ]]; then
-    log "radar_publication=failed publication=preserved"
+if ! python3 -m kcdw.runs publish "$VAR_DIR" "$run_id" "$snapshot" "$analysis" "$prompt" "$radar_dir" "$codex_log" --public "$PUBLIC_DIR" --html "$html_tmp" --health "$health_tmp" "${previous_args[@]}"; then
+  log "publication=failed"
+  exit 1
+fi
+log "publication=success"
+
+if [[ -f "$cloud_config" ]]; then
+  if python3 -m kcdw.cloud_publish --config "$cloud_config" publish "$VAR_DIR/runs/$run_id"; then
+    log "cloud_publication=success"
+  else
+    log "cloud_publication=failed remote_report=preserved retry=backfill"
     exit 1
   fi
-  managed_radar=0
-  log "radar_publication=success"
 fi
-mv -f "$html_tmp" "$PUBLIC_DIR/index.html"
-mv -f "$health_tmp" "$PUBLIC_DIR/health.json"
-cp "$snapshot" "$VAR_DIR/latest-snapshot.json"
-cp "$analysis" "$VAR_DIR/latest-analysis.json"
-log "publication=success"

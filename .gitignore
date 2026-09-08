@@ -3,3 +3,9 @@ __pycache__/
 var/*
 !var/.gitkeep
 .coverage
+
+node_modules/
+.wrangler/
+.dev.vars*
+.env*
+cloudflare/dist/

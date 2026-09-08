@@ -1,12 +1,343 @@
 {
-  "generated_at":"2026-09-03T12:05:00Z","source_collected_at":"2026-09-03T12:00:00Z","best_day":"2026-09-04","backup_day":"2026-09-05","summary":"A quiet sample period favors Friday, with gradually lower confidence later in the seven-day horizon.","controlling_hazards":["Afternoon gusts","Forecast uncertainty late in the period"],
-  "days":[
-    {"date":"2026-09-03","confidence":"high","narrative":"Current VFR observations support a usable day, with the strongest planning signal in the morning.","hazards":["Late-day sunset overlap"],"windows":[{"window":"08-10","score":85,"label":"Favorable","reason":"Current VFR observation"},{"window":"10-12","score":85,"label":"Favorable","reason":"VFR expected"},{"window":"12-14","score":80,"label":"Favorable","reason":"Few clouds"},{"window":"14-16","score":75,"label":"Favorable","reason":"Modest breeze"},{"window":"16-18","score":75,"label":"Favorable","reason":"Dry weather"},{"window":"18-20","score":65,"label":"Marginal","reason":"Sunset overlaps"}]},
-    {"date":"2026-09-04","confidence":"high","narrative":"Light wind and VFR conditions make this the preferred sample day.","hazards":["Late-day sunset overlap"],"windows":[{"window":"08-10","score":90,"label":"Favorable","reason":"Light wind"},{"window":"10-12","score":90,"label":"Favorable","reason":"VFR expected"},{"window":"12-14","score":85,"label":"Favorable","reason":"Few clouds"},{"window":"14-16","score":80,"label":"Favorable","reason":"Modest breeze"},{"window":"16-18","score":80,"label":"Favorable","reason":"Dry weather"},{"window":"18-20","score":70,"label":"Marginal","reason":"Sunset overlaps"}]},
-    {"date":"2026-09-05","confidence":"high","narrative":"Generally favorable, with a modest afternoon breeze.","hazards":["Afternoon breeze"],"windows":[{"window":"08-10","score":85,"label":"Favorable","reason":"Calm morning"},{"window":"10-12","score":85,"label":"Favorable","reason":"VFR expected"},{"window":"12-14","score":80,"label":"Favorable","reason":"Breeze develops"},{"window":"14-16","score":75,"label":"Favorable","reason":"Moderate breeze"},{"window":"16-18","score":75,"label":"Favorable","reason":"Dry weather"},{"window":"18-20","score":65,"label":"Marginal","reason":"Sunset overlaps"}]},
-    {"date":"2026-09-06","confidence":"medium","narrative":"Usable windows remain, though forecast certainty starts to fall.","hazards":["Increasing uncertainty"],"windows":[{"window":"08-10","score":75,"label":"Favorable","reason":"Quiet start"},{"window":"10-12","score":75,"label":"Favorable","reason":"VFR signal"},{"window":"12-14","score":70,"label":"Marginal","reason":"Some uncertainty"},{"window":"14-16","score":65,"label":"Marginal","reason":"Cloud uncertainty"},{"window":"16-18","score":65,"label":"Marginal","reason":"Model spread"},{"window":"18-20","score":60,"label":"Marginal","reason":"Sunset and spread"}]},
-    {"date":"2026-09-07","confidence":"medium","narrative":"A mixed day in the deterministic example, best earlier.","hazards":["Possible afternoon showers"],"windows":[{"window":"08-10","score":70,"label":"Marginal","reason":"Best early"},{"window":"10-12","score":70,"label":"Marginal","reason":"Before showers"},{"window":"12-14","score":60,"label":"Marginal","reason":"Shower chance"},{"window":"14-16","score":50,"label":"Marginal","reason":"Possible showers"},{"window":"16-18","score":50,"label":"Marginal","reason":"Possible showers"},{"window":"18-20","score":45,"label":"Poor","reason":"Showers and sunset"}]},
-    {"date":"2026-09-08","confidence":"low","narrative":"Longer-range model guidance suggests variable cloud and wind.","hazards":["Model spread"],"windows":[{"window":"08-10","score":60,"label":"Marginal","reason":"Model guidance"},{"window":"10-12","score":60,"label":"Marginal","reason":"Model guidance"},{"window":"12-14","score":55,"label":"Marginal","reason":"Variable cloud"},{"window":"14-16","score":50,"label":"Marginal","reason":"Variable wind"},{"window":"16-18","score":50,"label":"Marginal","reason":"Low confidence"},{"window":"18-20","score":45,"label":"Poor","reason":"Sunset and spread"}]},
-    {"date":"2026-09-09","confidence":"low","narrative":"Treat these longer-range scores as broad planning guidance only.","hazards":["Low forecast confidence"],"windows":[{"window":"08-10","score":55,"label":"Marginal","reason":"Low confidence"},{"window":"10-12","score":55,"label":"Marginal","reason":"Low confidence"},{"window":"12-14","score":50,"label":"Marginal","reason":"Model spread"},{"window":"14-16","score":45,"label":"Poor","reason":"Model spread"},{"window":"16-18","score":45,"label":"Poor","reason":"Model spread"},{"window":"18-20","score":40,"label":"Poor","reason":"Sunset and spread"}]}
-  ]
+  "generated_at": "2026-09-03T12:05:00Z",
+  "source_collected_at": "2026-09-03T12:00:00Z",
+  "best_day": "2026-09-04",
+  "backup_day": "2026-09-05",
+  "summary": "A quiet sample period favors Friday, with gradually lower confidence later in the seven-day horizon.",
+  "controlling_hazards": [
+    "Afternoon gusts",
+    "Forecast uncertainty late in the period"
+  ],
+  "days": [
+    {
+      "date": "2026-09-03",
+      "confidence": "high",
+      "narrative": "Current VFR observations support a usable day, with the strongest planning signal in the morning.",
+      "hazards": [
+        "Late-day sunset overlap"
+      ],
+      "windows": [
+        {
+          "window": "08-10",
+          "score": 85,
+          "label": "Favorable",
+          "reason": "Current VFR observation"
+        },
+        {
+          "window": "10-12",
+          "score": 85,
+          "label": "Favorable",
+          "reason": "VFR expected"
+        },
+        {
+          "window": "12-14",
+          "score": 80,
+          "label": "Favorable",
+          "reason": "Few clouds"
+        },
+        {
+          "window": "14-16",
+          "score": 75,
+          "label": "Favorable",
+          "reason": "Modest breeze"
+        },
+        {
+          "window": "16-18",
+          "score": 75,
+          "label": "Favorable",
+          "reason": "Dry weather"
+        },
+        {
+          "window": "18-20",
+          "score": 65,
+          "label": "Marginal",
+          "reason": "Sunset overlaps"
+        }
+      ],
+      "confidence_reason": "Ensemble spread is unavailable in this fixture; confidence reflects the supplied forecast evidence and horizon."
+    },
+    {
+      "date": "2026-09-04",
+      "confidence": "high",
+      "narrative": "Light wind and VFR conditions make this the preferred sample day.",
+      "hazards": [
+        "Late-day sunset overlap"
+      ],
+      "windows": [
+        {
+          "window": "08-10",
+          "score": 90,
+          "label": "Favorable",
+          "reason": "Light wind"
+        },
+        {
+          "window": "10-12",
+          "score": 90,
+          "label": "Favorable",
+          "reason": "VFR expected"
+        },
+        {
+          "window": "12-14",
+          "score": 85,
+          "label": "Favorable",
+          "reason": "Few clouds"
+        },
+        {
+          "window": "14-16",
+          "score": 80,
+          "label": "Favorable",
+          "reason": "Modest breeze"
+        },
+        {
+          "window": "16-18",
+          "score": 80,
+          "label": "Favorable",
+          "reason": "Dry weather"
+        },
+        {
+          "window": "18-20",
+          "score": 70,
+          "label": "Marginal",
+          "reason": "Sunset overlaps"
+        }
+      ],
+      "confidence_reason": "Ensemble spread is unavailable in this fixture; confidence reflects the supplied forecast evidence and horizon."
+    },
+    {
+      "date": "2026-09-05",
+      "confidence": "high",
+      "narrative": "Generally favorable, with a modest afternoon breeze.",
+      "hazards": [
+        "Afternoon breeze"
+      ],
+      "windows": [
+        {
+          "window": "08-10",
+          "score": 85,
+          "label": "Favorable",
+          "reason": "Calm morning"
+        },
+        {
+          "window": "10-12",
+          "score": 85,
+          "label": "Favorable",
+          "reason": "VFR expected"
+        },
+        {
+          "window": "12-14",
+          "score": 80,
+          "label": "Favorable",
+          "reason": "Breeze develops"
+        },
+        {
+          "window": "14-16",
+          "score": 75,
+          "label": "Favorable",
+          "reason": "Moderate breeze"
+        },
+        {
+          "window": "16-18",
+          "score": 75,
+          "label": "Favorable",
+          "reason": "Dry weather"
+        },
+        {
+          "window": "18-20",
+          "score": 65,
+          "label": "Marginal",
+          "reason": "Sunset overlaps"
+        }
+      ],
+      "confidence_reason": "Ensemble spread is unavailable in this fixture; confidence reflects the supplied forecast evidence and horizon."
+    },
+    {
+      "date": "2026-09-06",
+      "confidence": "medium",
+      "narrative": "Usable windows remain, though forecast certainty starts to fall.",
+      "hazards": [
+        "Increasing uncertainty"
+      ],
+      "windows": [
+        {
+          "window": "08-10",
+          "score": 75,
+          "label": "Favorable",
+          "reason": "Quiet start"
+        },
+        {
+          "window": "10-12",
+          "score": 75,
+          "label": "Favorable",
+          "reason": "VFR signal"
+        },
+        {
+          "window": "12-14",
+          "score": 70,
+          "label": "Marginal",
+          "reason": "Some uncertainty"
+        },
+        {
+          "window": "14-16",
+          "score": 65,
+          "label": "Marginal",
+          "reason": "Cloud uncertainty"
+        },
+        {
+          "window": "16-18",
+          "score": 65,
+          "label": "Marginal",
+          "reason": "Model spread"
+        },
+        {
+          "window": "18-20",
+          "score": 60,
+          "label": "Marginal",
+          "reason": "Sunset and spread"
+        }
+      ],
+      "confidence_reason": "Ensemble spread is unavailable in this fixture; confidence reflects the supplied forecast evidence and horizon."
+    },
+    {
+      "date": "2026-09-07",
+      "confidence": "medium",
+      "narrative": "A mixed day in the deterministic example, best earlier.",
+      "hazards": [
+        "Possible afternoon showers"
+      ],
+      "windows": [
+        {
+          "window": "08-10",
+          "score": 70,
+          "label": "Marginal",
+          "reason": "Best early"
+        },
+        {
+          "window": "10-12",
+          "score": 70,
+          "label": "Marginal",
+          "reason": "Before showers"
+        },
+        {
+          "window": "12-14",
+          "score": 60,
+          "label": "Marginal",
+          "reason": "Shower chance"
+        },
+        {
+          "window": "14-16",
+          "score": 50,
+          "label": "Marginal",
+          "reason": "Possible showers"
+        },
+        {
+          "window": "16-18",
+          "score": 50,
+          "label": "Marginal",
+          "reason": "Possible showers"
+        },
+        {
+          "window": "18-20",
+          "score": 45,
+          "label": "Poor",
+          "reason": "Showers and sunset"
+        }
+      ],
+      "confidence_reason": "Ensemble spread is unavailable in this fixture; confidence reflects the supplied forecast evidence and horizon."
+    },
+    {
+      "date": "2026-09-08",
+      "confidence": "low",
+      "narrative": "Longer-range model guidance suggests variable cloud and wind.",
+      "hazards": [
+        "Model spread"
+      ],
+      "windows": [
+        {
+          "window": "08-10",
+          "score": 60,
+          "label": "Marginal",
+          "reason": "Model guidance"
+        },
+        {
+          "window": "10-12",
+          "score": 60,
+          "label": "Marginal",
+          "reason": "Model guidance"
+        },
+        {
+          "window": "12-14",
+          "score": 55,
+          "label": "Marginal",
+          "reason": "Variable cloud"
+        },
+        {
+          "window": "14-16",
+          "score": 50,
+          "label": "Marginal",
+          "reason": "Variable wind"
+        },
+        {
+          "window": "16-18",
+          "score": 50,
+          "label": "Marginal",
+          "reason": "Low confidence"
+        },
+        {
+          "window": "18-20",
+          "score": 45,
+          "label": "Poor",
+          "reason": "Sunset and spread"
+        }
+      ],
+      "confidence_reason": "Ensemble spread is unavailable in this fixture; confidence reflects the supplied forecast evidence and horizon."
+    },
+    {
+      "date": "2026-09-09",
+      "confidence": "low",
+      "narrative": "Treat these longer-range scores as broad planning guidance only.",
+      "hazards": [
+        "Low forecast confidence"
+      ],
+      "windows": [
+        {
+          "window": "08-10",
+          "score": 55,
+          "label": "Marginal",
+          "reason": "Low confidence"
+        },
+        {
+          "window": "10-12",
+          "score": 55,
+          "label": "Marginal",
+          "reason": "Low confidence"
+        },
+        {
+          "window": "12-14",
+          "score": 50,
+          "label": "Marginal",
+          "reason": "Model spread"
+        },
+        {
+          "window": "14-16",
+          "score": 45,
+          "label": "Poor",
+          "reason": "Model spread"
+        },
+        {
+          "window": "16-18",
+          "score": 45,
+          "label": "Poor",
+          "reason": "Model spread"
+        },
+        {
+          "window": "18-20",
+          "score": 40,
+          "label": "Poor",
+          "reason": "Sunset and spread"
+        }
+      ],
+      "confidence_reason": "Ensemble spread is unavailable in this fixture; confidence reflects the supplied forecast evidence and horizon."
+    }
+  ],
+  "data_requests": []
 }

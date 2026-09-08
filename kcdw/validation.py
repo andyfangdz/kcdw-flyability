@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import unicodedata
 from zoneinfo import ZoneInfo
 
 from .common import parse_time
+from .readiness import evidence_readiness
+from .scoring import BANDS, planning_windows
+from .feedback import validate_requests
 from .ensemble_guidance import validate_ensemble_guidance
+from .nbm_guidance import validate_nbm
 
 WINDOWS = ("08-10", "10-12", "12-14", "14-16", "16-18", "18-20")
 CONFIDENCE = {"high", "medium", "low"}
@@ -56,11 +61,18 @@ def validate_snapshot_readiness(snapshot: dict) -> None:
                 validate_ensemble_guidance(source.get("data"), model_id, parse_time(snapshot["collected_at"]))
             except (KeyError, TypeError, ValueError) as exc:
                 raise ValidationError(f"{label} source marked available with invalid guidance") from exc
-    forecast_ok = any(sources.get(k, {}).get("ok") for k in ("nws_hourly", "nws_forecast", "nws_grid", "open_meteo"))
-    context_ok = any(sources.get(k, {}).get("ok") for k in ("okx_afd", "awc_metars", "awc_tafs", "nws_alerts"))
-    total = sum(bool(source.get("ok")) for source in sources.values() if isinstance(source, dict))
-    if not forecast_ok or not context_ok or total < 3:
-        raise ValidationError("insufficient source coverage to replace the report")
+    for key, product in (("nbm_nbh", "NBH"), ("nbm_nbs", "NBS")):
+        source = sources.get(key, {})
+        if isinstance(source, dict) and source.get("ok"):
+            try:
+                if source.get("fetched_at") != snapshot.get("collected_at"):
+                    raise ValueError("NBM fetch time mismatch")
+                validate_nbm(source.get("data"), product, parse_time(snapshot["collected_at"]))
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValidationError(f"{product} source marked available with invalid guidance") from exc
+    forecast, context = evidence_readiness(snapshot)
+    if not forecast or not context:
+        raise ValidationError("insufficient source coverage: need a usable next-two-hour forecast and fresh local aviation context")
 
 
 def _exact(obj: dict, required: set[str], where: str) -> None:
@@ -73,8 +85,27 @@ def _text(value, where: str, maximum: int, *, minimum: int = 1) -> None:
         raise ValidationError(f"{where}: text length must be {minimum}..{maximum}")
 
 
+def _english_text(value, where="analysis") -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            _english_text(child, f"{where}.{key}")
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            _english_text(child, f"{where}[{index}]")
+    elif isinstance(value, str):
+        for char in value:
+            category = unicodedata.category(char)
+            if (category.startswith("L") and not char.isascii() and "LATIN" not in unicodedata.name(char, "")) or category in {"Cs", "Cf"} or char == "\ufffd" or (category == "Cc" and char not in "\n\r\t"):
+                raise ValidationError(f"{where}: unexpected character U+{ord(char):04X} in English report")
+
+
 def validate_analysis(value: dict, snapshot: dict) -> dict:
-    _exact(value, {"generated_at", "source_collected_at", "best_day", "backup_day", "summary", "controlling_hazards", "days"}, "analysis")
+    _english_text(value)
+    _exact(value, {"generated_at", "source_collected_at", "best_day", "backup_day", "summary", "controlling_hazards", "days", "data_requests"}, "analysis")
+    try:
+        validate_requests(value["data_requests"])
+    except ValueError as exc:
+        raise ValidationError(str(exc)) from exc
     if value["source_collected_at"] != snapshot["collected_at"]:
         raise ValidationError("source_collected_at does not match snapshot")
     generated = parse_time(value["generated_at"])
@@ -100,31 +131,38 @@ def validate_analysis(value: dict, snapshot: dict) -> dict:
         raise ValidationError("exactly seven days required")
     seen_dates = set()
     for day in value["days"]:
-        _exact(day, {"date", "confidence", "narrative", "hazards", "windows"}, "day")
+        _exact(day, {"date", "confidence", "confidence_reason", "narrative", "hazards", "windows"} | ({"outlook"} if isinstance(day, dict) and "outlook" in day else set()), "day")
         if day["date"] not in dates or day["date"] in seen_dates:
             raise ValidationError("unexpected or duplicate day")
         seen_dates.add(day["date"])
         if day["confidence"] not in CONFIDENCE:
             raise ValidationError("invalid confidence")
+        _text(day["confidence_reason"], "confidence_reason", 300)
         _text(day["narrative"], "narrative", 360)
+        if not day["narrative"].rstrip().endswith((".", "!", "?")):
+            raise ValidationError("narrative must end with a complete sentence")
         if not isinstance(day["hazards"], list) or len(day["hazards"]) > 5:
             raise ValidationError("invalid hazards")
         for hazard in day["hazards"]:
             _text(hazard, "day hazard", 100)
-        if not isinstance(day["windows"], list) or len(day["windows"]) != 6:
-            raise ValidationError("exactly six windows required")
+        expected_windows = set(planning_windows(snapshot, day["date"])) if "outlook" in day else set(WINDOWS)
+        if "outlook" in day and day["outlook"] not in {label for _, _, label in BANDS}:
+            raise ValidationError("invalid daily outlook")
+        if not isinstance(day["windows"], list) or len(day["windows"]) != len(expected_windows):
+            raise ValidationError("unexpected number of windows for forecast horizon")
         seen_windows = set()
         for window in day["windows"]:
-            _exact(window, {"window", "score", "label", "reason"}, "window")
+            _exact(window, {"window", "score", "reason"} | ({"label"} if isinstance(window, dict) and "label" in window else set()), "window")
             name, score = window["window"], window["score"]
-            if name not in WINDOWS or name in seen_windows:
+            if name not in expected_windows or name in seen_windows:
                 raise ValidationError("unexpected or duplicate window")
             seen_windows.add(name)
             if isinstance(score, bool) or not isinstance(score, int) or not 0 <= score <= 95 or score % 5:
                 raise ValidationError("score must be 0..95 in 5-point increments")
-            _text(window["label"], "window label", 32)
+            if "label" in window:  # Old archived analyses remain readable; the renderer derives labels.
+                _text(window["label"], "window label", 32)
             _text(window["reason"], "window reason", 300)
-        if seen_windows != set(WINDOWS):
+        if seen_windows != expected_windows:
             raise ValidationError("missing windows")
     if seen_dates != set(dates):
         raise ValidationError("missing dates")

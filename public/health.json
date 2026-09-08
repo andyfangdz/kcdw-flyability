@@ -1,7 +1,1 @@
-{
-  "age_seconds_at_render": 69,
-  "generated_at": "2026-09-04T01:19:10Z",
-  "stale": false,
-  "stale_after": 5400,
-  "status": "ok"
-}
+{"generated_at": "2026-09-08T14:37:45Z", "status": "ok", "age_seconds_at_render": 421, "stale": false, "stale_after": 5400}

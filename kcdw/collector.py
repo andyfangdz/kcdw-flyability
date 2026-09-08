@@ -4,19 +4,20 @@ import argparse
 import json
 import math
 import re
-import struct
+from io import BytesIO
+from PIL import Image
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
-import zlib
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from .common import UTC, atomic_write, iso_z
+from .common import UTC, atomic_write, iso_z, parse_time
 from .ensemble_guidance import WEATHER_NEXT_ENDPOINT, collect_aifs_ens, collect_weather_next
 from .geometry import geometry_contains
+from .nbm_guidance import collect_nbm
 from .intervals import expand_grid_values
 
 LAT, LON = 40.8752, -74.2814
@@ -28,6 +29,11 @@ RADAR_BBOX = (-82.0, 38.0, -73.0, 43.0)
 RADAR_SIZE = (900, 500)
 RADAR_FRAMES = 6
 RADAR_MAX_AGE = timedelta(minutes=30)
+AFD_OFFICES = {
+    "OKX": "New York/Upton", "PHI": "Philadelphia/Mount Holly",
+    "BGM": "Binghamton", "ALY": "Albany", "BOX": "Boston/Norton",
+    "CTP": "State College",
+}
 
 
 class Client:
@@ -52,15 +58,15 @@ class Client:
                     time.sleep(0.4 * (attempt + 1))
         raise RuntimeError(str(last))
 
-    def get_text(self, url: str) -> str:
+    def get_text(self, url: str, maximum: int = 1_000_000) -> str:
         request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "text/plain"})
         last = None
         for attempt in range(self.retries + 1):
             try:
                 with urllib.request.urlopen(request, timeout=self.timeout) as response:
-                    raw = response.read(1_000_001)
-                    if len(raw) > 1_000_000:
-                        raise ValueError("text response exceeds 1 MB")
+                    raw = response.read(maximum + 1)
+                    if len(raw) > maximum:
+                        raise ValueError(f"text response exceeds {maximum} bytes")
                     return raw.decode("utf-8", "replace")
             except (urllib.error.URLError, TimeoutError, ValueError) as exc:
                 last = exc
@@ -92,20 +98,6 @@ def _periods(data: dict, limit: int) -> list[dict]:
     return [{k: p[k] for k in keep if k in p} for p in data.get("properties", {}).get("periods", [])[:limit]]
 
 
-def _afd_excerpt(text: str, limit: int = 14000) -> str:
-    # Keep the operationally useful major sections, including extended-period
-    # reasoning. OKX separates major sections with a standalone && line.
-    sections = []
-    for heading in ("KEY MESSAGES", "SYNOPSIS", "NEAR TERM", "SHORT TERM", "LONG TERM", "AVIATION"):
-        match = re.search(
-            rf"(?ims)^\.{re.escape(heading)}[^\n]*\n.*?(?=^\s*&&\s*$|^\s*\$\$\s*$|\Z)",
-            text,
-        )
-        if match:
-            sections.append(match.group(0).strip())
-    combined = "\n\n".join(sections)
-    return (combined or text[:limit])[:limit]
-
 
 def _source(fetch, now: datetime) -> dict:
     try:
@@ -115,78 +107,56 @@ def _source(fetch, now: datetime) -> dict:
         return {"ok": False, "fetched_at": iso_z(now), "data": None, "error": f"{type(exc).__name__}: {exc}"[:300]}
 
 
+def collect_afd(client: Client, now: datetime, office: str) -> dict:
+    listing = client.get(f"https://api.weather.gov/products/types/AFD/locations/{office}")
+    candidates = []
+    for product in listing.get("@graph", []):
+        try:
+            issued = parse_time(product["issuanceTime"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if issued <= now:
+            candidates.append((issued, product))
+    if not candidates:
+        raise ValueError(f"no {office} AFD issued by collection time")
+    issued, product = max(candidates, key=lambda item: item[0])
+    url = f"https://api.weather.gov/products/{product['id']}"
+    detail = client.get(url)
+    text = detail.get("productText", "")
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError(f"empty {office} AFD")
+    if not re.search(rf"(?m)^AFD{office}\s*$", text):
+        raise ValueError(f"AFD office mismatch for {office}")
+    return {"id": product["id"], "office": office, "office_name": AFD_OFFICES[office],
+            "issuanceTime": iso_z(issued), "source_url": url,
+            "age_seconds": int((now - issued).total_seconds()),
+            "excerpt": text[:14000], "truncated": len(text) > 14000}
+
+
+def collect_afds(client: Client, now: datetime) -> dict:
+    return {f"{office.lower()}_afd": _source(lambda: collect_afd(client, now, office), now)
+            for office in AFD_OFFICES}
+
+
 def report_dates(now: datetime) -> list[str]:
     local_date = now.astimezone(TZ).date()
     return [(local_date + timedelta(days=i)).isoformat() for i in range(7)]
 
 
 def _decode_rgba_png(image: bytes) -> tuple[int, int, list[bytes]]:
-    """Decode the narrow PNG format emitted by the fixed NOAA export."""
-    if not image.startswith(b"\x89PNG\r\n\x1a\n"):
-        raise ValueError("invalid PNG signature")
-    position = 8
-    width = height = None
-    compressed = bytearray()
-    saw_end = False
-    while position + 12 <= len(image):
-        length = struct.unpack(">I", image[position:position + 4])[0]
-        kind = image[position + 4:position + 8]
-        payload_start = position + 8
-        payload_end = payload_start + length
-        if payload_end + 4 > len(image):
-            raise ValueError("truncated PNG chunk")
-        payload = image[payload_start:payload_end]
-        if kind == b"IHDR":
-            if length != 13:
-                raise ValueError("invalid PNG header")
-            width, height, depth, color_type, compression, filtering, interlace = struct.unpack(">IIBBBBB", payload)
-            if (width, height) != RADAR_SIZE or (depth, color_type, compression, filtering, interlace) != (8, 6, 0, 0, 0):
-                raise ValueError("unexpected radar PNG format or dimensions")
-        elif kind == b"IDAT":
-            compressed.extend(payload)
-        elif kind == b"IEND":
-            saw_end = True
-            break
-        position = payload_end + 4
-    if width is None or height is None or not compressed or not saw_end:
-        raise ValueError("incomplete radar PNG")
-
+    """Decode only the bounded RGBA PNG format emitted by NOAA."""
+    if not 0 < len(image) <= 1_000_000:
+        raise ValueError("radar PNG exceeds size limit")
+    with Image.open(BytesIO(image), formats=["PNG"]) as picture:
+        if picture.size != RADAR_SIZE or picture.mode != "RGBA":
+            raise ValueError("unexpected radar PNG format or dimensions")
+        picture.verify()
+    with Image.open(BytesIO(image), formats=["PNG"]) as picture:
+        picture.load()
+        raw = picture.tobytes()
+    width, height = RADAR_SIZE
     stride = width * 4
-    expected = height * (stride + 1)
-    inflater = zlib.decompressobj()
-    raw = inflater.decompress(bytes(compressed), expected + 1)
-    if len(raw) != expected or not inflater.eof or inflater.unconsumed_tail:
-        raise ValueError("unexpected decompressed radar PNG size")
-
-    rows: list[bytes] = []
-    previous = bytes(stride)
-    offset = 0
-    for _ in range(height):
-        filter_type = raw[offset]
-        scanline = bytearray(raw[offset + 1:offset + 1 + stride])
-        offset += stride + 1
-        for index in range(stride):
-            left = scanline[index - 4] if index >= 4 else 0
-            above = previous[index]
-            upper_left = previous[index - 4] if index >= 4 else 0
-            if filter_type == 0:
-                predictor = 0
-            elif filter_type == 1:
-                predictor = left
-            elif filter_type == 2:
-                predictor = above
-            elif filter_type == 3:
-                predictor = (left + above) // 2
-            elif filter_type == 4:
-                estimate = left + above - upper_left
-                distances = (abs(estimate - left), abs(estimate - above), abs(estimate - upper_left))
-                predictor = (left, above, upper_left)[distances.index(min(distances))]
-            else:
-                raise ValueError("unsupported PNG row filter")
-            scanline[index] = (scanline[index] + predictor) & 0xFF
-        previous = bytes(scanline)
-        rows.append(previous)
-    return width, height, rows
+    return width, height, [raw[y * stride:(y + 1) * stride] for y in range(height)]
 
 
 def _radar_spatial_summary(image: bytes) -> dict:
@@ -327,7 +297,7 @@ def collect_radar_loop(client: Client, now: datetime, radar_dir: Path) -> dict:
     }
 
 
-def collect(now: datetime | None = None, client: Client | None = None, radar_dir: Path | None = None) -> dict:
+def collect(now: datetime | None = None, client: Client | None = None, radar_dir: Path | None = None, cache_dir: Path | None = None) -> dict:
     now = (now or datetime.now(UTC)).astimezone(UTC)
     client = client or Client()
     points_url = f"https://api.weather.gov/points/{LAT},{LON}"
@@ -337,6 +307,8 @@ def collect(now: datetime | None = None, client: Client | None = None, radar_dir
     sources: dict[str, dict] = {
         "radar_mosaic": _source(lambda: collect_radar_loop(client, now, radar_dir), now),
         "nws_points": points,
+        "nbm_nbh": _source(lambda: collect_nbm(client, now, "NBH", cache_dir), now),
+        "nbm_nbs": _source(lambda: collect_nbm(client, now, "NBS", cache_dir), now),
         "weather_next": _source(lambda: collect_weather_next(client, now), now),
         "aifs_ens": _source(lambda: collect_aifs_ens(client, now), now),
     }
@@ -348,13 +320,7 @@ def collect(now: datetime | None = None, client: Client | None = None, radar_dir
         return {field: {"uom": raw.get(field, {}).get("uom"), "values": expand_grid_values(raw.get(field, {}).get("values", []), limit=240)} for field in GRID_FIELDS if field in raw}
     sources["nws_grid"] = _source(grid, now) if props else _source(lambda: (_ for _ in ()).throw(RuntimeError("points unavailable")), now)
 
-    def afd():
-        listing = client.get("https://api.weather.gov/products/types/AFD/locations/OKX")
-        products = listing.get("@graph", [])
-        product = max(products, key=lambda item: item.get("issuanceTime", ""))
-        detail = client.get(product.get("@id") or f"https://api.weather.gov/products/{product['id']}")
-        return {"id": product.get("id"), "issuanceTime": product.get("issuanceTime"), "excerpt": _afd_excerpt(detail.get("productText", ""))}
-    sources["okx_afd"] = _source(afd, now)
+    sources.update(collect_afds(client, now))
 
     stations = "KCDW,KMMU,KTEB,KEWR,KABE,KAVP,KRDG"
     sources["awc_metars"] = _source(lambda: client.get(f"https://aviationweather.gov/api/data/metar?ids={stations}&format=json&hours=3"), now)
@@ -420,11 +386,12 @@ def collect(now: datetime | None = None, client: Client | None = None, radar_dir
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", default="var/snapshot.json")
+    parser.add_argument("--cache-dir", default="var/cache/nbm", type=Path)
     parser.add_argument("--radar-dir", help="directory for ordered radar PNG attachments")
     args = parser.parse_args(argv)
     output = Path(args.output)
     radar_dir = Path(args.radar_dir) if args.radar_dir else output.with_name(f"{output.stem}.radar")
-    atomic_write(output, json.dumps(collect(radar_dir=radar_dir), indent=2, sort_keys=True) + "\n")
+    atomic_write(output, json.dumps(collect(radar_dir=radar_dir, cache_dir=args.cache_dir), indent=2, sort_keys=True) + "\n")
     return 0
 
 

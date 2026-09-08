@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=oneshot
 WorkingDirectory=/home/ubuntu/projects/kcdw-flyability
 Environment=HOME=/home/ubuntu
-Environment=PATH=/home/ubuntu/.npm-global/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PATH=/home/ubuntu/.local/bin:/home/ubuntu/.npm-global/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=/home/ubuntu/projects/kcdw-flyability/scripts/update_report.sh
 TimeoutStartSec=15min
 NoNewPrivileges=true

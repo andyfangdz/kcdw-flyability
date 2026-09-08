@@ -1,0 +1,111 @@
+NOAA/NWS MDL NBM v5.0 station-card reference — NBH and NBS
+Source: https://vlab.noaa.gov/web/mdl/nbm-textcard-v5.0
+Retrieved and verified: 2026-09-08
+Scope: NBM version 5.0 only. Official general conventions and NBH/NBS element keys extracted from the source page; navigation and example images omitted.
+
+The bulletins consist of the following:
+The first line always consists of: the station call(short name), bulletin name, forecast date, and forecast cycle.
+The following 2-3 lines show the forecast valid date/time and/or model forecast hour. All forecast dates and times are listed in UTC time.
+The lines following the date/time consist of various weather elements. These elements vary by bulletin type, region, and sometimes cycle.
+Large values: any value which would be printed as >998 will be printed as 998 (except MSLP: see element description below for details)
+Large negative values:  Any element with a displayed value < -98 will be displayed as -98.
+Missing Data:
+For all Elements, a value of -99 indicates missing data. If data are missing for all forecast hours, the line for that element will not be printed.
+
+NBH Example Bulletin (CONUS, land station)
+Data Key
+Date/time lines
+UTC = forcast valid hour (in UTC) (date as in line 1, unless past 23Z - then the following date is valid)
+Elements
+TMP = temperature, degrees F
+TSD = standard deviation of temperature, degrees F
+DPT = dew point temperature, degrees F
+DSD = dew point temperature standard deviation, degrees F
+WBG = wet bulb globe temperature, degrees F
+SKY = sky cover, percent
+SSD = sky cover standard deviation, percent
+WDR = wind direction, nearest tens degrees (northerly=36; easterly=9; calm=00)
+oceanic-only stations only have WDR for cycles=0,7,12,19
+WSP = wind speed, knots (note: processes are slightly different between CONUS and other regions)
+WSD = wind speed standard deviation, knots
+GST = wind gust, knots (note: processes are slightly different between CONUS and other regions)
+GSD = wind gust standard deviation, knots
+P01 = 1-hour PoP, percent
+P06 = 6-hour PoP, percent
+Q01 = 1-hour QPF, 1/100 inches
+T01 = 1-hour thunderstorm probability, percent
+PZR = conditional probability of freezing rain, percent
+PSN = conditional probability of snow, percent
+PPL = conditional probability of sleet / ice pellets, percent
+PRA = conditional probability of rain, percent
+S01 = 1-hour snow amount, 1/10 inches
+SLV = snow level, 100s feet MSL
+I01 = 1-hour ice amount, 1/100 inches
+CIG = ceiling height, 100s feet  (>5000 ft reported to the nearest 1000 ft; -88=unlimited)
+MVC = probability of ceiling MVFR flight conditions (ceiling <= 3000 ft), percent
+IFC = probability of ceiling IFR flight conditions (ceiling < 1000 ft), percent
+LIC = probability of ceiling LIFR flight conditions (ceiling < 500 ft), percent
+LCB = lowest cloud base, 100s feet (>5000 ft reported to the nearest 1000 ft; -88=unlimited)
+VIS = visibility, 1/10th miles (rounded to nearest mile for values >= 1 mile) [Note: values before approx. 2019-06-01 are in full miles]
+MVV = probability of visibility MVFR flight conditions (visibility <= 5 miles), percent
+IFV = probability of visibility IFR flight conditions (visibility < 3 miles), percent
+LIV = probability of visibility LIFR flight conditions (visibility < 1 mile), percent
+MHT = mixing height, 100s feet AGL
+TWD = transport wind direction, nearest tens degrees (northerly=36; easterly=9; calm=00)
+TWS = transport wind speed, knots (<0.5 knots will be listed as 0 (calm))
+SOL = instantaneous solar radiation, 10s W/m
+2
+(ex: 8=80 W/m2; non-zero values < 10 = 1)
+NBS
+NBS Example Bulletin (CONUS, land station)
+Data Key
+Date/time lines
+DT (or blank) = forcast valid date (in UTC)
+UTC = forcast valid hour (in UTC)
+FHR = model forecast hour (number of hours forward from forecast date/cycle)
+Elements
+TXN = 18-hour maximum and minimum temperatures, degrees F.
+Min is between 00Z-18Z and reported at 12Z (except Guam)
+Max is between 12z(current day)-06Z(next day) and reported at 00z(following day) (except Guam)
+Guam stations report Tmax at 12z and Tmin at 00z.
+XND = standard deviation of maximum or minimum temperature, degrees F
+TMP = temperature, degrees F
+TSD = standard deviation of temperature, degrees F
+DPT = dew point temperature, degrees F
+DSD = dew point temperature standard deviation, degrees F
+WBG = wet bulb globe temperature, degrees F
+SKY = sky cover, percent
+SSD = sky cover standard deviation, percent
+WDR = wind direction, nearest tens degrees (northerly=36; easterly=9; calm=00)
+oceanic-only stations only have WDR for cycles=0,7,12,19
+WSP = wind speed, knots (<0.5 knots will be listed as 0 (calm))
+WSD = wind speed standard deviation, knots
+GST = wind gust, knots
+GSD = wind gust standard deviation, knots
+P06 = 6-hour PoP, percent
+P12 = 12-hour PoP, percent
+Q06 = 6-hour QPF, 1/100 inches
+Q12 = 12-hour QPF, 1/100 inches
+DUR = Duration of precipitation, hours
+T03 = 3-hour thunderstorm probability, percent
+T06 = 6-hour thunderstorm probability, percent
+T12 = 12-hour thunderstorm probability, percent
+PZR = conditional probability of freezing rain, percent
+PSN = conditional probability of snow, percent
+PPL = conditional probability of sleet / ice pellets, percent
+PRA = conditional probability of rain, percent
+S06 = 6-hour snow amount, 1/10 inches
+SLV = snow level, 100s feet MSL (rounded to nearest 1000 ft for values > 10,000 ft)
+I06 = 6-hour ice amount, 1/100 inches
+CIG = ceiling height, 100s feet (>5000 ft reported to the nearest 1000 ft; -88=unlimited)
+IFC = probability of ceiling IFR flight conditions (ceiling < 1000 ft), percent
+LCB = lowest cloud base, 100s feet (>5000 ft reported to the nearest 1000 ft; -88=unlimited)
+VIS = visibility, 1/10th miles up to 10 miles (rounded to nearest mile for values >= 1 mile; VIS > 10 miles = 100)
+IFV = probability of visibility IFR flight conditions (visibility < 3 miles), percent
+MHT = mixing height, 100s feet AGL
+TWD = transport wind direction, nearest tens degrees (northerly=36; easterly=9; calm=00)
+TWS = transport wind speed, knots (<0.5 knots will be listed as 0 (calm))
+SOL = instantaneous solar radiation, 10s W/m
+2
+(ex: 8=80 W/m2; non-zero values < 10 = 1)
+SWH = significant wave height, feet (marine and some near-water stations only)
