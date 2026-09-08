@@ -1,3 +1,5 @@
+import reportStyles from '../../kcdw/report.css';
+import fontStyles from '../../kcdw/assets/fonts.css';
 import { timingSafeEqual } from 'node:crypto';
 
 const MAX_REPORT_BYTES = 1_000_000;
@@ -109,8 +111,15 @@ async function history(url: URL, env: Env): Promise<Response> {
     summary: o.customMetadata?.summary || '', url: `/reports/${encodeURIComponent(o.customMetadata?.run_id || '')}` }));
   const next = page.truncated ? page.cursor : null;
   if (url.pathname === '/api/history') return json({ reports, cursor: next });
-  const rows = reports.map(r => `<li><a href="${escape(r.url)}">${escape(r.assessed_at || r.run_id || 'Report')}</a><p>${escape(r.summary)}</p></li>`).join('');
-  return response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KCDW report history</title><style>body{font:17px/1.6 system-ui;background:#071018;color:#e8f2f5;max-width:850px;margin:40px auto;padding:0 20px}a{color:#91f1c7}li{padding:14px 0;border-bottom:1px solid #263944}p{color:#9eb3bc}</style></head><body><a href="/">← Current report</a><h1>Report history</h1><p>Past assessments, newest first. These describe evidence available at the assessment time.</p><ol>${rows || '<li>No reports yet.</li>'}</ol>${next ? `<a href="/history?cursor=${encodeURIComponent(next)}">Older reports →</a>` : ''}</body></html>`, 200, 'text/html; charset=utf-8');
+  const rows = reports.map(r => {
+    const time = new Date(r.assessed_at || '');
+    const valid = Number.isFinite(time.getTime());
+    const date = valid ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' }).format(time) : 'Past assessment';
+    const hour = valid ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(time) : '';
+    const summary = r.summary.length >= 178 ? r.summary.replace(/\s+\S*$/, '') + '…' : r.summary;
+    return `<li><a class="history-row" href="${escape(r.url)}"><span class="history-date">${escape(date)}<small>${escape(hour)}</small></span><p>${escape(summary)}</p><span class="arrow" aria-hidden="true">↗</span></a></li>`;
+  }).join('');
+  return response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>KCDW report history</title><style>${fontStyles}${reportStyles}</style></head><body><a class="skip-link" href="#main">Skip to report history</a><header class="top"><div class="wrap"><a class="brand" href="/" aria-label="KCDW Flyability home"><span class="brand-symbol" aria-hidden="true"></span><span class="brand-name">KCDW<small>Flyability / Field notes</small></span></a><nav class="top-links" aria-label="Main navigation"><a href="/">Current outlook</a><a href="/history" aria-current="page">History ↗</a></nav></div></header><main class="wrap" id="main"><section class="history-intro"><p class="eyebrow">The archive / KCDW</p><h1>Every briefing.<br><em>In perspective.</em></h1><p>Look back at how the forecast evolved. Each report preserves the evidence and outlook available at its assessment time.</p></section><div class="section-head"><div><p class="section-number">Past assessments</p><h2>Report history</h2></div><p class="muted">Newest first / All times Eastern</p></div><ol class="history-list">${rows || '<li class="history-row">No reports yet. Check back after the first assessment.</li>'}</ol>${next ? `<a class="history-more" href="/history?cursor=${encodeURIComponent(next)}">Older reports →</a>` : ''}<footer class="site-footer"><span>KCDW / Essex County Airport</span><a href="/">Back to the current outlook ↗</a></footer></main></body></html>`, 200, 'text/html; charset=utf-8');
 }
 async function serve(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -142,7 +151,11 @@ async function serve(request: Request, env: Env): Promise<Response> {
   }
   const navigation = `<nav style="padding:12px 20px;background:#123e35;color:#e8f2f5;font:15px system-ui"><a href="/" style="color:inherit">Current report</a> · <a href="/history" style="color:inherit">Report history</a>${match ? ` · <strong>Historical assessment: ${escape(report.assessed_at)}</strong>` : ''}</nav>`;
   const html = response(report.html, 200, 'text/html; charset=utf-8');
-  return new HTMLRewriter().on('body', { element(element) { element.prepend(navigation, { html: true }); } }).transform(html);
+  return new HTMLRewriter().on('body', { element(element) {
+    if (element.getAttribute('data-design') === 'field-notes') {
+      if (match) element.prepend(`<div class="archive-banner"><a href="/">Current report</a> / Historical assessment: ${escape(report.assessed_at)}</div>`, { html: true });
+    } else { element.prepend(navigation, { html: true }); }
+  } }).transform(html);
 }
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {

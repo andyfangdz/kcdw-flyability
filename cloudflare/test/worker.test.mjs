@@ -1,9 +1,10 @@
 import { test, before, after } from 'node:test';
+import { readdirSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 
 let mf;
-before(() => { mf = new Miniflare(convertV4MiniflareOptions({ workers: [{ name: "test", modules: true, scriptPath: 'dist/index.js', compatibilityDate: '2026-09-08', compatibilityFlags: ['nodejs_compat'], r2Buckets: ['REPORTS'], bindings: { PUBLISH_TOKEN: 'test-secret', READ_ACCESS: 'public' } }] })); });
+before(() => { mf = new Miniflare(convertV4MiniflareOptions({ workers: [{ name: "test", modules: [{ type: 'ESModule', path: 'dist/index.js' }, ...readdirSync('dist').filter(f => f.endsWith('.css')).map(f => ({ type: 'Text', path: 'dist/' + f }))], compatibilityDate: '2026-09-08', compatibilityFlags: ['nodejs_compat'], r2Buckets: ['REPORTS'], bindings: { PUBLISH_TOKEN: 'test-secret', READ_ACCESS: 'public' } }] })); });
 after(async () => { await mf.dispose(); });
 const request = (path, options) => mf.dispatchFetch('https://weather.example'+path,options);
 const report = (stamp, assessment = '2026-09-08T12:00:00Z') => ({ version:1,run_id:stamp,assessed_at:assessment,html:'<!doctype html><html><body><h1>Report</h1></body></html>',health:{generated_at:assessment,stale_after:5400},analysis:{source_collected_at:assessment,summary:'Clear weather',days:Array(7).fill({})},changes:{} });

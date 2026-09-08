@@ -20,5 +20,14 @@
   "vars": {
     "READ_ACCESS": "public"
   },
-  "account_id": "bc2c7900890ba530a55ae09a5b53f383"
+  "account_id": "bc2c7900890ba530a55ae09a5b53f383",
+  "rules": [
+    {
+      "type": "Text",
+      "globs": [
+        "**/*.css"
+      ],
+      "fallthrough": true
+    }
+  ]
 }
