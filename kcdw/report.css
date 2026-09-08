@@ -9,3 +9,37 @@
 /* Anchor spacing accounts for the sticky masthead once, not twice. */
 .day-card{scroll-margin-top:16px}
 @media(max-width:760px){.brand small{font-size:7.5px;letter-spacing:.05em;white-space:nowrap}.brand{flex-shrink:0}.top-links{gap:12px}.top-links>a{white-space:nowrap}.updated time{font-size:8px;white-space:nowrap}.updated{padding-left:10px}.mission span+span:before{content:none}.mission{gap:8px 20px}.day-card{scroll-margin-top:12px}}
+
+/* Put decisions before the long briefing on small screens. */
+@media(max-width:760px){
+  [data-design="field-notes"] #main{display:flex;flex-direction:column}
+  [data-design="field-notes"] #main>*{order:6}
+  [data-design="field-notes"] .hero,[data-design="field-notes"] .hero-intro{display:contents}
+  .hero-intro>.eyebrow{order:0;margin:18px 0 7px}
+  .hero h1{order:0;font-size:36px;line-height:1.05;margin:0 0 20px}
+  .hero h1 br{display:none}
+  [data-design="field-notes"] #main>.picks{order:1;margin-bottom:24px}
+  .pick{padding:13px 17px;gap:14px}
+  .pick h2{font-size:27px;margin:2px 0 3px}
+  .pick-number{font-size:32px}
+  [data-design="field-notes"] #main>.week-overview{order:2}
+  .week-overview .section-head{padding-top:14px;margin-bottom:16px}
+  .week-overview h2{font-size:28px}
+  .week-day{min-height:100px;padding-top:11px;padding-bottom:11px}
+  .week-overview .legend{margin-bottom:20px}
+  .hero-summary{order:3;margin:0 0 15px;padding-top:20px;border-top:1px solid var(--line)}
+  .mission{order:3;margin-bottom:22px}
+  [data-design="field-notes"] .hero>.watch{order:4;margin-bottom:24px}
+  [data-design="field-notes"] #main>.days{order:5}
+}
+@media(max-width:370px){.hero h1{font-size:32px}}
+@media(max-width:760px){
+  .picks{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pick{display:block;position:relative;padding:14px;min-width:0}
+  .pick+.pick{border-top:0;border-left:1px solid var(--line)}
+  .pick-number{display:none}
+  .pick h2{font-size:26px;margin:5px 0 6px}
+  .pick p .muted{display:block;font-size:10px}
+  .pick-arrow{position:absolute;right:12px;top:12px;font-size:17px}
+  .week-overview .section-head>.muted{display:none}
+}
