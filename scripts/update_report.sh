@@ -70,7 +70,7 @@ codex_bin="${CODEX_BIN:-codex}"
 codex_version="$($codex_bin --version 2>&1 | head -n 1 | tr -cd '[:alnum:]. _/-')"
 log "codex_version=${codex_version:-unknown}"
 set +e
-timeout "${CODEX_TIMEOUT:-12m}" "$codex_bin" exec --ephemeral --sandbox read-only --color never --output-schema schema/analysis.schema.json --output-last-message "$analysis" "${radar_args[@]}" - < "$prompt" >>"$VAR_DIR/codex.log" 2>&1
+timeout "${CODEX_TIMEOUT:-12m}" "$codex_bin" exec --model gpt-6-astra -c 'model_reasoning_effort="medium"' --ephemeral --sandbox read-only --color never --output-schema schema/analysis.schema.json --output-last-message "$analysis" "${radar_args[@]}" - < "$prompt" >>"$VAR_DIR/codex.log" 2>&1
 codex_rc=$?
 set -e
 log "codex_exit=$codex_rc"

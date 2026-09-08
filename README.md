@@ -37,7 +37,7 @@ make update               # live collection + required Codex analysis + publish
 make serve                # 127.0.0.1:${PORT:-8794}
 ```
 
-Runtime is Python 3 with its standard library plus ordinary host tools used by the shell wrapper (`bash`, `flock`, `timeout`, and the standalone `codex` CLI). No Google or ECMWF credential is stored; both current ensemble adapters use bounded non-commercial Open-Meteo requests. `public/index.html` and `public/health.json` are checked-in offline examples and are replaced in production only by a successful update.
+Runtime is Python 3 with its standard library plus ordinary host tools used by the shell wrapper (`bash`, `flock`, `timeout`, and the standalone `codex` CLI). The updater pins `gpt-6-astra` with `model_reasoning_effort="medium"` and uses the global `codex` CLI on PATH (override with `CODEX_BIN`). Install or upgrade it with `npm install -g @openai/codex@0.153.4`; older CLI versions may reject Astra. No Google or ECMWF credential is stored; both current ensemble adapters use bounded non-commercial Open-Meteo requests. `public/index.html` and `public/health.json` are checked-in offline examples and are replaced in production only by a successful update.
 
 ## Operations
 

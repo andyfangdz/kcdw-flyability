@@ -641,6 +641,9 @@ class ProjectTests(unittest.TestCase):
             result = subprocess.run([str(ROOT / "scripts" / "update_report.sh")], cwd=ROOT, env=env, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stderr.decode())
             args = args_file.read_text().splitlines()
+            self.assertIn("--model", args)
+            self.assertEqual(args[args.index("--model") + 1], "gpt-6-astra")
+            self.assertIn('model_reasoning_effort="medium"', args)
             attached = [args[index + 1] for index, value in enumerate(args) if value == "--image"]
             self.assertEqual(attached, [str(path) for path in frame_paths])
 
