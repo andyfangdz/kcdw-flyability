@@ -97,4 +97,4 @@ Prompt preparation compresses repeated grid intervals, decodes version-matched N
 
 ## Report design
 
-The report and history share the Field Notes design: a seven-day overview, direct links to each day, concise planning picks, two-hour cards, and expandable hazard/daylight details. Styles live in `kcdw/report.css`; the renderer embeds them into each archived report, while the Worker imports them for history. Subset Barlow Condensed and IBM Plex Sans fonts are bundled in `kcdw/assets/fonts.css` with their OFL licenses, so viewing does not require third-party font requests. Historical reports retain their original presentation.
+The report and history share the Field Notes design: a seven-day overview, direct links to each day, concise planning picks, two-hour cards, and always-visible hazard/daylight details. Styles live in `kcdw/report.css`; the renderer embeds them into each archived report, while the Worker imports them for history. Subset Barlow Condensed and IBM Plex Sans fonts are bundled in `kcdw/assets/fonts.css` with their OFL licenses, so viewing does not require third-party font requests. Historical reports retain their original presentation.

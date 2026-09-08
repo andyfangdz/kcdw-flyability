@@ -43,3 +43,5 @@
   .pick-arrow{position:absolute;right:12px;top:12px;font-size:17px}
   .week-overview .section-head>.muted{display:none}
 }
+
+.day-detail>.field-label{font:10px/1.6 var(--mono);letter-spacing:.045em;margin:0 0 10px}.day-detail .hazards{margin:0 0 9px}
