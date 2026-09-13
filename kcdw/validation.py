@@ -19,6 +19,18 @@ class ValidationError(ValueError):
     pass
 
 
+def validate_weather_next3_source(snapshot: dict) -> None:
+    source = snapshot.get("sources", {}).get("weather_next3", {})
+    if isinstance(source, dict) and source.get("ok"):
+        try:
+            from .weathernext3 import validate_weather_next3
+            if source.get("fetched_at") != snapshot.get("collected_at"):
+                raise ValueError("WeatherNext 3 collection time mismatch")
+            validate_weather_next3(source.get("data"), parse_time(snapshot["collected_at"]))
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValidationError("WeatherNext 3 source marked available with invalid guidance") from exc
+
+
 def validate_snapshot_readiness(snapshot: dict) -> None:
     sources = snapshot.get("sources", {})
     radar = sources.get("radar_mosaic", {})
@@ -61,6 +73,7 @@ def validate_snapshot_readiness(snapshot: dict) -> None:
                 validate_ensemble_guidance(source.get("data"), model_id, parse_time(snapshot["collected_at"]))
             except (KeyError, TypeError, ValueError) as exc:
                 raise ValidationError(f"{label} source marked available with invalid guidance") from exc
+    validate_weather_next3_source(snapshot)
     for key, product in (("nbm_nbh", "NBH"), ("nbm_nbs", "NBS")):
         source = sources.get(key, {})
         if isinstance(source, dict) and source.get("ok"):
@@ -100,6 +113,7 @@ def _english_text(value, where="analysis") -> None:
 
 
 def validate_analysis(value: dict, snapshot: dict) -> dict:
+    validate_weather_next3_source(snapshot)
     _english_text(value)
     _exact(value, {"generated_at", "source_collected_at", "best_day", "backup_day", "summary", "controlling_hazards", "days", "data_requests"}, "analysis")
     try:

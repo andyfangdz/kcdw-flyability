@@ -83,11 +83,59 @@ def publish(client, archive):
     print(json.dumps(result))
 
 
+def event_bundle(archive):
+    manifest = load_json(archive / 'manifest.json')
+    if manifest.get('status') != 'validated' or manifest.get('kind') != 'event':
+        raise ValueError('Only validated event runs can be published')
+    snapshot = load_json(archive / 'snapshot.json')
+    from .event_ensemble import validate_snapshot
+    validate_snapshot(snapshot)
+    health = load_json(archive / 'health.json')
+    if health['generated_at'] != snapshot['collected_at']:
+        raise ValueError('Event health assessment time mismatch')
+    event = snapshot['event']
+    return {'version': 1, 'slug': event['slug'], 'run_id': manifest['run_id'], 'assessed_at': snapshot['collected_at'],
+            'html': (archive / 'index.html').read_text(), 'health': health, 'summary': manifest['summary'],
+            'event': {key: event[key] for key in ('slug', 'title', 'date', 'window', 'nav_label')}}
+
+
+def publish_event(client, archive):
+    data = event_bundle(archive)
+    result = client.request('/api/events/' + quote(data['slug'], safe='') + '/publish', data)
+    if result.get('stored') is not True or result.get('run_id') != data['run_id']:
+        raise ValueError('Worker did not confirm event storage')
+    # Read back the immutable HTML and history before recording publication.
+    path = '/events/' + quote(data['slug'], safe='')
+    with client.opener.open(Request(client.url + path + '/runs/' + quote(data['run_id'], safe=''), headers={'User-Agent': 'KCDW-Flyability-Publisher/1.0'}), timeout=40) as response:
+        html = response.read(MAX_BYTES + 1).decode()
+    if data['html'].split('<body', 1)[0] not in html or data['run_id'] not in {r['run_id'] for r in client.request('/api/events/' + quote(data['slug'], safe='') + '/history')['reports']}:
+        raise ValueError('Published event readback mismatch')
+    health = client.request(path + '/health.json')
+    if result.get('latest') and health.get('run_id') != data['run_id']:
+        raise ValueError('Published event pointer readback mismatch')
+    atomic_write(archive / 'cloud-publication.json', json.dumps(result | {'worker_url': client.url}, indent=2) + '\n')
+    print(json.dumps(result))
+
+
+def publish_events_index(client, events, now):
+    from .common import iso_z
+    payload = {'version': 1, 'updated_at': iso_z(now),
+               'events': [{key: getattr(event, key) for key in ('slug', 'title', 'date', 'window', 'nav_label')} for event in events]}
+    result = client.request('/api/events/index', payload)
+    if result.get('stored') is not True or result.get('events') != len(events):
+        raise ValueError('Worker did not confirm event index storage')
+    if client.request('/api/events').get('events') != payload['events']:
+        raise ValueError('Event index readback mismatch')
+    print(json.dumps(result))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, default=Path(os.environ.get('CLOUD_PUBLISH_CONFIG', 'var/cloudflare.json')))
     sub = parser.add_subparsers(dest='command', required=True)
     p = sub.add_parser('publish'); p.add_argument('archive', type=Path)
+    p = sub.add_parser('publish-event'); p.add_argument('archive', type=Path)
+    sub.add_parser('publish-events-index')
     p = sub.add_parser('backfill'); p.add_argument('runs', type=Path)
     p = sub.add_parser('previous'); p.add_argument('output', type=Path)
     p = sub.add_parser('history'); p.add_argument('--output', type=Path)
@@ -96,6 +144,13 @@ def main():
     client = Client(load_json(args.config))
     if args.command == 'publish':
         publish(client, args.archive)
+    elif args.command == 'publish-event':
+        publish_event(client, args.archive)
+    elif args.command == 'publish-events-index':
+        from datetime import datetime
+        from .common import UTC
+        from .events import load_events
+        publish_events_index(client, load_events(), datetime.now(UTC))
     elif args.command == 'backfill':
         for archive in sorted(args.runs.iterdir()):
             if not (archive / 'manifest.json').is_file():

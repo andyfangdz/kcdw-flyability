@@ -485,22 +485,12 @@ class ProjectTests(unittest.TestCase):
             with self.subTest(guidance=guidance):
                 self.assertIn(guidance, prompt)
 
-    def test_prompt_favors_weather_next2_only_for_longer_range(self):
+    def test_prompt_carries_dynamic_guidance_policy_without_relabeling_sources(self):
         prompt = build_prompt(self.snapshot)
-        required_guidance = (
-            "WeatherNext 2 is the preferred model guidance beyond 48 hours",
-            "Preferred model guidance does not mean preferred evidence overall",
-            "official NWS forecasts, AFD reasoning, and SPC outlooks remain higher-authority",
-            "ensemble mean and spread together",
-            "Use AIFS-ENS as the independent comparison and fallback model guidance",
-            "Do not average model disagreement away",
-            "native six-hour guidance interpolated to hourly steps",
-            "low-cloud fraction is not a ceiling",
-            "Never relabel WeatherNext 2 data as WeatherNext 3",
-        )
-        for guidance in required_guidance:
-            with self.subTest(guidance=guidance):
-                self.assertIn(guidance, prompt)
+        payload = json.loads(prompt.split("SOURCE_SNAPSHOT_JSON_BEGIN\n")[1].split("\nSOURCE_SNAPSHOT_JSON_END")[0])
+        self.assertIsNone(payload["model_guidance_policy"]["preferred_after_48h"])
+        self.assertEqual(payload["sources"]["weather_next"], self.snapshot["sources"]["weather_next"])
+        self.assertEqual(payload["sources"]["aifs_ens"], self.snapshot["sources"]["aifs_ens"])
 
     def test_score_bands_match_prompt_and_renderer(self):
         self.assertEqual(

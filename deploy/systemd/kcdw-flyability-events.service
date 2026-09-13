@@ -1,0 +1,17 @@
+[Unit]
+Description=Refresh KCDW dated-event outlook pages from ensemble members
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/ubuntu/projects/kcdw-flyability
+Environment=HOME=/home/ubuntu
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/flock -n var/events-update.lock /usr/bin/python3 -m kcdw.event_update --var var
+TimeoutStartSec=5min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/projects/kcdw-flyability/var

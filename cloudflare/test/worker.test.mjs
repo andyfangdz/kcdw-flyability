@@ -67,3 +67,34 @@ test('health uses the small publication pointer and supports older pointers',asy
   assert.equal(compatible.stale_after,modern.stale_after);
   await bucket.put('latest.json',JSON.stringify(pointer));
 });
+
+const eventMeta = { slug:'commercial-checkride', title:'Commercial checkride', date:'2099-09-24', window:'08-17', nav_label:'Checkride · Sep 24' };
+const eventReport = (stamp, assessment = '2026-09-12T20:00:00Z', slug = 'commercial-checkride') => ({ version:1, slug, run_id:stamp, assessed_at:assessment,
+  html:'<!doctype html><html><body data-design="field-notes" data-page="event"><h1>Event</h1></body></html>', health:{generated_at:assessment,stale_after:28800},
+  summary:'Per-model distributions; no calibrated flyability probability.', event:{...eventMeta, slug} });
+const publishEvent = (slug, body) => request('/api/events/'+slug+'/publish',{method:'POST',headers:{Authorization:'Bearer test-secret'},body:JSON.stringify(body)});
+const publishIndex = body => request('/api/events/index',{method:'POST',headers:{Authorization:'Bearer test-secret'},body:JSON.stringify(body)});
+
+test('event pages publish, serve, archive, and appear in navigation', async () => {
+  assert.equal((await request('/events/commercial-checkride')).status,404);
+  assert.equal((await publishEvent('commercial-checkride', eventReport('20260912T200000Z.ev'), {})).status,200);
+  assert.equal((await request('/api/events/commercial-checkride/publish',{method:'POST',body:'{}'})).status,401);
+  assert.equal((await publishEvent('other-slug', eventReport('20260912T200000Z.ev'))).status,400);
+  assert.equal((await publishEvent('Bad Slug', eventReport('20260912T200000Z.ev'))).status,404);
+  assert.equal((await publishEvent('commercial-checkride', {...eventReport('20260912T200000Z.ev'), html:'<html>'})).status,400);
+  const page=await (await request('/events/commercial-checkride')).text(); assert.match(page,/<h1>Event<\/h1>/); assert.doesNotMatch(page,/archive-banner/);
+  const older=await (await publishEvent('commercial-checkride', eventReport('20260912T190000Z.old','2026-09-12T19:00:00Z'))).json(); assert.equal(older.latest,false);
+  const archived=await (await request('/events/commercial-checkride/runs/20260912T190000Z.old')).text(); assert.match(archived,/Historical guidance pulled 2026-09-12T19:00:00Z/);
+  const hist=await (await request('/api/events/commercial-checkride/history')).json(); assert.deepEqual(hist.reports.map(r=>r.run_id),['20260912T200000Z.ev','20260912T190000Z.old']);
+  assert.match(await (await request('/events/commercial-checkride/history')).text(),/guidance history/);
+  const health=await (await request('/events/commercial-checkride/health.json')).json(); assert.equal(health.run_id,'20260912T200000Z.ev'); assert.equal(health.stale_after,28800); assert.equal(health.source_status,'provenance_unverified'); assert.notEqual(health.status,'ok');
+  assert.equal((await request('/events/commercial-checkride/analysis.json')).status,404);
+  assert.equal((await request('/events/nope')).status,404);
+  // Main history/report pointer untouched by event publication.
+  assert.equal((await (await request('/api/latest')).json()).run_id,'20260908T140000Z.b');
+  assert.equal((await publishIndex({version:1,updated_at:'2026-09-12T20:00:00Z',events:[eventMeta]})).status,200);
+  assert.equal((await publishIndex({version:1,updated_at:'2026-09-12T20:00:00Z',events:[eventMeta,eventMeta]})).status,400);
+  const events=await (await request('/api/events')).json(); assert.equal(events.events[0].slug,'commercial-checkride');
+  assert.match(await (await request('/events')).text(),/Commercial checkride/);
+  assert.match(await (await request('/history')).text(),/href="\/events\/commercial-checkride"/);
+});

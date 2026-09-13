@@ -18,6 +18,7 @@ from .common import UTC, atomic_write, iso_z, parse_time
 from .ensemble_guidance import WEATHER_NEXT_ENDPOINT, collect_aifs_ens, collect_weather_next
 from .geometry import geometry_contains
 from .nbm_guidance import collect_nbm
+from .weathernext3 import collect_weather_next3
 from .intervals import expand_grid_values
 
 LAT, LON = 40.8752, -74.2814
@@ -309,6 +310,7 @@ def collect(now: datetime | None = None, client: Client | None = None, radar_dir
         "nws_points": points,
         "nbm_nbh": _source(lambda: collect_nbm(client, now, "NBH", cache_dir), now),
         "nbm_nbs": _source(lambda: collect_nbm(client, now, "NBS", cache_dir), now),
+        "weather_next3": _source(lambda: collect_weather_next3(now), now),
         "weather_next": _source(lambda: collect_weather_next(client, now), now),
         "aifs_ens": _source(lambda: collect_aifs_ens(client, now), now),
     }

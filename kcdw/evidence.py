@@ -102,6 +102,22 @@ def ensemble_summary(data, snapshot):
             "note": "Ranges over actionable hours; variance_max is max squared ensemble standard deviation at a valid time. Hourly interpolation does not supply independent samples or member probabilities. Use raw series to localize a controlling window."}
 
 
+def model_guidance_policy(snapshot):
+    from .weathernext3 import validate_weather_next3
+    sources = snapshot.get("sources", {})
+    primary = None
+    if sources.get("weather_next3", {}).get("ok"):
+        try:
+            validate_weather_next3(sources["weather_next3"]["data"], parse_time(snapshot["collected_at"]))
+            primary = "WeatherNext 3"
+        except (KeyError, TypeError, ValueError):
+            pass
+    if primary is None:
+        primary = next((label for key, label in (("aifs_ens", "ECMWF AIFS-ENS"), ("weather_next", "WeatherNext 2")) if sources.get(key, {}).get("ok")), None)
+    return {"preferred_after_48h": primary, "independent_comparator": "ECMWF AIFS-ENS" if sources.get("aifs_ens", {}).get("ok") else None,
+            "note": "Preference applies only beyond 48 hours and to available fields. NWS/AWC/radar retain authority. WN3 lacks cloud/ceiling/visibility/gust fields; other sources remain essential."}
+
+
 def prepare(snapshot):
     result = copy.deepcopy(snapshot)
     sources = result.get("sources", {})
@@ -115,6 +131,10 @@ def prepare(snapshot):
     for key in ("weather_next", "aifs_ens"):
         if sources.get(key, {}).get("ok"):
             derived["ensemble_spread"][key] = ensemble_summary(sources[key]["data"], result)
+    result["model_guidance_policy"] = model_guidance_policy(snapshot)
+    if sources.get("weather_next3", {}).get("ok"):
+        from .weathernext3 import summarize_weather_next3
+        sources["weather_next3"]["data"] = summarize_weather_next3(sources["weather_next3"]["data"], parse_time(snapshot["collected_at"]))
     result["requested_windows"] = {date: planning_windows(snapshot, date) for date in snapshot["report_dates"]}
     result["derived_evidence"] = derived
     return result
