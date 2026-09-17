@@ -274,7 +274,9 @@ def _comparison_charts(snapshot: dict, models: list[dict], times: list[datetime]
             names.setdefault(key, source["label"])
     today = parse_time(snapshot["collected_at"]).astimezone(TZ).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(UTC)
     controls = ''.join(f'<label><input id="compare-{key}" type="checkbox" checked><span class="swatch" style="--c:{MODEL_COLORS[key]}"></span>{esc(name)}</label>' for key, name in names.items())
-    body = (f'<section id="multimodel-comparison" class="multimodel-comparison" data-forecast-today="{today:%Y-%m-%dT%H:%M:%SZ}"><h2>Multimodel comparison</h2>'
+    from .chart_retention import render_retention
+    retained_note = render_retention(snapshot)
+    body = (f'<section id="multimodel-comparison" class="multimodel-comparison" data-forecast-today="{today:%Y-%m-%dT%H:%M:%SZ}"><h2>Multimodel comparison</h2>{retained_note}'
             '<p class="comparison-intro">Gold = forecast context window · Eastern time. Pan any forecast chart to move all forecast charts together; y-axes stay fixed. Full dates include available earlier saved forecasts through the checkride and its following day.</p>'
             '<div class="forecast-controls" role="group" aria-label="Forecast time view"><button type="button" data-forecast-view="today">Today</button><button type="button" data-forecast-view="checkride">Center checkride</button><button type="button" data-forecast-view="full">Full date range</button></div>'
             '<fieldset class="comparison-controls"><legend>Show models / uncertainty</legend>' + controls +

@@ -164,11 +164,21 @@ its separately labeled source; a native chart does not relabel that packet.
 
 Native data carries its actual supplying initialization, provider, grid and
 sampling description. Open-Meteo fallback stays explicitly identified; a direct
-failure never makes a rolling response run-bound. Full chart horizons are
-requested, but ensemble workers prioritize the event and preserve uncollected
-member-hours as missing rather than inventing coverage. ECMWF ENS uses the
-available 50 perturbations, not an invented deterministic control; AIFS-ENS has
-51 members and GEFS 31. Missing native gust/low-cloud fields remain unknown.
+failure never makes a rolling response run-bound. Native ensemble candidates must
+cover every future plotted hour for pressure, sustained wind and rain (or surface
+and 850-hPa RH for humidity charts) before replacing a full time series. Event-only
+packets remain useful private native evidence but do not displace the lead-up.
+If a new chart collection fails or loses coverage, a bounded archive scan can
+retain a compatible complete packet no more than 12 hours old, with its original
+collection clock and a content-bound visible note. Complete native core fields
+also cannot erase an optional gust/cloud/temperature series present in the saved
+full-range source. Retention copies a whole model packet (or RH envelope), never
+splices different runs or relabels saved Open-Meteo data as native. Repeated use
+never renews the original retention age. These archive reads occur only during
+collection, not rendering; retained-source clocks also reach narrative evidence.
+ECMWF ENS uses the available 50 perturbations, not an invented deterministic
+control; AIFS-ENS has 51 members and GEFS 31. Missing native gust/low-cloud fields
+remain unknown.
 
 Instantaneous native samples are explicitly interpolated for hourly alignment;
 no extrapolation or long-gap bridging is permitted. Native accumulated rain is

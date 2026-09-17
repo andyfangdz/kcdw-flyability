@@ -53,6 +53,11 @@ class DirectTests(unittest.TestCase):
         self.assertEqual(collection_leads('gfs',0,3),[0,3])
         self.assertEqual(collection_leads('ifs',6,9),[6,9])
 
+    def test_cache_without_original_clock_cannot_precede_collection(self):
+        from kcdw.direct_deterministic import validate_packet,stamp
+        packet=self.packet();packet['samples'][0]['fetched_at']=stamp(NOW-timedelta(minutes=1))
+        with self.assertRaises(ValueError):validate_packet(packet,NOW)
+
     def test_future_initialization_at_original_collection_rejected(self):
         from kcdw.direct_deterministic import validate_packet, stamp
         p=self.packet(); p['collection_started_at']=stamp(NOW.replace(hour=11))

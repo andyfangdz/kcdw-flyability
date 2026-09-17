@@ -37,6 +37,20 @@ class SourcePresentationTests(unittest.TestCase):
             self.assertEqual(json.loads(raw), snapshot)
             self.assertLessEqual(len(raw), compact_bytes+1)
 
+    def test_sampling_dictionary_is_lossless_and_keeps_numbers(self):
+        from kcdw.event_evidence_compact import compact_sampling
+        import copy,json
+        text='native cadence and source semantics; '*30
+        original={'sources':[{'sampling':text,'rh':102.4},{'nested':{'sampling':text},'rh':None}]}
+        packed=compact_sampling(original)
+        self.assertLess(len(json.dumps(packed)),len(json.dumps(original)))
+        definitions=packed.pop('sampling_definitions')
+        def expand(value):
+            if isinstance(value,dict):return {k:(definitions[v.removeprefix('@sampling:')] if k=='sampling' and isinstance(v,str) and v.startswith('@sampling:') else expand(v)) for k,v in value.items()}
+            if isinstance(value,list):return [expand(v) for v in value]
+            return value
+        self.assertEqual(expand(packed),original)
+
     def test_native_snapshot_clock_includes_collection_completion(self):
         from datetime import timedelta
         from types import SimpleNamespace

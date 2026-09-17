@@ -146,6 +146,7 @@ def validate_packet(packet,now):
         require(not(model=='ifs' and init.hour in (6,18) and lead>144))
         require(s['url']==url_for(model,init,lead) and s['at']==stamp(init+timedelta(hours=lead)))
         fetched=parse(s['fetched_at']); require(init<=fetched<=collected)
+        if 'collection_origin' not in s:require(begun<=fetched)
         if 'collection_origin' in s:
             origin=s['collection_origin']; a=parse(origin['started_at']); b=parse(origin['completed_at'])
             require(init<=a<=fetched<=b<=a+timedelta(seconds=180) and b<=collected)

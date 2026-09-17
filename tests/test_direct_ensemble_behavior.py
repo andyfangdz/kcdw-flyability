@@ -6,6 +6,17 @@ from kcdw import direct_ensemble as d
 from kcdw.event_ensemble import MODELS
 
 class NativeBehaviorTests(unittest.TestCase):
+    def test_incomplete_native_chart_enters_real_open_meteo_fallback(self):
+        from tests.test_events import FakeClient, EVENT, NOW
+        from kcdw.event_ensemble import collect_model
+        client=FakeClient();client.direct_native=True
+        with patch.object(d,'collect_chart',return_value=None):
+            result=collect_model(client,MODELS[0],EVENT,NOW)
+        self.assertIsInstance(result,dict)
+        self.assertEqual(result['metadata']['direct_fallback_reason'],d.FALLBACK)
+        self.assertTrue(all(result['hourly']['pressure_msl']['sample_counts']))
+        self.assertTrue(any('api.open-meteo.com' in url for url in client.urls))
+
     def test_native_supersaturation_is_preserved_after_interpolation(self):
         from kcdw.direct_ensemble_worker import field_spec
         self.assertGreaterEqual(field_spec('ecmwf_ens','r850')[-1],102)

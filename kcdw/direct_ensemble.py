@@ -204,16 +204,35 @@ def base_data(spec,packet,axis,now) -> dict:
     return dict(model_id=spec.model_id,model=spec.name,label=label(spec),members=COUNTS[spec.key],fetched_at=max(p['fetched_at'] for p in packet['points']),endpoint='https://noaa-gefs-pds.s3.amazonaws.com/' if spec.key=='gefs' else 'https://data.ecmwf.int/forecasts/',metadata=metadata(packet,axis,now),grid_point={'latitude':41.,'longitude':-74.5 if spec.key=='gefs' else -74.25})
 
 
+def _covers_future(data, fields, start, end, now):
+    """Collection-only policy: retain sparse historical packets for offline use.
+
+    Count actual normalized member samples, including conservative native-six-hour
+    interpolation, without changing values, member counts, or provenance. Use the
+    original collection clock, not the clock after the bounded native fetch.
+    """
+    first = max(start, now).astimezone(UTC)
+    hour = first.replace(minute=0, second=0, microsecond=0)
+    if hour < first:
+        hour += timedelta(hours=1)
+    hourly = data['hourly']
+    indices = {time(stamp): i for i, stamp in enumerate(hourly['time'])}
+    while hour < end:
+        index = indices.get(hour)
+        if index is None or any(hourly[field]['sample_counts'][index] < 1 for field in fields):
+            return False
+        hour += timedelta(hours=1)
+    return True
+
+
 def collect_rh(client,spec,start,end,now):
     from .event_moisture_ensemble import _fans,VARIABLES,UNITS
     axis=[iso_z(start+timedelta(hours=i)) for i in range(int((end-start).total_seconds()/3600))]
     packet=collect_native(client,spec.key,start,end,now);members=hourly_members(packet,axis)
     members={f:members[f] for f in VARIABLES};data=base_data(spec,packet,axis,now)
     data.update(hourly_units=dict(UNITS),member_ids={f:sorted(m for m,row in rows.items() if any(v is not None for v in row)) for f,rows in members.items()},hourly=_fans(members,axis))
-    focus=end-timedelta(days=2)+timedelta(hours=10)
-    indices=[i for i,t in enumerate(axis) if focus<=time(t)<=focus+timedelta(hours=2)]
-    counts=data['hourly']['relative_humidity_850hPa']['sample_counts']
-    require(all(counts[i]==COUNTS[spec.key] for i in indices) if indices else any(counts))
+    if not _covers_future(data, ('relative_humidity_2m', 'relative_humidity_850hPa'), start, end, now):
+        return None
     return seal(data)
 
 
@@ -222,6 +241,8 @@ def collect_chart(client,spec,event,start,end,now):
     from .event_ensemble import _window_scenarios
     axis=[iso_z(start+timedelta(hours=i)) for i in range(int((end-start).total_seconds()/3600))]
     packet=collect_native(client,spec.key,start,end,now);members=hourly_members(packet,axis)
-    data=base_data(spec,packet,axis,now);data.update(key=spec.key,provider=data['metadata']['source_provider'],hourly_units=dict(UNITS)|{'time':'iso8601 UTC'},hourly=_hourly_stats([time(t) for t in axis],{f:members[f] for f in VARIABLES}),window=_window_scenarios(event,[time(t) for t in axis],members) if event is not None else None)
-    require(any(data['hourly']['wind_speed_10m']['sample_counts']))
+    data=base_data(spec,packet,axis,now);data.update(key=spec.key,provider=data['metadata']['source_provider'],hourly_units=dict(UNITS)|{'time':'iso8601 UTC'},hourly=_hourly_stats([time(t) for t in axis],{f:members[f] for f in VARIABLES}))
+    if not _covers_future(data, ('pressure_msl', 'wind_speed_10m', 'precipitation'), start, end, now):
+        return None
+    data['window'] = _window_scenarios(event, [time(t) for t in axis], members) if event is not None else None
     return seal(data)

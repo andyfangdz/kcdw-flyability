@@ -46,6 +46,29 @@ def compact_changes(packet):
     return out
 
 
+def compact_sampling(packet):
+    """Losslessly share repeated sampling descriptions; no weather values change."""
+    from collections import Counter
+    counts=Counter()
+    def visit(value):
+        if isinstance(value,dict):
+            for key,item in value.items():
+                if key=='sampling' and isinstance(item,str):counts[item]+=1
+                else:visit(item)
+        elif isinstance(value,list):
+            for item in value:visit(item)
+    visit(packet)
+    aliases={text:'s'+str(i) for i,text in enumerate(sorted(text for text,count in counts.items() if count>1),1)}
+    def pack(value):
+        if isinstance(value,dict):
+            return {key:('@sampling:'+aliases[item] if key=='sampling' and isinstance(item,str) and item in aliases else pack(item)) for key,item in value.items()}
+        if isinstance(value,list):return [pack(item) for item in value]
+        return deepcopy(value)
+    result=pack(packet)
+    if aliases:result['sampling_definitions']={alias:text for text,alias in aliases.items()}
+    return result
+
+
 def compact_official_prose(packet):
     """Last-resort prose reduction; retain every product's facts and coverage."""
     out=deepcopy(packet)

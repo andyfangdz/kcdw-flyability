@@ -268,7 +268,10 @@ def collect_model(client, spec: MemberModel, event: Event | None, now: datetime,
     if getattr(client, 'direct_native', False) is True and spec.key in ('gefs', 'ecmwf_ens', 'aifs_ens'):
         try:
             from .direct_ensemble import collect_chart
-            return collect_chart(client, spec, event, start.astimezone(UTC), end.astimezone(UTC), now)
+            native = collect_chart(client, spec, event, start.astimezone(UTC), end.astimezone(UTC), now)
+            if native is not None:
+                return native
+            fallback = True
         except Exception:
             fallback = True
     params = {"latitude": LAT, "longitude": LON, "models": spec.model_id, "hourly": ",".join(VARIABLES),
@@ -471,7 +474,7 @@ def weathernext3_diagnostic(snapshot: dict, now: datetime) -> dict:
         return {"available": False, "reason": "validation failed"}
 
 
-def collect_event(client, event: Event, now: datetime | None = None) -> dict:
+def collect_event(client, event: Event, now: datetime | None = None, *, allow_empty: bool = False) -> dict:
     now = (now or datetime.now(UTC)).astimezone(UTC)
     start, end = event_range(event, now)
     models = {}
@@ -487,7 +490,7 @@ def collect_event(client, event: Event, now: datetime | None = None) -> dict:
             models.update(pool.map(collect_one, MODELS))
     else:
         models.update(map(collect_one, MODELS))
-    if not any(model["ok"] for model in models.values()):
+    if not allow_empty and not any(model["ok"] for model in models.values()):
         raise RuntimeError("no ensemble model was usable for the event")
     try:
         comparator = {"ok": True, "data": collect_weathernext_comparator(client, event, now, (start, end))}

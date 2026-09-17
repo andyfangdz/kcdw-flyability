@@ -193,6 +193,10 @@ def build_event_evidence(snapshot, now) -> dict:
     timing = timing_evidence(snapshot)
     if timing is not None:
         result["operational_timing"] = timing
+    from .chart_retention import retention_evidence
+    retained = retention_evidence(snapshot)
+    if retained:
+        result['retained_chart_sources'] = retained
     if snapshot.get('initialization_provenance_version') == 1:
         result['model_initializations'] = initialization_evidence(snapshot, now)
     context = snapshot.get('synoptic_context')
@@ -281,6 +285,9 @@ def build_event_evidence(snapshot, now) -> dict:
                 source['evidence']=compact_moisture(source['evidence'])
             elif source['id']=='snapshot_changes' and source['status']=='available':
                 source['evidence']=compact_changes(source['evidence'])
+    if snapshot.get('narrative_sampling_dictionary_version') == 1:
+        from .event_evidence_compact import compact_sampling
+        result = compact_sampling(result)
     # Bound the complete serialized envelope, including Unicode escaping used by
     # callers' default json.dumps. Keep dates/status if a large bulletin is cut.
     while len(json.dumps(result, allow_nan=False).encode()) > MAX_BYTES:
