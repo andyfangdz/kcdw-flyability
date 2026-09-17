@@ -68,7 +68,7 @@ def operational_briefing(snapshot: dict, now: datetime) -> dict:
     if model_wind:
         agreement_detail += f' Peak-wind medians: {min(model_wind):.1f}–{max(model_wind):.1f} kt.'
     cards = [
-        {'label': 'Rain during the window', 'value': rain_value, 'detail': rain_detail, 'tone': 'watch' if rain_watch else 'neutral'},
+        {'label': 'Rain · forecast context', 'value': rain_value, 'detail': rain_detail, 'tone': 'watch' if rain_watch else 'neutral'},
         {'label': 'Runway wind', 'value': wind_value, 'detail': wind_detail, 'tone': 'watch' if wind_watch else 'neutral'},
         {'label': 'Maneuvers ceiling', 'value': 'Not resolved', 'detail': 'Low-cloud fraction is not ceiling or visibility. Check representative TAFs and observations near the date.', 'tone': 'watch'},
         {'label': 'Model disagreement', 'value': agreement, 'detail': agreement_detail, 'tone': 'watch' if disagreement or medians_flag else 'neutral'},
@@ -86,7 +86,7 @@ def operational_briefing(snapshot: dict, now: datetime) -> dict:
     concerns = [name for name, present in (('rain', rain_watch), ('wind', wind_watch), ('model disagreement', disagreement)) if present]
     if medians_flag and not concerns:
         concerns.append('other models flag rain/wind')
-    headline = ('Keep a backup: ' + ', '.join(concerns) if watch else
+    headline = ('Watch timing: ' + ', '.join(concerns) if watch else
                 'Rain/wind look modest; ceiling remains unresolved')
     summary = 'Long-range scheduling guidance, not a decision to fly. Use the charts to follow timing and spread across runs.'
     if not diagnostic['available']:

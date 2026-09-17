@@ -7,24 +7,44 @@ standard-deviation comparators alongside purpose-specific planning diagnostics.
 from __future__ import annotations
 
 import html
+import json
+import hashlib
+import base64
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from .presentation import compact_notes
+
 from .common import UTC, parse_time
 from .events import TZ, Event
+from .event_timing import timing_header
+from .event_afd_view import render_afds
 from .event_ensemble import MODELS
+from .trend_renderer import render_trends
+from .run_history import render_run_history
 
 STALE_AFTER = 8 * 3600
-MODEL_COLORS = {"gefs": "#b54a2b", "ecmwf_ens": "#1f5f8b", "aifs_ens": "#26764e", "geps": "#6b4f9e", "wn3": "#c02679", "wn2": "#9b6021"}
+MODEL_COLORS = {"gfs": "#172b3a", "gefs": "#b54a2b", "ecmwf_ens": "#1f5f8b", "aifs_ens": "#26764e", "geps": "#6b4f9e", "wn3": "#c02679", "wn2": "#9b6021"}
 W, H, PAD_L, PAD_R, PAD_T, PAD_B = 1000, 240, 48, 14, 14, 34
+
+
+def render_low_cloud(snapshot, now):
+    from .low_cloud_analysis import render_low_cloud as render
+    return render(snapshot, now)
 
 
 def esc(value) -> str:
     return html.escape(str(value), quote=True)
 
 
+def encode_chart_values(values):
+    """Lossless JSON compaction; whole floats and integers decode identically."""
+    return json.dumps([int(v) if isinstance(v, float) and v.is_integer() else v for v in values],
+                      separators=(',', ':'), allow_nan=False)
+
+
 class Chart:
-    def __init__(self, times: list[datetime], y_min: float, y_max: float, window: tuple[int, int]):
+    def __init__(self, times: list[datetime], y_min: float, y_max: float, window: tuple[int, int] | None):
         self.times, self.n = times, len(times)
         span = max(y_max - y_min, 1e-9)
         self.y_min, self.y_max = y_min - span * 0.06, y_max + span * 0.06
@@ -52,6 +72,11 @@ class Chart:
             segments.append(current)
         return segments
 
+    @staticmethod
+    def _points(points):
+        from .moisture_chart import straight_points
+        return " ".join(",".join(f"{v:.1f}".removesuffix(".0") for v in (x,y)) for x, y in straight_points(points))
+
     def band(self, low: list, high: list, fill: str, opacity: float) -> None:
         segments, current = [], []
         for index, (l, h) in enumerate(zip(low, high)):
@@ -62,19 +87,24 @@ class Chart:
                 current.append((index, l, h))
         segments.append(current)
         for points in segments:
+            if len(points) == 1:
+                i, low_value, high_value = points[0]
+                self.parts.append(f'<line x1="{self.x(i):.1f}" x2="{self.x(i):.1f}" y1="{self.y(low_value):.1f}" y2="{self.y(high_value):.1f}" stroke="{fill}" stroke-opacity="{opacity}" stroke-width="6"/>')
             if len(points) < 2:
                 continue
-            forward = " ".join(f"{self.x(i):.1f},{self.y(h):.1f}" for i, _, h in points)
-            backward = " ".join(f"{self.x(i):.1f},{self.y(l):.1f}" for i, l, _ in reversed(points))
+            forward = self._points((self.x(i), self.y(h)) for i, _, h in points)
+            backward = self._points((self.x(i), self.y(l)) for i, l, _ in reversed(points))
             self.parts.append(f'<polygon points="{forward} {backward}" fill="{fill}" fill-opacity="{opacity}" stroke="none"/>')
 
-    def line(self, values: list, color: str, width: float = 1.8, dashed: bool = False) -> None:
+    def line(self, values: list, color: str, width: float = 1.8, dashed: bool = False, compact: bool = True) -> None:
         dash = ' stroke-dasharray="6 4"' if dashed else ""
         for segment in self._segments(values):
-            if len(segment) < 2:
+            if len(segment) == 1:
+                x, y = segment[0]
+                self.parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.5" fill="{color}"/>')
                 continue
-            points = " ".join(f"{x:.1f},{y:.1f}" for x, y in segment)
-            self.parts.append(f'<polyline points="{points}" fill="none" stroke="{color}" stroke-width="{width}"{dash} stroke-linejoin="round"/>')
+            points = self._points(segment) if compact else " ".join(f"{x:.1f},{y:.1f}" for x, y in segment)
+            self.parts.append(f'<polyline points="{points}" fill="none" stroke="{color}" stroke-width="{width}"{dash} vector-effect="non-scaling-stroke" stroke-linejoin="round"/>')
 
     def reference(self, value: float, label: str) -> None:
         if not self.y_min <= value <= self.y_max:
@@ -84,26 +114,35 @@ class Chart:
                           f'<text x="{W - PAD_R - 4}" y="{y - 4:.1f}" text-anchor="end" class="ref">{esc(label)}</text>')
 
     def render(self, title: str, unit: str, note: str, legend: list[tuple[str, str, bool]], y_ticks: list[float]) -> str:
-        axes = []
+        axes = {color: [] for color in ("#d4dad2", "#c9d0c7", "#a9b3a8")}
+        labels, dates = [], []
         for value in y_ticks:
             if self.y_min <= value <= self.y_max:
                 y = self.y(value)
-                axes.append(f'<line x1="{PAD_L}" x2="{W - PAD_R}" y1="{y:.1f}" y2="{y:.1f}" stroke="#d4dad2" stroke-width="1"/>'
-                            f'<text x="{PAD_L - 6}" y="{y + 4:.1f}" text-anchor="end" class="tick">{value:g}</text>')
+                axes["#d4dad2"].append(f'<line x1="{PAD_L}" x2="{W - PAD_R}" y1="{y:.1f}" y2="{y:.1f}"/>')
+                labels.append(f'<span style="top:{y / H * 100:.3f}%">{value:g}</span>')
         for index, moment in enumerate(self.times):
             local = moment.astimezone(TZ)
-            if local.hour == 0:
+            if local.hour == 0 or index == 0:
                 x = self.x(index)
-                axes.append(f'<line x1="{x:.1f}" x2="{x:.1f}" y1="{PAD_T}" y2="{H - PAD_B}" stroke="#c9d0c7" stroke-width="1"/>')
-                axes.append(f'<text x="{x + 5:.1f}" y="{H - 10}" class="tick">{esc(local.strftime("%a %b %-d"))}</text>')
+                axes["#c9d0c7"].append(f'<line x1="{x:.1f}" x2="{x:.1f}" y1="{PAD_T}" y2="{H - PAD_B}"/>')
+                left = (x - PAD_L) / (W - PAD_L - PAD_R) * 100
+                dates.append(f'<span style="left:{left:.5f}%" title="{local:%Y-%m-%d}">{esc(local.strftime("%b %-d"))}</span>')
             elif local.hour == 12:
                 x = self.x(index)
-                axes.append(f'<line x1="{x:.1f}" x2="{x:.1f}" y1="{H - PAD_B - 5}" y2="{H - PAD_B}" stroke="#a9b3a8" stroke-width="1"/>')
-        start, end = self.window
-        shade = f'<rect x="{self.x(start):.1f}" y="{PAD_T}" width="{self.x(end) - self.x(start):.1f}" height="{H - PAD_T - PAD_B}" fill="#e8b84a" fill-opacity=".28"/>'
+                axes["#a9b3a8"].append(f'<line x1="{x:.1f}" x2="{x:.1f}" y1="{H - PAD_B - 5}" y2="{H - PAD_B}"/>')
+        grid = "".join(f'<g stroke="{color}" stroke-width="1">{"".join(lines)}</g>' for color, lines in axes.items())
+        start, end = self.window or (0, 0)
+        shade = (f'<rect x="{self.x(start):.1f}" y="{PAD_T}" width="{self.x(end) - self.x(start):.1f}" height="{H - PAD_T - PAD_B}" fill="#e8b84a" fill-opacity=".28"/>' if self.window is not None else '')
         swatches = "".join(f'<span class="legend-item"><span class="swatch{" dashed" if dashed else ""}" style="--c:{color}"></span>{esc(label)}</span>' for label, color, dashed in legend)
+        axis_start, axis_end = self.times[0].astimezone(UTC), self.times[-1].astimezone(UTC)
+        center = self.times[start] + (self.times[end] - self.times[start]) / 2
+        hours = (axis_end-axis_start).total_seconds()/3600
         return (f'<figure class="chart"><figcaption><h3>{esc(title)}</h3><span class="unit">{esc(unit)}</span></figcaption>'
-                f'<div class="chart-scroll" tabindex="0" role="region" aria-label="{esc(title)} chart; scroll horizontally on small screens"><svg viewBox="0 0 {W} {H}" role="img" aria-label="{esc(title)}" preserveAspectRatio="none">{shade}{"".join(axes)}{"".join(self.parts)}</svg></div>'
+                f'<div class="forecast-frame"><div class="fixed-y-axis" aria-label="{esc(unit)} axis">{"".join(labels)}</div>'
+                f'<div class="chart-scroll" data-sync-group="forecast" data-axis-start="{axis_start:%Y-%m-%dT%H:%M:%SZ}" data-axis-end="{axis_end:%Y-%m-%dT%H:%M:%SZ}" data-event-center="{center.astimezone(UTC):%Y-%m-%dT%H:%M:%SZ}" tabindex="0" role="region" aria-label="{esc(title)} chart; pan horizontally; synchronized forecast dates">'
+                f'<div class="forecast-plane" style="width:{max(720, hours*12):.1f}px"><svg viewBox="{PAD_L} 0 {W-PAD_L-PAD_R} {H}" role="img" aria-label="{esc(title)}" preserveAspectRatio="none">{shade}{grid}{"".join(self.parts)}</svg>'
+                f'<div class="forecast-x-axis">{"".join(dates)}</div></div></div><output class="chart-tooltip" hidden></output></div>'
                 f'<div class="legend-row">{swatches}</div><p class="chart-note">{esc(note)}</p></figure>')
 
 
@@ -127,24 +166,139 @@ def _ticks(low: float, high: float) -> list[float]:
     return [start + step * i for i in range(int((high - start) / step) + 2)]
 
 
-def _comparison_charts(snapshot: dict, models: list[dict], times: list[datetime], window: tuple[int, int], now: datetime) -> str:
+def gfs_status(snapshot: dict, now: datetime) -> dict:
+    from .gfs_guidance import validate_gfs
+    return validate_gfs(snapshot.get("gfs"), now)
+
+
+def _gfs_window(hourly: dict, start: datetime, end: datetime) -> str:
+    """No reduction over missing hours; rain endpoints differ from wind samples."""
+    axis = {parse_time(t): i for i, t in enumerate(hourly["time"])}
+    n = int((end - start).total_seconds() / 3600)
+    def value(field, rain=False):
+        expected = [start + timedelta(hours=i + int(rain)) for i in range(n)]
+        values = [hourly[field][axis[t]] if t in axis else None for t in expected]
+        if not values or any(v is None for v in values):
+            return "unavailable (window gaps)"
+        complete = [float(v) for v in values if v is not None]
+        result = sum(complete) if rain else max(complete)
+        return f'{result:.1f} {"mm" if rain else "kt"}'
+    return ('<p class="gfs-window"><strong>GFS operational · forecast context:</strong> '
+            + value("precipitation", True) + ' rain · peak sampled sustained wind '
+            + value("wind_speed_10m") + ' · peak sampled gust '
+            + value("wind_gusts_10m") + '. One deterministic scenario, not a probability.</p>')
+
+
+def _aligned(hourly, values, times):
+    positions = {parse_time(t): i for i, t in enumerate(hourly.get("time", []))}
+    return [values[positions[t]] if t in positions and positions[t] < len(values) else None for t in times]
+
+
+def _validated_history(snapshot, now):
+    if not snapshot.get("forecast_history"):
+        return None
+    from .forecast_history import validate_forecast_history
+    history = validate_forecast_history(snapshot["forecast_history"], snapshot["event"], now)
+    if history and (history['collected_at'] != snapshot.get('collected_at') or
+                    history['cutoff'] != snapshot.get('range', {}).get('start')):
+        return None
+    return history
+
+
+def _history_series(snapshot, history, field, times, current):
+    """Saved values are display-only, never substitutes for present guidance."""
+    if not history:
+        return []
+    cutoff = parse_time(snapshot["range"]["start"])
+    result = []
+    for key, source in (history or {}).get("sources", {}).items():
+        hourly = source["hourly"]
+        raw = hourly.get(field)
+        if not raw:
+            continue
+        present = current.get(key, [None] * len(times))
+        arrays = [_aligned(hourly, raw.get(stat, []), times) for stat in ("center", "low", "high")]
+        for i, t in enumerate(times):
+            if t >= cutoff or present[i] is not None:
+                for values in arrays:
+                    values[i] = None
+        if not any(v is not None for v in arrays[0]):
+            continue
+        statistic = {"median": "Median (p50) / p10–p90", "mean": "Mean ±1 SD" if key == "wn2" else "Mean / p10–p90",
+                     "deterministic": "Deterministic / no uncertainty band"}[source["statistic"]]
+        if source["statistic"] == "deterministic":
+            arrays[1:] = [[], []]
+        result.append((key, *arrays, statistic))
+    return result
+
+
+def _saved_group(chart, row, label, color, unit, indices=None, moisture=False):
+    key, center, low, high, statistic = row
+    # Hover lookup already treats out-of-array hours as missing. Preserve all
+    # interior/leading gaps, but avoid repeating the empty future tail per curve.
+    last = next((i+1 for i in range(len(center)-1, -1, -1) if center[i] is not None), 0)
+    encoded = esc(encode_chart_values([round(v, 4) if v is not None else None for v in center[:last]]))
+    model = "rh-" + key if moisture else key
+    rh_attribute = f' data-rh-model="{key}"' if moisture else ""
+    chart.parts.append(f'<g data-model="{model}"{rh_attribute} data-history="saved-forecast" opacity=".48" data-label="{esc(label)} / saved forecast / {esc(statistic)}" data-unit="{esc(unit)}" data-values="{encoded}">')
+    sample = lambda values: [values[i] for i in indices] if indices is not None else values
+    if low and high:
+        chart.parts.append('<g class="' + ('rh-band' if moisture else 'comparison-band') + '">')
+        chart.band(sample(low), sample(high), color, .10)
+        chart.parts.append('</g>')
+    chart.parts.append('<g stroke-dasharray="2 4">')
+    chart.line(sample(center), color, 1.5, compact=True)
+    chart.parts.append('</g></g>')
+
+
+def _comparison_charts(snapshot: dict, models: list[dict], times: list[datetime], window: tuple[int, int], now: datetime, history=None) -> str:
     """One timestamp-aligned chart per variable; no pooling of statistics."""
     from .event_ensemble import weathernext3_diagnostic
     wn3_ok = weathernext3_diagnostic(snapshot, now)["available"]
     forecast = snapshot["weathernext3"]["data"]["forecast"] if wn3_ok else {}
     wn2 = snapshot.get("weathernext2", {})
     wn2_hourly = wn2["data"]["hourly"] if wn2.get("ok") else {}
+    gfs = gfs_status(snapshot, now)
+    gfs_data = snapshot["gfs"]["data"] if gfs["available"] else {}
+    gfs_hourly = gfs_data.get("hourly", {})
+    gfs_axis = {parse_time(t): i for i, t in enumerate(gfs_hourly.get("time", []))}
     names = {m["key"]: m["model"] for m in models}
+    if gfs["available"]:
+        names["gfs"] = "GFS operational (deterministic)"
     if wn2_hourly:
         names["wn2"] = "WeatherNext 2"
     if wn3_ok:
         names["wn3"] = "WeatherNext 3"
+    for key, source in (history or {}).get("sources", {}).items():
+        if key in MODEL_COLORS:
+            names.setdefault(key, source["label"])
+    today = parse_time(snapshot["collected_at"]).astimezone(TZ).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(UTC)
     controls = ''.join(f'<label><input id="compare-{key}" type="checkbox" checked><span class="swatch" style="--c:{MODEL_COLORS[key]}"></span>{esc(name)}</label>' for key, name in names.items())
-    body = ('<section id="multimodel-comparison" class="multimodel-comparison"><h2>Multimodel comparison</h2>'
-            '<p class="comparison-intro">Gold = provisional window · Eastern time · shared axes, separate models. Scroll charts horizontally on small screens.</p>'
+    body = (f'<section id="multimodel-comparison" class="multimodel-comparison" data-forecast-today="{today:%Y-%m-%dT%H:%M:%SZ}"><h2>Multimodel comparison</h2>'
+            '<p class="comparison-intro">Gold = forecast context window · Eastern time. Pan any forecast chart to move all forecast charts together; y-axes stay fixed. Full dates include available earlier saved forecasts through the checkride and its following day.</p>'
+            '<div class="forecast-controls" role="group" aria-label="Forecast time view"><button type="button" data-forecast-view="today">Today</button><button type="button" data-forecast-view="checkride">Center checkride</button><button type="button" data-forecast-view="full">Full date range</button></div>'
             '<fieldset class="comparison-controls"><legend>Show models / uncertainty</legend>' + controls +
             '<label><input id="compare-bands" type="checkbox" checked>Show ensemble ranges / SD</label></fieldset>'
-            '<p class="chart-note">Lines: ensemble medians · WN3 mean (magenta) · WN2 mean (dashed). Ranges shown by default; deselect models to compare spread.</p><details class="chart-reading"><summary>Reading the ranges &amp; chart controls</summary><p>Conventional ensembles: Median (p50), thin solid line; p10–p90 bands. WN3: mean, bold magenta line; p10–p90 bands. WN2: dashed mean; Mean ±1 SD (standard deviation), not percentiles or a probability interval. SD bands may extend beyond physical bounds. Percentile ranges are p10–p90, not full ensemble minima/maxima. Hourly interpolation does not create hourly forecast skill. Models are not pooled; axes stay fixed when hidden. Hover a point for its exact UTC timestamp and value. Use Tab and Space to toggle models and ranges.</p></details>')
+            '<p class="chart-note">Lines: ensemble medians · WN3 mean (magenta) · WN2 mean (dashed) · GFS operational (bold dark line, no band). Ranges shown by default; deselect models to compare spread.</p><details class="chart-reading"><summary>Reading the ranges &amp; chart controls</summary><p>GFS operational: one deterministic forecast, not the GEFS control or ensemble median; no uncertainty band. GFS values after 120 hours are interpolated from native 3-hourly output, not added timing skill. Conventional ensembles: Median (p50), thin solid line; p10–p90 bands. WN3: mean, bold magenta line; p10–p90 bands. WN2: dashed mean; Mean ±1 SD (standard deviation), not percentiles or a probability interval. SD bands may extend beyond physical bounds. Percentile ranges are p10–p90, not full ensemble minima/maxima. Hourly interpolation does not create hourly forecast skill. Models are not pooled; axes stay fixed when hidden. Hover a point for its exact UTC timestamp and value. Use Tab and Space to toggle models and ranges.</p></details>')
+    if history:
+        sampled = history.get('provenance', {}).get('truncated')
+        body += ('<p class="chart-note"' + (' data-history-coverage="sampled"' if sampled else '') + '>Earlier saved forecasts—not observations: faded dotted lines keep their original statistics; gaps mean unavailable saved guidance.'
+                 + (' Coverage is sampled within archive limits.' if sampled else '') + '</p>')
+    if gfs["available"]:
+        body += _gfs_window(gfs_hourly, times[window[0]], times[window[1]])
+        datasets = gfs_data.get("metadata", {}).get("datasets", {})
+        advertised = '; '.join(f'{key}: {item["latest_advertised_init"]}' for key, item in datasets.items()) or 'unavailable'
+        from .source_presentation import is_direct, source_description
+        if is_direct(gfs_data):
+            body += ('<details class="chart-reading"><summary>GFS source and cycle provenance</summary><p>'
+                     + esc(source_description(gfs_data)) + ' Fetched: ' + esc(gfs_data['fetched_at'])
+                     + '. No HRRR/seamless blend or GEFS control substitution. One scenario, not a flight-completion probability.</p></details>')
+        else:
+            body += ('<details class="chart-reading"><summary>GFS source and cycle provenance</summary><p>NOAA NCEP operational GFS via Open-Meteo, explicitly selected as gfs_global; no HRRR/seamless blend. Fetched: '
+                     + esc(gfs_data["fetched_at"]) + '. Latest advertised initialization: ' + esc(advertised)
+                     + '. The rolling point response is not immutably bound to these cycles. One scenario, not an impact or flight-completion probability.</p></details>')
+    else:
+        body += '<p class="gfs-window">GFS operational unavailable: ' + esc(gfs.get("error", "not collected")) + '. Other model guidance remains independent.</p>'
     wn3_axis = {parse_time(t): i for i, t in enumerate(forecast.get("valid_time_utc", []))}
     if wn3_ok and any(t not in wn3_axis for t in times):
         body += '<p>WN3 covers the event window but not the full display; missing surrounding hours remain gaps, never interpolated or bridged.</p>'
@@ -162,11 +316,12 @@ def _comparison_charts(snapshot: dict, models: list[dict], times: list[datetime]
             if not fan or not fan.get("members_with_data"):
                 missing.append(m["model"])
                 continue
-            series.append((m["key"], fan["p50"], fan["p10"], fan["p90"], "Median (p50) / p10–p90"))
+            series.append((m["key"], *(_aligned(m["hourly"], fan[stat], times) for stat in ("p50", "p10", "p90")), "Median (p50) / p10–p90"))
         if wn2_hourly:
             mean, spread = wn2_hourly.get(variable), wn2_hourly.get(variable + "_spread")
             if mean is not None and spread is not None:
-                series.append(("wn2", mean, [a-b for a,b in zip(mean, spread)], [a+b for a,b in zip(mean, spread)], "Mean ±1 SD"))
+                mean, spread = _aligned(wn2_hourly, mean, times), _aligned(wn2_hourly, spread, times)
+                series.append(("wn2", mean, [a-b if a is not None and b is not None else None for a,b in zip(mean, spread)], [a+b if a is not None and b is not None else None for a,b in zip(mean, spread)], "Mean ±1 SD"))
             else:
                 missing.append("WeatherNext 2")
         if wn3_ok and wn3_field:
@@ -174,6 +329,13 @@ def _comparison_charts(snapshot: dict, models: list[dict], times: list[datetime]
             if field:
                 mean, low, high = ([field[stat][wn3_axis[t]] * factor if t in wn3_axis else None for t in times] for stat in ("mean", "p10", "p90"))
                 series.append(("wn3", mean, low, high, "Mean / p10–p90"))
+        if gfs["available"]:
+            values = gfs_hourly.get(variable, [])
+            aligned = [values[gfs_axis[t]] if t in gfs_axis and values else None for t in times]
+            if any(v is not None for v in aligned):
+                series.append(("gfs", aligned, [], [], "Deterministic / no uncertainty band"))
+            else:
+                missing.append("GFS operational")
         note = "Missing guidance is not benign weather. "
         if short == "rain":
             note += "Preceding-hour amounts, not cumulative rain or rain probability. "
@@ -183,31 +345,31 @@ def _comparison_charts(snapshot: dict, models: list[dict], times: list[datetime]
             note += "WN3: no gust field available. "
         if missing:
             note += "Field unavailable: " + ", ".join(missing) + "."
-        if not series:
+        saved = [row for row in _history_series(snapshot, history, variable, times, {row[0]: row[1] for row in series}) if row[0] in MODEL_COLORS]
+        if not series and not saved:
             body += f'<div data-comparison-field="{short}"><h3>{esc(title)}</h3><p>{esc(note)} No usable series.</p></div>'
             continue
-        lo, hi = _extent(*(values for _, mean, low, high, _ in series for values in (mean, low, high)))
+        lo, hi = _extent(*(values for _, mean, low, high, _ in series + saved for values in (mean, low, high)))
         chart = Chart(times, lo, max(hi, lo + .1), window)
         legend = []
         for key, mean, low, high, statistic in series:
             color = MODEL_COLORS[key]
-            chart.parts.append(f'<g data-model="{key}"><title>{esc(names[key] + " / " + statistic)}</title><g class="comparison-band">')
-            chart.band(low, high, color, .14)
-            chart.parts.append('</g>')
-            chart.line(mean, color, 3.2 if key == "wn3" else 1.8, dashed=key == "wn2")
-            for i, value in enumerate(mean):
-                if value is None:
-                    continue
-                timestamp = times[i].astimezone(UTC).strftime('%Y-%m-%dT%H:%M:%SZ')
-                tooltip = f'{names[key]} / {statistic}: {value:.2f} {unit}; {timestamp}'
-                chart.parts.append(f'<circle cx="{chart.x(i):.1f}" cy="{chart.y(value):.1f}" r="2.5" fill="{color}" fill-opacity=".15"><title>{esc(tooltip)}</title></circle>')
+            values = encode_chart_values([round(v, 4) if v is not None else None for v in mean])
+            chart.parts.append(f'<g data-model="{key}" data-label="{esc(names[key] + " / " + statistic)}" data-unit="{esc(unit)}" data-values="{esc(values)}"><title>{esc(names[key] + " / " + statistic)}</title>')
+            if key != "gfs":
+                chart.parts.append('<g class="comparison-band">')
+                chart.band(low, high, color, .14)
+                chart.parts.append('</g>')
+            chart.line(mean, color, 3.2 if key in ("wn3", "gfs") else 1.8, dashed=key == "wn2")
             chart.parts.append('</g>')
             legend.append((names[key] + " / " + statistic, color, key == "wn2"))
+        for row in saved:
+            _saved_group(chart, row, names[row[0]], MODEL_COLORS[row[0]], unit)
         body += f'<div data-comparison-field="{short}">' + chart.render(title, unit, note, legend, _ticks(lo, max(hi, lo + .1))) + '</div>'
     return body + '</section>'
 
 
-def _wn3_numbers(snapshot: dict, times: list[datetime], window: tuple[int, int], now: datetime) -> str:
+def _wn3_numbers(snapshot: dict, times: list[datetime], window: tuple[int, int], now: datetime, history=None) -> str:
     """Dedicated WN3 mean/range charts, with optional event-window numbers."""
     from .event_ensemble import weathernext3_diagnostic
     if not weathernext3_diagnostic(snapshot, now)["available"]:
@@ -224,14 +386,14 @@ def _wn3_numbers(snapshot: dict, times: list[datetime], window: tuple[int, int],
     wind = max(fields["wind_speed_10m"]["mean"][i] for i in instant_indices) * 3600 / 1852
     temperature = [fields["temperature_2m"]["mean"][i] for i in instant_indices]
     pressure = min(fields["sea_level_pressure"]["mean"][i] for i in instant_indices) / 100
-    numbers = ('<details><summary>Event-window numerical summary</summary><div class="planning-signals">'
-            f'<article><h3>Mean event rainfall</h3><p>{rain:.2f} mm</p><small>Sum of hourly ensemble means over the provisional window.</small></article>'
+    numbers = ('<details><summary>Forecast-context numerical summary</summary><div class="planning-signals">'
+            f'<article><h3>Mean event rainfall</h3><p>{rain:.2f} mm</p><small>Sum of hourly ensemble means over the forecast context window.</small></article>'
             f'<article><h3>Peak hourly mean wind</h3><p>{wind:.1f} kt</p><small>Maximum of sampled hourly means, not the mean of member maxima.</small></article>'
             f'<article><h3>Mean temperature range</h3><p>{min(temperature):.1f}–{max(temperature):.1f} °C</p></article>'
             f'<article><h3>Lowest hourly mean pressure</h3><p>{pressure:.1f} hPa</p></article></div>'
-            '<p>Hourly p10–p90 bands are marginal model percentiles, not event-total percentiles or flyability probabilities. The central line is the mean, not the median; a skewed mean can lie outside the band. Gold shading marks the provisional checkride window. No cloud, ceiling, visibility or gust field is available in this WN3 feed.</p>')
+            '<p>Hourly p10–p90 bands are marginal model percentiles, not event-total percentiles or flyability probabilities. The central line is the mean, not the median; a skewed mean can lie outside the band. Gold shading marks the forecast context window, not a confirmed flight duration. No cloud, ceiling, visibility or gust field is available in this WN3 feed.</p>')
     body = ('<section id="wn3-numbers" class="wn3-focus"><p class="eyebrow">WeatherNext 3 / Ensemble charts</p>'
-            '<h2>WN3 mean and ensemble range</h2><p>The magenta line is the ensemble mean; shading shows the hourly p10–p90 range, not the full ensemble minimum–maximum or event-total percentiles. Gold marks the provisional checkride window. WN3 also appears in the multimodel charts above. Swipe horizontally on small screens.</p>')
+            '<h2>WN3 mean and ensemble range</h2><p>The magenta line is the ensemble mean; shading shows the hourly p10–p90 range, not the full ensemble minimum–maximum or event-total percentiles. Gold marks the forecast context window. WN3 also appears in the multimodel charts above. Swipe horizontally on small screens.</p>')
     positions = {t: i for i, t in enumerate(axis)}
     if any(t not in positions for t in times):
         body += '<p>Only available forecast hours are drawn; missing surrounding hours remain gaps.</p>'
@@ -242,10 +404,19 @@ def _wn3_numbers(snapshot: dict, times: list[datetime], window: tuple[int, int],
         ('temperature_2m', 'temperature', 'Temperature', '°C', 1),
     ):
         mean, low, high = ([fields[field][stat][positions[t]] * factor if t in positions else None for t in times] for stat in ('mean', 'p10', 'p90'))
-        lo, hi = _extent(mean, low, high)
+        history_field = {"sea_level_pressure": "pressure_msl", "precipitation_1h": "precipitation"}.get(field, field)
+        saved = [row for row in _history_series(snapshot, history, history_field, times, {"wn3": mean}) if row[0] == "wn3"]
+        lo, hi = _extent(mean, low, high, *(values for row in saved for values in row[1:4]))
         chart = Chart(times, lo, max(hi, lo + .1), window)
+        for row in saved:
+            _saved_group(chart, row, "WeatherNext 3", MODEL_COLORS['wn3'], unit)
+        values = encode_chart_values([round(v, 4) if v is not None else None for v in mean])
+        chart.parts.append(f'<g data-model="wn3" data-label="WeatherNext 3 / mean" data-unit="{esc(unit)}" data-values="{esc(values)}">')
+        chart.parts.append('<g class="comparison-band">')
         chart.band(low, high, MODEL_COLORS['wn3'], .22)
+        chart.parts.append('</g>')
         chart.line(mean, MODEL_COLORS['wn3'], 3.2)
+        chart.parts.append('</g>')
         body += f'<div data-wn3-field="{short}">' + chart.render('WN3 / ' + label, unit,
             'Mean line and hourly p10–p90 range. A skewed mean may lie outside the band; percentiles do not establish flight suitability.',
             [('WeatherNext 3 / mean and p10–p90', MODEL_COLORS['wn3'], False)], _ticks(lo, max(hi, lo + .1))) + '</div>'
@@ -284,6 +455,11 @@ def _planning_panel(snapshot: dict, now: datetime) -> tuple[str, dict, str]:
     return '<details id="wn3-diagnostic" class="planning-diagnostic"><summary>Screening diagnostic · thresholds, provenance &amp; limitations</summary>' + body + '</details>', diagnostic, preferred
 
 
+def render_event_narrative(snapshot, now):
+    from .event_narrative import render_event_narrative as narrative
+    return narrative(snapshot, now)
+
+
 def render(snapshot: dict, now: datetime | None = None, events_path: Path | str | None = None) -> tuple[str, dict]:
     from .event_ensemble import validate_snapshot
     validate_snapshot(snapshot)
@@ -298,8 +474,27 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
         raise ValueError("models do not share one time axis")
     day = datetime.combine(event.day, datetime.min.time(), TZ)
     start, end = day + timedelta(hours=event.start_hour), day + timedelta(hours=event.end_hour)
+    from .forecast_domain import forecast_times
+    times = forecast_times(snapshot, models, times, now, start)
+    history = _validated_history(snapshot, now)
+    cutoff = parse_time(snapshot["range"]["start"])
+    historical = [parse_time(stamp) for source in (history or {}).get("sources", {}).values()
+                  for i, stamp in enumerate(source["hourly"]["time"])
+                  if parse_time(stamp) < cutoff and any(isinstance(raw, dict) and i < len(raw.get("center", [])) and raw["center"][i] is not None
+                                                      for raw in source["hourly"].values())]
+    if historical and min(historical) < times[0]:
+        earliest = min(historical)
+        while times[0] > earliest:
+            times.insert(0, times[0] - timedelta(hours=1))
     window = (times.index(start), times.index(end))
-    comparison = _comparison_charts(snapshot, models, times, window, now)
+    comparison = _comparison_charts(snapshot, models, times, window, now, history)
+    from .event_moisture_view import render_moisture
+    moisture_html = render_moisture(snapshot, times, window, now, history)
+    trends = render_trends(snapshot.get("ensemble_trends"), snapshot["event"], now)
+    recovered = render_run_history(snapshot.get("ensemble_run_history"), snapshot["event"], now)
+    if recovered:
+        fetch_history = trends.replace("ensemble-trends", "ensemble-fetch-history")
+        trends = '<div id="ensemble-trends">' + recovered + '<details><summary>Earlier page-fetch history</summary>' + fetch_history + '</details></div>'
     rows, provenance = [], []
     for m in models:
         cells = []
@@ -308,16 +503,22 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
             cells.append("<td>Unavailable</td>" if v is None else f'<td>{v["median"]:g} <small>({v["p10"]:g}–{v["p90"]:g}); n={v["count"]}</small></td>')
         rows.append(f'<tr><th scope="row">{esc(m["model"])}</th>{"".join(cells)}</tr>')
         meta = m["metadata"]
-        provenance.append(f'<li><strong>{esc(m["model"])} · {esc(m["model_id"])}</strong><br>Grid {esc(m["grid_point"])}; {m["members"]} member identities; {len(times)} hourly timestamps.<br>Latest advertised init: {esc(meta.get("initialization_time", "unavailable"))}; availability: {esc(meta.get("availability_time", "unavailable"))}; data end: {esc(meta.get("data_end_time", "unavailable"))}; native metadata cadence: {esc(meta.get("native_timestep_hours", "unknown"))} h.<br>Metadata freshness: {"within 24 h" if meta.get("fresh") else "stale or unknown"}; advertised horizon covers display: {esc(meta.get("covers_display", False))}. Rolling point values cannot be bound to this exact cycle.</li>')
+        from .source_presentation import is_direct, source_description
+        if is_direct(m):
+            provenance.append(f'<li><strong>{esc(m["model"])}</strong> · {esc(source_description(m))} '
+                              f'Fetched {esc(m["fetched_at"])}; grid {esc(m["grid_point"])}; '
+                              f'{m["members"]} member identities. Missing native fields remain unknown.</li>')
+        else:
+            provenance.append(f'<li><strong>{esc(m["model"])} · {esc(m["model_id"])}</strong><br>Grid {esc(m["grid_point"])}; {m["members"]} member identities; {len(m["hourly"]["time"])} hourly timestamps.<br>Latest advertised init: {esc(meta.get("initialization_time", "unavailable"))}; availability: {esc(meta.get("availability_time", "unavailable"))}; data end: {esc(meta.get("data_end_time", "unavailable"))}; native metadata cadence: {esc(meta.get("native_timestep_hours", "unknown"))} h.<br>Metadata freshness: {"within 24 h" if meta.get("fresh") else "stale or unknown"}; advertised horizon covers display: {esc(meta.get("covers_display", False))}. Rolling point values cannot be bound to this exact cycle. {"Open-Meteo fallback: direct native source unavailable." if meta.get("direct_fallback_reason") else ""}</li>')
     failed = "".join(f'<li><strong>{esc(next((s.name for s in MODELS if s.key == k), k))}</strong> unavailable: {esc(v["error"])}</li>' for k,v in snapshot["models"].items() if not v["ok"])
-    css = (Path(__file__).parent / "assets/fonts.css").read_text() + (Path(__file__).parent / "report.css").read_text() + (Path(__file__).parent / "event.css").read_text()
+    css = (Path(__file__).parent / "assets/fonts.css").read_text() + (Path(__file__).parent / "report.css").read_text() + (Path(__file__).parent / "context.css").read_text() + (Path(__file__).parent / "event.css").read_text()
     days = event.days_out(now)
     age = max(0, int((now - collected).total_seconds()))
     status = "stale" if age > STALE_AFTER else "provenance_unverified"
     health = {"generated_at": snapshot["collected_at"], "status": status, "age_seconds_at_render": age, "stale": age > STALE_AFTER, "stale_after": STALE_AFTER, "event": event.slug, "source_status": "provenance_unverified"}
     planning_panel, diagnostic, preferred = _planning_panel(snapshot, now)
-    health.update({"weathernext3": diagnostic, "preferred_source": preferred})
-    wn3_numbers = _wn3_numbers(snapshot, times, window, now)
+    health.update({"gfs": gfs_status(snapshot, now), "weathernext3": diagnostic, "preferred_source": preferred})
+    wn3_numbers = _wn3_numbers(snapshot, times, window, now, history)
     comparator = snapshot.get("weathernext2", {})
     wn = '<p>WeatherNext 2 mean/spread comparator unavailable: ' + esc(comparator.get("error", "not collected")) + '.</p>'
     if comparator.get("ok"):
@@ -331,23 +532,67 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
         f'<p class="brief-value">{esc(card["value"])}</p><p>{esc(card["detail"])}</p></article>'
         for card in briefing["cards"])
     freshness = "Stale snapshot · refresh before use" if health["stale"] else "Snapshot fetched"
+    from .synoptic_context import render_context
+    context_html = render_context(snapshot.get("synoptic_context", {}), start, end, now)
+    try:
+        narrative_html = render_event_narrative(snapshot, now)
+    except Exception:
+        narrative_html = '<section id="event-narrative"><h2>What this means for your checkride</h2><p>Updated narrative unavailable; current model charts are below.</p></section>'
+    initializations_html = render_initializations(snapshot, now)
+    initialization_link = '<a href="#model-initializations">Model times</a>' if initializations_html else ''
+    from .event_wind_view import render_wind
+    wind_html = render_wind(snapshot, now)
+    wind_link = '<a href="#wind-analysis">Winds</a>' if wind_html else ''
+    afd_html = render_afds(snapshot, now)
+    afd_link = '<a href="#forecaster-discussion">NWS readings</a>' if afd_html else ''
     wn3_link = '<a href="#wn3-numbers">WN3 detail</a>' if wn3_numbers else ''
-    doc = f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KCDW · {esc(event.title)} · {esc(event.day.strftime("%b %-d"))}</title><style>{css}</style></head>
+    navigation = (Path(__file__).parent / 'assets/forecast-navigation.js').read_text()
+    script_hash = base64.b64encode(hashlib.sha256(navigation.encode()).digest()).decode()
+    source_binding_label = ('Source binding shown per packet' if snapshot.get('direct_native_version')
+                            else 'Conventional cycle binding unverified')
+    source_introduction = ('Direct native sources are preferred; fallback packets are labeled separately. '
+                          'NOAA/NCEP native data are public domain; ECMWF native data and Open-Meteo fallback data are CC BY 4.0. '
+                          'Native interval rainfall distributed to display hours does not establish hourly timing. '
+                          'Source, grid, and interpolation changes can contribute to differences from older snapshots.'
+                          if snapshot.get('direct_native_version') else
+                          'Open-Meteo rolling API data, CC BY 4.0; supplemental guidance, not an official aviation briefing. '
+                          'Latest dataset metadata is not a cycle identifier for each returned value. '
+                          'IFS 06/18Z short-cycle metadata can end before this display while the rolling extended response uses earlier long cycles. '
+                          'Exact run attribution is unverified.')
+    doc = f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="script-src 'sha256-{script_hash}'; object-src 'none'; base-uri 'none'"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KCDW · {esc(event.title)} · {esc(event.day.strftime("%b %-d"))}</title><style>{css}</style></head>
 <body data-page="event"><a class="skip-link" href="#main">Skip to briefing</a>
 <header class="top"><div class="wrap"><a class="brand" href="/">KCDW / Field notes</a><nav class="top-links" aria-label="Main navigation"><a href="/">Current outlook</a><a href="{esc(event.path())}" aria-current="page">{esc(event.nav_label)}</a><a href="{esc(event.path())}/history">History ↗</a></nav></div></header>
 <main id="main" class="wrap">
-<header class="event-header"><div><p class="eyebrow">KCDW / Dated event briefing</p><h1>{esc(event.title)}</h1><p class="event-when">{esc(event.label())}</p><p class="event-window">Provisional {start:%H:%M}–{end:%H:%M} Eastern · actual time not confirmed</p></div><div class="event-meta"><p>{days} days out · {len(models)} of {len(MODELS)} systems</p><p class="freshness"><strong>{freshness}</strong><br><time datetime="{esc(snapshot['collected_at'])}">{esc(collected.astimezone(TZ).strftime('%b %-d, %H:%M %Z'))}</time> · {age // 3600}h {(age % 3600) // 60}m old at render</p><p>Conventional cycle binding unverified</p></div></header>
+<header class="event-header"><div><p class="eyebrow">KCDW / Dated event briefing</p><h1>{esc(event.title)}</h1>{timing_header(snapshot, event)}</div><div class="event-meta"><p>{days} days out · {len(models)} of {len(MODELS)} systems</p><p class="freshness"><strong>{freshness}</strong><br><time datetime="{esc(snapshot['collected_at'])}">{esc(collected.astimezone(TZ).strftime('%b %-d, %H:%M %Z'))}</time> · {age // 3600}h {(age % 3600) // 60}m old at render</p><p>{esc(source_binding_label)}</p></div></header>
 <section id="briefing" class="operational-briefing" data-tone="{esc(briefing['tone'])}" aria-labelledby="briefing-title"><p class="eyebrow">At a glance</p><h2 id="briefing-title">{esc(briefing['headline'])}</h2><p class="brief-summary">{esc(briefing['summary'])}</p><div class="brief-cards">{cards}</div><div class="next-check"><strong>{esc(briefing['next_check']['title'])}</strong><p>{esc(briefing['next_check']['detail'])}</p></div><p class="brief-source">{esc(briefing['source'])}</p><p class="brief-limits">No calibrated flyability probability. Ceiling, visibility, convection and runway/crosswind suitability require an official aviation briefing.</p></section>
-<nav class="section-nav" aria-label="Briefing sections"><a href="#briefing">Brief</a><a href="#multimodel-comparison">Compare models</a>{wn3_link}<a href="#sources-methods">Sources &amp; methods</a></nav>
-{comparison}{wn3_numbers}
+<nav class="section-nav" aria-label="Briefing sections"><a href="#briefing">Brief</a><a href="#event-narrative">Weather story</a>{afd_link}{initialization_link}{wind_link}<a href="#multimodel-comparison">Compare models</a><a href="#low-cloud-analysis">Low cloud</a><a href="#low-level-rh">Humidity</a><a href="#ensemble-trends">Trends</a>{wn3_link}<a href="#synoptic-context">Tropics &amp; outlooks</a><a href="#sources-methods">Sources &amp; methods</a></nav>
+{narrative_html}{wind_html}{afd_html}{initializations_html}{comparison}{render_low_cloud(snapshot, now)}{moisture_html}{trends}{context_html}{wn3_numbers}
 <section class="supporting-detail" aria-labelledby="detail-title"><h2 id="detail-title">Supporting detail</h2>
-<details id="window-distributions"><summary>Provisional window / per-model distributions</summary><p>Median (10th–90th percentile), with complete-member counts. Rain sums preceding-hour intervals ending after the opening time through the closing time. Conventional wind/cloud/pressure use those same sampled endpoints, not continuous extrema. Missing low cloud is unavailable, never favorable.</p><div class="chart-scroll" tabindex="0" role="region" aria-label="Per-model event distributions"><table><thead><tr><th scope="col">Model</th><th scope="col">Rain total · mm</th><th scope="col">Peak sustained · kt</th><th scope="col">Mean low cloud · %</th><th scope="col">Lowest pressure · hPa</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div></details>
+<details id="window-distributions"><summary>Forecast context / per-model distributions</summary><p>Median (10th–90th percentile), with complete-member counts. Rain sums preceding-hour intervals ending after the opening time through the closing time. Conventional wind/cloud/pressure use those same sampled endpoints, not continuous extrema. Missing low cloud is unavailable, never favorable.</p><div class="chart-scroll" tabindex="0" role="region" aria-label="Per-model event distributions"><table><thead><tr><th scope="col">Model</th><th scope="col">Rain total · mm</th><th scope="col">Peak sustained · kt</th><th scope="col">Mean low cloud · %</th><th scope="col">Lowest pressure · hPa</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div></details>
 {planning_panel}
-<details id="sources-methods"><summary>Sources &amp; methods · model runs, gaps and licenses</summary><p>{esc(event.description)}</p><h3>Source provenance and gaps</h3><p>Open-Meteo rolling API data, CC BY 4.0; supplemental guidance, not an official aviation briefing. Latest dataset metadata is not a cycle identifier for each returned value. IFS 06/18Z short-cycle metadata can end before this display while the rolling extended response uses earlier long cycles. Exact run attribution is unverified.</p><ul class="runs">{''.join(provenance)}{failed}</ul><h3>WeatherNext 2 / mean and spread comparator</h3>{wn}<p>Point pressure cannot establish the absence of a hurricane, nearby storm, or convection. Low-cloud fraction cannot establish a usable maneuvers ceiling. Neither missing gusts nor low mean wind establishes runway/crosswind suitability. WeatherNext licensing and actual response-run metadata are retained in the screening diagnostic.</p></details></section>
-<section class="official-guidance" aria-labelledby="official-title"><h2 id="official-title">Near-term guidance</h2><p>Within 48 hours, prioritize official aviation guidance. Confirm issue times, valid periods and airport coverage; these links are not fetched by this page.</p><p><a href="/">Current 7-day outlook</a> · <a href="https://aviationweather.gov/">AWC observations, TAFs &amp; advisories</a> · <a href="https://www.weather.gov/okx/">NWS forecasts</a> · <a href="https://www.nhc.noaa.gov/">NHC tropical outlooks</a></p></section>
-<footer class="site-footer"><span>Planning aid, not a go/no-go decision or official briefing.</span><a href="{esc(event.path())}/history">Guidance history ↗</a></footer></main></body></html>'''
-    return doc, health
+<details id="sources-methods"><summary>Sources &amp; methods · model runs, gaps and licenses</summary><p>{esc(event.description)}</p><h3>Source provenance and gaps</h3><p>{esc(source_introduction)}</p><ul class="runs">{''.join(provenance)}{failed}</ul><h3>WeatherNext 2 / mean and spread comparator</h3>{wn}<p>Point pressure cannot establish the absence of a hurricane, nearby storm, or convection. Low-cloud fraction cannot establish a usable maneuvers ceiling. Neither missing gusts nor low mean wind establishes runway/crosswind suitability. WeatherNext licensing and actual response-run metadata are retained in the screening diagnostic.</p></details></section>
+<section class="official-guidance" aria-labelledby="official-title"><h2 id="official-title">Near-term guidance</h2><p>Within 48 hours, prioritize official aviation guidance. Confirm issue times, valid periods and airport coverage; AWC and local NWS aviation products are linked here, while NHC/CPC/WPC products are fetched in the wider-weather section above.</p><p><a href="/">Current 7-day outlook</a> · <a href="https://aviationweather.gov/">AWC observations, TAFs &amp; advisories</a> · <a href="https://www.weather.gov/okx/">NWS forecasts</a> · <a href="https://www.nhc.noaa.gov/">NHC tropical outlooks</a></p></section>
+<footer class="site-footer"><span>Planning aid, not a go/no-go decision or official briefing.</span><a href="{esc(event.path())}/history">Guidance history ↗</a></footer></main><script data-forecast-script>{navigation}</script></body></html>'''
+    return compact_notes(doc), health
+
+
+def render_initializations(snapshot, now):
+    if snapshot.get('initialization_provenance_version') != 1:
+        return ''
+    from .event_initialization import render_initializations as render_times
+    return render_times(snapshot, now)
 
 
 def summary(snapshot: dict) -> str:
-    return f"Per-model weather distributions; no calibrated flyability probability. {len(_ok_models(snapshot))} member systems; {snapshot['days_out']} days out. Provisional 08–17 Eastern window; ceiling/convection unresolved."
+    from .events import _event
+    from .event_timing import timing_evidence
+    event = _event(snapshot['event'])
+    timing = timing_evidence(snapshot)
+    context = f"Forecast context {event.start_hour:02d}:00–{event.end_hour:02d}:00 Eastern; ceiling/convection unresolved."
+    if timing:
+        end = (f"expected end around {timing['flight_end_local']} ({timing['flight_duration_minutes'] / 60:g} hours)"
+               if timing['flight_end'] else "flight end unknown")
+        schedule = f"{timing['appointment_start_local']} confirmed appointment; flight expected around {timing['flight_start_local']}; {end}. "
+    else:
+        schedule = "Appointment timing unconfirmed. "
+    return f"Per-model weather distributions; no calibrated flyability probability. {len(_ok_models(snapshot))} member systems; {snapshot['days_out']} days out. {schedule}{context}"

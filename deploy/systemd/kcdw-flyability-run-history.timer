@@ -1,0 +1,11 @@
+[Unit]
+Description=Hourly forward fill of KCDW event initialization history
+
+[Timer]
+OnCalendar=*-*-* *:10:00 UTC
+Persistent=true
+RandomizedDelaySec=1min
+Unit=kcdw-flyability-run-history.service
+
+[Install]
+WantedBy=timers.target

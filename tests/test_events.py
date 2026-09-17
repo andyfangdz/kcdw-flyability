@@ -19,9 +19,11 @@ EVENT = Event(slug="commercial-checkride", title="Commercial checkride", date="2
               nav_label="Checkride · Sep 24", description="Practical test.")
 
 
-def synthetic_response(spec, hours=96, rain_members=()):
-    """Members are flat except the listed rain members, which get 3 mm inside the event window."""
-    start = int(datetime(2026, 9, 22, 4, tzinfo=timezone.utc).timestamp())
+def synthetic_response(spec, hours=96, rain_members=(), start=None):
+    """Flat members with rain at fixed event timestamps, independent of display range."""
+    start = int((start or datetime(2026, 9, 22, 4, tzinfo=timezone.utc)).timestamp())
+    rain_start = int(datetime(2026, 9, 24, 16, tzinfo=timezone.utc).timestamp())
+    rain_end = int(datetime(2026, 9, 24, 21, tzinfo=timezone.utc).timestamp())
     times = [start + 3600 * i for i in range(hours)]
     hourly: dict = {"time": times}
     units: dict = {"time": "unixtime"}
@@ -34,7 +36,7 @@ def synthetic_response(spec, hours=96, rain_members=()):
             elif variable == "cloud_cover_low" and spec.key in ("gefs", "geps"):
                 hourly[key] = [None] * hours
             elif variable == "precipitation":
-                hourly[key] = [1.0 if member in rain_members and 60 <= i <= 65 else 0.0 for i in range(hours)]
+                hourly[key] = [1.0 if member in rain_members and rain_start <= t <= rain_end else 0.0 for t in times]
             elif variable == "pressure_msl":
                 hourly[key] = [1020.0 + member % 5 for _ in range(hours)]
             elif variable == "cloud_cover_low":
@@ -57,7 +59,12 @@ class FakeClient:
         spec = next(s for s in MODELS if s.model_id == model_id)
         if spec.key in self.broken:
             raise RuntimeError("upstream down")
-        return synthetic_response(spec, rain_members=self.rain)
+        from urllib.parse import parse_qs, urlparse
+        query = parse_qs(urlparse(url).query)
+        start = datetime.fromisoformat(query['start_hour'][0]).replace(tzinfo=timezone.utc)
+        end = datetime.fromisoformat(query['end_hour'][0]).replace(tzinfo=timezone.utc)
+        hours = int((end-start).total_seconds()/3600) + 1
+        return synthetic_response(spec, hours=hours, start=start, rain_members=self.rain)
 
 
 class EventConfigTests(unittest.TestCase):
@@ -105,12 +112,12 @@ class EventEnsembleTests(unittest.TestCase):
         self.assertEqual(ecmwf["hourly"]["wind_gusts_10m"]["members_with_data"], 51)
         aifs = snapshot["models"]["aifs_ens"]["data"]
         self.assertEqual(aifs["hourly"]["wind_gusts_10m"]["members_with_data"], 0)
-        self.assertEqual(len(gefs["hourly"]["time"]), 96)
+        self.assertEqual(len(gefs["hourly"]["time"]), 336)
         # 31 members cycle 1020..1024 (7,6,6,6,6); the 16th sorted value is 1022.
         self.assertEqual(gefs["hourly"]["pressure_msl"]["p50"][0], 1022.0)
         self.assertEqual(gefs["hourly"]["pressure_msl"]["p10"][0], 1020.0)
         self.assertEqual(gefs["hourly"]["pressure_msl"]["p90"][0], 1024.0)
-        self.assertTrue(all("start_hour=2026-09-22T04%3A00" in url for url in client.urls if "v1/ensemble" in url))
+        self.assertTrue(all("start_hour=2026-09-12T04%3A00" in url for url in client.urls if "v1/ensemble" in url))
 
     def test_hourly_rain_fans_preserve_amounts_and_missing_samples(self):
         spec = MODELS[0]
@@ -396,12 +403,15 @@ class WeatherNext3EventTests(unittest.TestCase):
         markup, health = render(snapshot, NOW)
         self.assertIn('id="wn3-numbers"', markup)
         self.assertEqual(markup.count('data-comparison-field='), 6)
-        self.assertEqual(markup.count('<g data-model="wn3"'), 4)
+        comparison = markup.split('id="multimodel-comparison"', 1)[1].split('</section>', 1)[0]
+        dedicated = markup.split('id="wn3-numbers"', 1)[1].split('</section>', 1)[0]
+        self.assertEqual(comparison.count('<g data-model="wn3"'), 4)
+        self.assertEqual(dedicated.count('<g data-model="wn3"'), 4)
         self.assertIn('aria-label="Temperature"', markup)
         self.assertIn('Mean event rainfall', markup)
         self.assertIn('Hourly p10–p90', markup)
         self.assertIn('not event-total percentiles', markup)
-        self.assertLess(markup.index('id="wn3-numbers"'), markup.index('Provisional window / per-model distributions'))
+        self.assertLess(markup.index('id="wn3-numbers"'), markup.index('Forecast context / per-model distributions'))
         envelope['forecast']['fields']['wind_speed_10m']['mean'][0] = None
         markup, health = render(snapshot, NOW)
         self.assertNotIn('id="wn3-numbers"', markup)

@@ -1,0 +1,17 @@
+[Unit]
+Description=Append new KCDW event model cycles and publish changed history
+After=network-online.target weatherlab-feed.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/ubuntu/projects/kcdw-flyability
+Environment=HOME=/home/ubuntu
+Environment=PATH=/home/ubuntu/.local/bin:/home/ubuntu/.hermes/node/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/flock -w 60 var/events-update.lock /usr/bin/python3 -m kcdw.history_update --var var
+TimeoutStartSec=20min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/projects/kcdw-flyability/var /home/ubuntu/.codex

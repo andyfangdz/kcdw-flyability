@@ -37,4 +37,6 @@ class EventLayoutTests(unittest.TestCase):
         self.assertNotRegex(markup, r'<details id="(?:wn3-diagnostic|sources-methods|window-distributions)"[^>]*\bopen\b')
         self.assertIn('id="compare-bands" type="checkbox" checked', markup)
         self.assertIn('tabindex="0" role="region"', markup)
-        self.assertNotIn('<script', markup)
+        self.assertEqual(markup.count('<script data-forecast-script>'), 1)
+        self.assertNotIn('src="http', markup)
+        self.assertNotIn('onclick=', markup)

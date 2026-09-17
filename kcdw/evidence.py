@@ -135,6 +135,22 @@ def prepare(snapshot):
     if sources.get("weather_next3", {}).get("ok"):
         from .weathernext3 import summarize_weather_next3
         sources["weather_next3"]["data"] = summarize_weather_next3(sources["weather_next3"]["data"], parse_time(snapshot["collected_at"]))
+    if "weekly_guidance" in result:
+        from .synoptic_context import _Text
+        try:
+            from .weekly_guidance import render_weekly
+            text = _Text()
+            text.feed(render_weekly(snapshot, parse_time(snapshot["collected_at"])))
+            summary = ' '.join(' '.join(text.parts).split())
+            result["weekly_guidance"] = {"text": summary[:12000], "truncated": len(summary) > 12000,
+                "use": "Validated chart availability, statistics and provenance; plotted arrays omitted. Do not invent numerical comparisons from legend text. Use existing WN3/AIFS summaries for numerical assessment."}
+        except Exception:
+            result["weekly_guidance"] = {"text": "Weekly chart evidence unavailable; no favorable inference."}
+    if "synoptic_context" in result:
+        from .synoptic_context import context_evidence, report_window
+        context_now = parse_time(snapshot["collected_at"])
+        start, end = report_window(snapshot, context_now)
+        result["synoptic_context"] = context_evidence(snapshot["synoptic_context"], start, end, context_now)
     result["requested_windows"] = {date: planning_windows(snapshot, date) for date in snapshot["report_dates"]}
     result["derived_evidence"] = derived
     return result

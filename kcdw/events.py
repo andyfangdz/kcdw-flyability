@@ -11,6 +11,16 @@ from .common import load_json
 
 TZ = ZoneInfo("America/New_York")
 SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
+
+
+def local_clock(stamp, date=False):
+    """Eastern display clock for ISO strings or aware datetimes."""
+    moment = stamp if isinstance(stamp, datetime) else datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    if moment.tzinfo is None or moment.utcoffset() is None:
+        raise ValueError("Display timestamps must include a timezone")
+    return moment.astimezone(TZ).strftime("%b %-d %H:%M %Z" if date else "%H:%M")
+
+
 WINDOW = re.compile(r"^(\d{2})-(\d{2})$")
 DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "events.json"
 

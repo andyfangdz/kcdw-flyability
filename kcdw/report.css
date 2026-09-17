@@ -50,6 +50,12 @@
 .nav-event{white-space:nowrap}
 @media(max-width:760px){.top-links{overflow-x:auto;scrollbar-width:none}.top-links::-webkit-scrollbar{display:none}}
 
+/* Direct routes to the weekly evidence without hiding the daily decision. */
+.outlook-sections{display:flex;flex-wrap:wrap;gap:10px 24px;padding:12px 0 20px;border-bottom:1px solid var(--line);font:13px var(--mono)}
+.outlook-sections a{min-height:40px;display:flex;align-items:center}
+#weekly-ensembles{margin:28px 0;min-width:0}
+@media(max-width:760px){[data-design="field-notes"] #main>.outlook-sections{order:3}[data-design="field-notes"] #main>#weekly-ensembles{order:6}[data-design="field-notes"] #main>.synoptic-context{order:7}[data-design="field-notes"] #main>.support-grid{order:8}[data-design="field-notes"] #main>.source-section,[data-design="field-notes"] #main>.disclaimer,[data-design="field-notes"] #main>.site-footer{order:9}}
+
 /* Plain headings keep attention on the forecast. */
 .hero h1{font-size:clamp(40px,4.5vw,64px);line-height:1.05;margin:17px 0 20px}
 .history-intro{padding:32px 0 18px}.history-intro h1{font-size:48px;line-height:1.05;margin:12px 0 16px}.history-intro p{margin-bottom:10px}

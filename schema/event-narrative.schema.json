@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Source-bound event weather narrative",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["headline", "lead", "sections", "next_check"],
+  "properties": {
+    "headline": {"type": "string", "minLength": 1, "maxLength": 240},
+    "lead": {"type": "string", "minLength": 1, "maxLength": 1800},
+    "sections": {
+      "type": "array", "minItems": 3, "maxItems": 4,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["heading", "body", "source_ids"],
+        "properties": {
+          "heading": {"type": "string", "minLength": 1, "maxLength": 160},
+          "body": {"type": "string", "minLength": 1, "maxLength": 2400},
+          "source_ids": {"type": "array", "minItems": 1, "maxItems": 12, "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$", "maxLength": 64}}
+        }
+      }
+    },
+    "next_check": {
+      "type": "object", "additionalProperties": false,
+      "required": ["text", "source_ids"],
+      "properties": {
+        "text": {"type": "string", "minLength": 1, "maxLength": 1400},
+        "source_ids": {"type": "array", "minItems": 1, "maxItems": 12, "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$", "maxLength": 64}}
+      }
+    }
+  }
+}

@@ -38,8 +38,9 @@ AFD_OFFICES = {
 
 
 class Client:
-    def __init__(self, timeout: float = 15, retries: int = 2):
+    def __init__(self, timeout: float = 15, retries: int = 2, *, direct_native: bool = False):
         self.timeout, self.retries = timeout, retries
+        self.direct_native = direct_native
 
     def get(self, url: str):
         request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/geo+json, application/json, text/plain"})
@@ -380,9 +381,16 @@ def collect(now: datetime | None = None, client: Client | None = None, radar_dir
         return {"label": "Model guidance — not official aviation guidance", "hourly_units": raw.get("hourly_units", {}), "hourly": raw.get("hourly", {}), "daily": raw.get("daily", {})}
     sources["open_meteo"] = _source(open_meteo, now)
 
+    from .synoptic_context import collect_context
+    context = collect_context(client, now, include_spc=True)
+    try:
+        from .weekly_guidance import collect_weekly
+        weekly = collect_weekly(client, now)
+    except Exception:
+        weekly = {"ok": False, "error": "Weekly model collection unavailable", "data": None}
     local = now.astimezone(TZ)
     dates = report_dates(now)
-    return {"schema_version": 1, "airport": {"id": "KCDW", "name": "Essex County Airport", "latitude": LAT, "longitude": LON, "timezone": str(TZ), "taf_note": "KCDW has no routine TAF; KTEB and KEWR are local proxies."}, "collected_at": iso_z(now), "local_date": local.date().isoformat(), "report_dates": dates, "sources": sources}
+    return {"schema_version": 1, "airport": {"id": "KCDW", "name": "Essex County Airport", "latitude": LAT, "longitude": LON, "timezone": str(TZ), "taf_note": "KCDW has no routine TAF; KTEB and KEWR are local proxies."}, "collected_at": iso_z(now), "local_date": local.date().isoformat(), "report_dates": dates, "sources": sources, "synoptic_context": context, "weekly_guidance": weekly}
 
 
 def main(argv=None) -> int:

@@ -1,5 +1,7 @@
 """Shared chart regressions; all source data are synthetic."""
 import re
+import json
+from html import unescape
 import unittest
 from datetime import timedelta
 from unittest.mock import patch
@@ -25,6 +27,12 @@ class ComparisonTests(unittest.TestCase):
         match = re.search(r'<div data-comparison-field="' + field + r'">.*?(<svg.*?</svg>)', markup, re.S)
         assert match is not None, f'Missing shared {field} SVG'
         return match.group(1)
+
+    def values(self, markup, field, key):
+        svg = self.svg(markup, field)
+        match = re.search(r'<g data-model="' + key + r'"[^>]*data-values="([^"]+)"', svg)
+        assert match is not None
+        return json.loads(unescape(match.group(1)))
 
     def test_sources_share_svg_and_controls_label_statistics(self):
         markup, _ = render(self.snapshot(), NOW)
@@ -57,7 +65,9 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual(focus.count('<polygon'), 4)
         self.assertEqual(focus.count('<polyline'), 4)
         self.assertLess(focus.index('<svg'), focus.index('Mean event rainfall'))
-        self.assertIn('not the full ensemble minimum', focus)
+        self.assertIn('hourly p10–p90', focus)
+        notes = markup.split('<details id="notes-sources"', 1)[1]
+        self.assertIn('not the full ensemble minimum', notes)
         stale, _ = render(self.snapshot(), NOW + timedelta(hours=72))
         self.assertNotIn('data-wn3-field=', stale)
 
@@ -68,10 +78,13 @@ class ComparisonTests(unittest.TestCase):
         self.assertNotIn('<polygon', ''.join(chart.parts))
 
     def test_unit_conversion_and_timestamp_tooltips(self):
-        markup, _ = render(self.snapshot(), NOW)
-        self.assertIn('1012.35 hPa', self.svg(markup, 'pressure'))
-        self.assertIn('8.02 kt', self.svg(markup, 'wind'))
-        self.assertIn('2026-09-24T12:00:00Z', self.svg(markup, 'wind'))
+        snapshot = self.snapshot()
+        markup, _ = render(snapshot, NOW)
+        index = snapshot['models']['gefs']['data']['hourly']['time'].index('2026-09-24T12:00:00Z')
+        self.assertAlmostEqual(self.values(markup, 'pressure', 'wn3')[index], 101234.56789 / 100, places=4)
+        self.assertAlmostEqual(self.values(markup, 'wind', 'wn3')[index], 4.123456789 * 3600 / 1852, places=4)
+        self.assertIn('data-unit="hPa"', self.svg(markup, 'pressure'))
+        self.assertIn('data-unit="kt"', self.svg(markup, 'wind'))
         self.assertIn('mm / preceding hour', markup)
 
     def test_partial_wn3_coverage_keeps_timestamp_positions(self):
@@ -90,14 +103,21 @@ class ComparisonTests(unittest.TestCase):
             markup = _comparison_charts(snapshot, models, times, (56, 65), NOW)
         self.assertIn('not the full display', markup)
         svg = self.svg(markup, 'pressure')
-        wn3_group = svg.split('<g data-model="wn3">')[1]
+        wn3_group = svg.split('<g data-model="wn3"')[1]
         match = re.search(r'<polyline points="([^"]+)"', wn3_group)
         assert match is not None
         points = match.group(1).split()
         expected = Chart(times, 0, 1, (56, 65))
-        self.assertEqual(float(points[0].split(',')[0]), round(expected.x(6), 1))
-        self.assertEqual(float(points[-1].split(',')[0]), round(expected.x(len(times)-7), 1))
-        self.assertEqual(len(points), len(times)-12)
+        available = {parse_time(t) for t in forecast['valid_time_utc']}
+        positions = [i for i,t in enumerate(times) if t in available]
+        self.assertEqual(float(points[0].split(',')[0]), round(expected.x(positions[0]), 1))
+        self.assertEqual(float(points[-1].split(',')[0]), round(expected.x(positions[-1]), 1))
+        # Constant collinear geometry is compacted to endpoints; hourly lookup
+        # data must still retain every timestamp and leading/trailing gaps.
+        self.assertEqual(len(points), 2)
+        lookup = self.values(markup, 'pressure', 'wn3')
+        self.assertEqual(len(lookup), len(times))
+        self.assertEqual([i for i, value in enumerate(lookup) if value is not None], positions)
 
     def test_missing_old_rain_outage_and_stale_wn3(self):
         snapshot = self.snapshot()

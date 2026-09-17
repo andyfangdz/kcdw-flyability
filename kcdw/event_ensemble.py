@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 
 from .common import UTC, iso_z
 from .events import TZ, Event
+from .gfs_guidance import collect_gfs
 
 ENDPOINT = "https://ensemble-api.open-meteo.com/v1/ensemble"
 LAT, LON = 40.8752, -74.2814
@@ -94,13 +95,26 @@ def share_percentages(counts: dict[str, int], total: int) -> dict[str, int]:
     return floors
 
 
-def event_range(event: Event) -> tuple[datetime, datetime]:
-    start = datetime.combine(event.day - timedelta(days=DAYS_BEFORE), datetime.min.time(), TZ)
+def event_range(event: Event, now: datetime | None = None) -> tuple[datetime, datetime]:
+    """Legacy centered range, or collection-day Eastern midnight onward.
+
+    Bound far-future requests to sixteen days before the event. This is a
+    display bound, not a claim that any provider covers that entire horizon.
+    Persisted ranges are checked against collected_at, never render time.
+    """
+    first_day = event.day - timedelta(days=DAYS_BEFORE)
+    if now is not None:
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("collection time must be timezone-aware")
+        first_day = max(now.astimezone(TZ).date(), event.day - timedelta(days=16))
+    start = datetime.combine(first_day, datetime.min.time(), TZ)
     end = datetime.combine(event.day + timedelta(days=DAYS_AFTER + 1), datetime.min.time(), TZ)
+    if start >= end:
+        raise ValueError("event display range has ended")
     return start, end
 
 
-def _validate(raw: object, spec: MemberModel, expected_hours: int, expected_start: datetime | None = None) -> tuple[list[datetime], dict[str, dict[str, list[float | None]]]]:
+def _validate(raw: object, spec: MemberModel, expected_hours: int, expected_start: datetime | None = None, *, allow_partial: bool = False) -> tuple[list[datetime], dict[str, dict[str, list[float | None]]]]:
     if not isinstance(raw, dict):
         raise ValueError(f"{spec.name} response must be an object")
     try:
@@ -140,7 +154,7 @@ def _validate(raw: object, spec: MemberModel, expected_hours: int, expected_star
             raise ValueError(f"{spec.name} {key} outside {low}..{high}")
         if member in members[variable] or int(member) >= spec.members:
             raise ValueError("duplicate or out-of-range member ID")
-        if any(v is not None for v in numbers) and any(v is None for v in numbers):
+        if not allow_partial and any(v is not None for v in numbers) and any(v is None for v in numbers):
             raise ValueError(f"{variable} partially missing member series")
         members[variable][member] = numbers
     for variable in ("pressure_msl", "precipitation", "wind_speed_10m"):
@@ -242,25 +256,44 @@ def _metadata(client, spec: MemberModel, now: datetime, end: datetime) -> dict:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"[:200]}
 
 
-def collect_model(client, spec: MemberModel, event: Event, now: datetime) -> dict:
-    start, end = event_range(event)
+def collect_model(client, spec: MemberModel, event: Event | None, now: datetime,
+                  display_range: tuple[datetime, datetime] | None = None) -> dict:
+    if display_range is not None:
+        start, end = display_range
+    elif event is not None:
+        start, end = event_range(event)
+    else:
+        raise ValueError("non-event collection requires an explicit display range")
+    fallback = False
+    if getattr(client, 'direct_native', False) is True and spec.key in ('gefs', 'ecmwf_ens', 'aifs_ens'):
+        try:
+            from .direct_ensemble import collect_chart
+            return collect_chart(client, spec, event, start.astimezone(UTC), end.astimezone(UTC), now)
+        except Exception:
+            fallback = True
     params = {"latitude": LAT, "longitude": LON, "models": spec.model_id, "hourly": ",".join(VARIABLES),
               "start_hour": start.astimezone(UTC).strftime("%Y-%m-%dT%H:%M"), "end_hour": (end.astimezone(UTC) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M"),
               "timezone": "GMT", "timeformat": "unixtime", "wind_speed_unit": "kn", "precipitation_unit": "mm"}
     raw = client.get(f"{ENDPOINT}?{urllib.parse.urlencode(params)}")
     expected_hours = int((end.astimezone(UTC) - start.astimezone(UTC)).total_seconds() / 3600)
-    times, members = _validate(raw, spec, expected_hours, start.astimezone(UTC))
-    return {"key": spec.key, "model": spec.name, "provider": spec.provider, "model_id": spec.model_id,
+    times, members = _validate(raw, spec, expected_hours, start.astimezone(UTC), allow_partial=event is None)
+    result = {"key": spec.key, "model": spec.name, "provider": spec.provider, "model_id": spec.model_id,
             "members": spec.members, "label": f"{spec.provider} {spec.name} ensemble members via Open-Meteo — supplemental model guidance, not official aviation guidance",
             "fetched_at": iso_z(now), "metadata": _metadata(client, spec, now, end), "endpoint": ENDPOINT, "grid_point": {"latitude": raw["latitude"], "longitude": raw["longitude"]}, "hourly_units": dict(UNITS) | {"time": "iso8601 UTC"},
-            "hourly": _hourly_stats(times, members), "window": _window_scenarios(event, times, members)}
+            "hourly": _hourly_stats(times, members), "window": _window_scenarios(event, times, members) if event is not None else None}
+
+    if fallback:
+        from .direct_ensemble import FALLBACK
+        result["metadata"]["direct_fallback_reason"] = FALLBACK
+    return result
 
 
-def collect_weathernext_comparator(client, event: Event, now: datetime) -> dict:
+def collect_weathernext_comparator(client, event: Event, now: datetime,
+                                 display_range: tuple[datetime, datetime] | None = None) -> dict:
     from .ensemble_guidance import WEATHER_NEXT_2, _validate_metadata, _metadata_url
     spec = WEATHER_NEXT_2
     metadata = _validate_metadata(client.get(_metadata_url(spec)), spec, now)
-    start, end = event_range(event)
+    start, end = display_range or event_range(event)
     variables = ("pressure_msl", "wind_speed_10m", "cloud_cover_low", "precipitation")
     fields = tuple(f for v in variables for f in (v, v + "_spread"))
     params = {"latitude": LAT, "longitude": LON, "models": spec.model_id, "hourly": ",".join(fields),
@@ -293,18 +326,30 @@ def validate_snapshot(snapshot: dict) -> None:
     """Recheck persisted normalized arrays and counts before render/publication."""
     from .common import parse_time
     event = Event(**snapshot["event"])
+    collected = parse_time(snapshot["collected_at"])
+    range_clock = collected
+    if snapshot.get('direct_native_version') == 1:
+        range_clock = parse_time(snapshot['collection_started_at'])
+        if not timedelta(0) <= collected-range_clock <= timedelta(minutes=20):
+            raise ValueError('native collection clock mismatch')
     start, end = event_range(event)
+    legacy = {"start": iso_z(start), "end": iso_z(end)}
+    if snapshot["range"] != legacy:
+        start, end = event_range(event, range_clock)
     n = int((end.astimezone(UTC)-start.astimezone(UTC)).total_seconds()/3600)
     axis = [iso_z(start.astimezone(UTC)+timedelta(hours=i)) for i in range(n)]
     if snapshot["range"] != {"start": iso_z(start), "end": iso_z(end)}:
         raise ValueError("snapshot display range mismatch")
-    parse_time(snapshot["collected_at"])
     for spec in MODELS:
         source = snapshot["models"][spec.key]
         if not source["ok"]:
             continue
         d = source["data"]
-        if d["model_id"] != spec.model_id or d["members"] != spec.members or d["hourly"]["time"] != axis:
+        direct = d.get("metadata", {}).get("direct_native") is True
+        if direct:
+            from .direct_ensemble import validate_normalized, COUNTS
+            validate_normalized(d, spec, collected)
+        if d["model_id"] != spec.model_id or d["members"] != (COUNTS[spec.key] if direct else spec.members) or d["hourly"]["time"] != axis:
             raise ValueError("snapshot model identity/time mismatch")
         for coord,target in (("latitude",LAT),("longitude",LON)):
             if abs(_required(d["grid_point"][coord],coord)-target) > .5:
@@ -428,16 +473,24 @@ def weathernext3_diagnostic(snapshot: dict, now: datetime) -> dict:
 
 def collect_event(client, event: Event, now: datetime | None = None) -> dict:
     now = (now or datetime.now(UTC)).astimezone(UTC)
+    start, end = event_range(event, now)
     models = {}
-    for spec in MODELS:
+    def collect_one(spec):
         try:
-            models[spec.key] = {"ok": True, "error": None, "data": collect_model(client, spec, event, now)}
+            return spec.key, {"ok": True, "error": None, "data": collect_model(client, spec, event, now, (start, end))}
         except Exception as exc:
-            models[spec.key] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"[:300], "data": None}
+            return spec.key, {"ok": False, "error": f"{type(exc).__name__}: {exc}"[:300], "data": None}
+    if getattr(client, 'direct_native', False) is True:
+        from concurrent.futures import ThreadPoolExecutor
+        client._direct_ensemble_cache = {}
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            models.update(pool.map(collect_one, MODELS))
+    else:
+        models.update(map(collect_one, MODELS))
     if not any(model["ok"] for model in models.values()):
         raise RuntimeError("no ensemble model was usable for the event")
     try:
-        comparator = {"ok": True, "data": collect_weathernext_comparator(client, event, now)}
+        comparator = {"ok": True, "data": collect_weathernext_comparator(client, event, now, (start, end))}
     except Exception as exc:
         comparator = {"ok": False, "error": f"{type(exc).__name__}: {exc}"[:300]}
     try:
@@ -448,7 +501,14 @@ def collect_event(client, event: Event, now: datetime | None = None) -> dict:
             wn3["error"] = "WeatherNext 3 upstream unavailable"
     except Exception:
         wn3 = {"ok": False, "data": None, "error": "WeatherNext 3 collection or validation failed"}
-    start, end = event_range(event)
-    return {"weathernext3": wn3, "weathernext2": comparator, "version": 1, "collected_at": iso_z(now), "event": event.as_dict(), "days_out": event.days_out(now),
+    from .synoptic_context import collect_context
+    # Keep the full Eastern chart axis, but request only GFS's accepted UTC
+    # forecast interval (same policy as the rolling weekly comparison). Earlier
+    # elapsed hours remain gaps rather than suppressing the whole model.
+    gfs_start = max(start, now.replace(hour=0, minute=0, second=0, microsecond=0))
+    snapshot = {"gfs": collect_gfs(client, gfs_start, end, now), "synoptic_context": collect_context(client, now), "weathernext3": wn3, "weathernext2": comparator, "version": 1, "collected_at": iso_z(now), "event": event.as_dict(), "days_out": event.days_out(now),
             "range": {"start": iso_z(start), "end": iso_z(end)}, "airport": {"icao": "KCDW", "latitude": LAT, "longitude": LON, "timezone": "America/New_York"},
             "license": "Open-Meteo API data: CC BY 4.0", "models": models}
+    if getattr(client, 'direct_native', False) is True:
+        snapshot.update(direct_native_version=1, collection_started_at=iso_z(now), collected_at=iso_z(datetime.now(UTC)))
+    return snapshot

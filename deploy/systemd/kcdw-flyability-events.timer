@@ -1,10 +1,9 @@
 [Unit]
-Description=Six-hourly KCDW dated-event outlook refresh
+Description=Refresh KCDW event guidance and narrative hourly
 
 [Timer]
-# Six-hour polling, about five hours after nominal 00/06/12/18Z cycles.
-# Actual publication latency varies; inspect source metadata, not this schedule.
-OnCalendar=*-*-* 05,11,17,23:20:00 UTC
+# Fresh official context and models; separate from the :10 history poll.
+OnCalendar=*-*-* *:25:00 UTC
 Persistent=true
 RandomizedDelaySec=3min
 Unit=kcdw-flyability-events.service

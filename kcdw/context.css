@@ -1,0 +1,20 @@
+/* Supplemental regional guidance; keep the operational briefing primary. */
+.synoptic-context{margin:28px 0;padding:22px 0;border-top:1px solid var(--ink);min-width:0}
+.synoptic-context>header{margin-bottom:18px}
+.synoptic-context h2{font:600 28px/1.15 var(--display);margin:6px 0 12px}
+.synoptic-context h3{font:600 21px/1.25 var(--display);margin:10px 0}
+.synoptic-context h4{font-size:13px;margin:12px 0 6px}
+.synoptic-context p,.synoptic-context li{font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.synoptic-context p{margin:8px 0}
+.context-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+.context-source{min-width:0;padding:18px;background:var(--white);border:1px solid var(--line);overflow:hidden}
+.context-source[data-context-source="wn3_cyclones"]{grid-column:1/-1}
+.context-source>section{margin:0!important;padding:0!important;border:0!important}
+.context-source svg{display:block;width:100%;height:auto;max-height:470px}
+.context-source table{display:block;width:100%;overflow-x:auto;font-size:11px}
+.context-source th,.context-source td{padding:7px;min-width:70px;vertical-align:top}
+.context-source details{margin:12px 0;border-top:1px solid var(--line);padding-top:10px}
+.context-source summary{cursor:pointer;font-size:12px;font-weight:600}
+.context-source pre{font:11px/1.5 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere}
+.context-limits{color:var(--muted);max-width:1000px}
+@media(max-width:760px){.context-grid{grid-template-columns:minmax(0,1fr)}.context-source{padding:14px}.synoptic-context h2{font-size:25px}[data-design="field-notes"] #main>.synoptic-context{order:5}.synoptic-context{margin:18px 0}}

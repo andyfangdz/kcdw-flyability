@@ -1,7 +1,7 @@
 """Refresh every upcoming dated-event page: collect members, render, archive, publish.
 
-Deterministic and independent of the Codex-backed main report. A failure for one
-event never touches another event or the main publication.
+Independent of the main report; a bounded Codex narrative explains each fresh
+event snapshot. Narrative failures leave the deterministic charts available.
 """
 from __future__ import annotations
 
@@ -15,10 +15,89 @@ from pathlib import Path
 from .cloud_publish import Client, publish_event, publish_events_index
 from .collector import Client as HttpClient
 from .common import UTC, atomic_write, iso_z, load_json
-from .event_ensemble import collect_event
+from .event_ensemble import collect_event as collect_base_event, event_range
+from .ensemble_trends import build_trends
+from .run_history import load_run_history
 from .event_renderer import render, summary
 from .events import upcoming_events
+from .event_timing import load_event_timing
 from .runs import replace_link
+
+
+def collect_moisture(client, start, end, now):
+    from .event_moisture import collect_moisture as collect
+    return collect(client, start, end, now)
+
+
+def collect_moisture_ensemble(client, start, end, now):
+    from .event_moisture_ensemble import collect_moisture_ensemble as collect
+    return collect(client, start, end, now)
+
+
+def collect_afds(client, snapshot, now):
+    from .event_afd import collect_afds as collect
+    return collect(client, snapshot, now)
+
+
+def collect_wind(client, snapshot, now):
+    from .event_wind import collect_wind as collect
+    return collect(client, snapshot, now)
+
+
+def collect_native_wind(snapshot, cache_dir, now):
+    from .native_wind import collect_native_wind as collect
+    return collect(snapshot, cache_dir, now)
+
+
+def build_wind_trends(snapshot, runs_dir, now):
+    from .event_wind_trends import build_wind_trends as build
+    return build(snapshot, runs_dir, now)
+
+
+def collect_ceiling(snapshot, cache_dir, now):
+    from .cloud_ceiling import collect_ceiling as collect
+    return collect(snapshot, cache_dir, now)
+
+
+def collect_layer_signals(client, snapshot, now):
+    from .cloud_layer_signals import collect_layer_signals as collect
+    return collect(client, snapshot, now)
+
+
+def _collection_clock(client, fallback):
+    return datetime.now(UTC) if getattr(client, 'direct_native', False) is True else fallback
+
+
+def collect_event(client, event, now):
+    snapshot = collect_base_event(client, event, now)
+    start, end = event_range(event, now)
+    for key, collector in (("event_moisture", collect_moisture),
+                           ("event_moisture_ensemble", collect_moisture_ensemble)):
+        try:
+            snapshot[key] = collector(client, start, end, _collection_clock(client, now))
+        except Exception:
+            # Supplemental RH cannot suppress the independent forecast sources.
+            snapshot[key] = None
+    if getattr(client, 'direct_native', False) is True:
+        snapshot.setdefault('collection_started_at', snapshot['collected_at'])
+        snapshot['collected_at'] = iso_z(_collection_clock(client, now))
+        snapshot['direct_native_version'] = 1
+    return snapshot
+
+
+def build_forecast_history(snapshot, runs_dir, now):
+    from .forecast_history import build_forecast_history as build
+    return build(snapshot, runs_dir, now)
+
+
+def build_event_changes(snapshot, runs_dir, now):
+    from .event_change_evidence import build_event_changes as build
+    return build(snapshot, runs_dir, now)
+
+
+def generate_event_narrative(snapshot, work_dir, now):
+    from .event_narrative import generate_event_narrative as generate
+    return generate(snapshot, work_dir, now)
 
 
 def archive_run(var: Path, slug: str, run_id: str, snapshot: dict, html: str, health: dict, text: str) -> Path:
@@ -27,7 +106,7 @@ def archive_run(var: Path, slug: str, run_id: str, snapshot: dict, html: str, he
     if destination.exists() or staging.exists():
         raise FileExistsError(f"event run already archived: {run_id}")
     staging.mkdir(parents=True)
-    atomic_write(staging / "snapshot.json", json.dumps(snapshot, indent=2, sort_keys=True) + "\n")
+    atomic_write(staging / "snapshot.json", json.dumps(snapshot, separators=(',', ':'), sort_keys=True) + "\n")
     atomic_write(staging / "index.html", html + "\n")
     atomic_write(staging / "health.json", json.dumps(health, indent=2, sort_keys=True) + "\n")
     atomic_write(staging / "manifest.json", json.dumps({"kind": "event", "slug": slug, "run_id": run_id, "summary": text,
@@ -38,6 +117,7 @@ def archive_run(var: Path, slug: str, run_id: str, snapshot: dict, html: str, he
 
 
 def update(var: Path, cloud_config: Path | None, now: datetime | None = None, events_path: Path | None = None) -> int:
+    live_clock = now is None
     now = now or datetime.now(UTC)
     run_id = f"{now.strftime('%Y%m%dT%H%M%SZ')}.{os.getpid()}"
     events = [e for e in upcoming_events(now, events_path) if e.days_out(now) >= 0]
@@ -52,7 +132,49 @@ def update(var: Path, cloud_config: Path | None, now: datetime | None = None, ev
     failures = 0
     for event in events:
         try:
-            snapshot = collect_event(HttpClient(timeout=40), event, now)
+            snapshot = collect_event(HttpClient(timeout=40, direct_native=True), event, now)
+            now = max(now, datetime.fromisoformat(snapshot["collected_at"].replace("Z", "+00:00")))
+            snapshot["event_timing"] = load_event_timing(event, events_path)
+            snapshot["initialization_provenance_version"] = 1
+            for key, collect in (
+                ("event_wind", lambda: collect_wind(HttpClient(timeout=15, retries=0, direct_native=True), snapshot, now)),
+                ("native_wind", lambda: collect_native_wind(snapshot, var / "events" / event.slug / "native-wind-cache", now)),
+                ("wind_trends", lambda: build_wind_trends(snapshot, var / "events" / event.slug / "runs", now)),
+                ("event_afds", lambda: collect_afds(HttpClient(timeout=10, retries=1), snapshot, now)),
+                ("cloud_ceiling", lambda: collect_ceiling(snapshot, var / "events" / event.slug / "native-ceiling-cache", now)),
+                ("cloud_layer_signals", lambda: collect_layer_signals(HttpClient(timeout=15, retries=0, direct_native=True), snapshot, now)),
+            ):
+                try:
+                    snapshot[key] = collect()
+                    record(f"event={event.slug} {key}={'available' if snapshot[key] else 'unavailable'}")
+                except Exception as exc:
+                    snapshot[key] = None
+                    record(f"event={event.slug} {key}=unavailable error={type(exc).__name__}")
+            if live_clock:
+                now = datetime.now(UTC)
+            try:
+                snapshot["ensemble_trends"] = build_trends(snapshot, var / "events" / event.slug / "runs", now)
+            except Exception:
+                snapshot["ensemble_trends"] = None
+                record(f"event={event.slug} trends=unavailable")
+            try:
+                snapshot["forecast_history"] = build_forecast_history(snapshot, var / "events" / event.slug / "runs", now)
+            except Exception:
+                snapshot["forecast_history"] = None
+                record(f"event={event.slug} forecast_history=unavailable")
+            try:
+                snapshot["event_changes"] = build_event_changes(snapshot, var / "events" / event.slug / "runs", now)
+            except Exception:
+                snapshot["event_changes"] = None
+                record(f"event={event.slug} event_changes=unavailable")
+            snapshot["ensemble_run_history"] = load_run_history(var / "events" / event.slug / "backfill.json", snapshot["event"], now)
+            try:
+                work_dir = var / "events" / event.slug / "narratives" / run_id
+                snapshot["event_narrative"] = generate_event_narrative(snapshot, work_dir, now)
+                record(f"event={event.slug} narrative=success provider=codex")
+            except Exception as exc:
+                snapshot["event_narrative"] = None
+                record(f"event={event.slug} narrative=unavailable error={type(exc).__name__}")
             html, health = render(snapshot, now, events_path)
             text = summary(snapshot)
             archive = archive_run(var, event.slug, run_id, snapshot, html, health, text)
