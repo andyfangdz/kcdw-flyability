@@ -41,7 +41,7 @@
       "items": {
         "type": "string",
         "minLength": 1,
-        "maxLength": 120
+        "maxLength": 180
       }
     },
     "days": {
@@ -130,7 +130,7 @@
           "items": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 100
+            "maxLength": 160
           }
         },
         "windows": {

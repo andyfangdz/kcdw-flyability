@@ -98,6 +98,13 @@ def _text(value, where: str, maximum: int, *, minimum: int = 1) -> None:
         raise ValidationError(f"{where}: text length must be {minimum}..{maximum}")
 
 
+def _hazard(value, where: str, maximum: int) -> None:
+    _text(value, where, maximum)
+    # Schema-constrained output clips at the hard limit; a full-length hazard without closing punctuation is a clipped one.
+    if len(value) >= maximum and not value.rstrip().endswith((".", "!", "?")):
+        raise ValidationError(f"{where}: clipped at the {maximum}-character limit")
+
+
 def _english_text(value, where="analysis") -> None:
     if isinstance(value, dict):
         for key, child in value.items():
@@ -140,7 +147,7 @@ def validate_analysis(value: dict, snapshot: dict) -> dict:
     if not isinstance(value["controlling_hazards"], list) or not 1 <= len(value["controlling_hazards"]) <= 6:
         raise ValidationError("controlling_hazards must contain 1..6 items")
     for hazard in value["controlling_hazards"]:
-        _text(hazard, "hazard", 120)
+        _hazard(hazard, "hazard", 180)
     if not isinstance(value["days"], list) or len(value["days"]) != 7:
         raise ValidationError("exactly seven days required")
     seen_dates = set()
@@ -158,7 +165,7 @@ def validate_analysis(value: dict, snapshot: dict) -> dict:
         if not isinstance(day["hazards"], list) or len(day["hazards"]) > 5:
             raise ValidationError("invalid hazards")
         for hazard in day["hazards"]:
-            _text(hazard, "day hazard", 100)
+            _hazard(hazard, "day hazard", 160)
         expected_windows = set(planning_windows(snapshot, day["date"])) if "outlook" in day else set(WINDOWS)
         if "outlook" in day and day["outlook"] not in {label for _, _, label in BANDS}:
             raise ValidationError("invalid daily outlook")

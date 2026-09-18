@@ -517,6 +517,27 @@ class ProjectTests(unittest.TestCase):
         schema = json.loads((ROOT / "schema" / "analysis.schema.json").read_text())
         self.assertEqual(schema["$defs"]["window"]["properties"]["reason"]["maxLength"], 300)
 
+    def test_hazard_limits_leave_headroom_and_reject_clipped_text(self):
+        schema = json.loads((ROOT / "schema" / "analysis.schema.json").read_text())
+        self.assertEqual(schema["properties"]["controlling_hazards"]["items"]["maxLength"], 180)
+        self.assertEqual(schema["$defs"]["day"]["properties"]["hazards"]["items"]["maxLength"], 160)
+        prompt = build_prompt(self.snapshot)
+        self.assertIn("at most 90 characters per day hazard and 110 per controlling hazard", prompt)
+        self.assertIn("Never continue one hazard in the next list item", prompt)
+        for path, limit in ((("controlling_hazards",), 180), (("days", 0, "hazards"), 160)):
+            for text, ok in (("x" * (limit - 1) + ".", True), ("x" * (limit - 1), True), ("x" * limit, False), ("x" * (limit + 1), False)):
+                value = copy.deepcopy(self.analysis)
+                target = value
+                for key in path:
+                    target = target[key]
+                target[:] = [text]
+                with self.subTest(path=path, length=len(text), ok=ok):
+                    if ok:
+                        self.assertIs(validate_analysis(value, self.snapshot), value)
+                    else:
+                        with self.assertRaisesRegex(ValidationError, "hazard"):
+                            validate_analysis(value, self.snapshot)
+
     def test_render_uses_valid_landmark_and_heading_semantics(self):
         rendered, _ = render(self.snapshot, self.analysis, datetime(2026, 9, 3, 12, 10, tzinfo=timezone.utc))
         self.assertIn('<div class="legend" role="group" aria-label="Score legend">', rendered)
