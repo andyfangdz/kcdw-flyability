@@ -43,7 +43,25 @@
     }, {passive:true});
     const plane = el.querySelector('.forecast-plane'), output = el.closest('.forecast-frame').querySelector('.chart-tooltip');
     const series = Array.from(plane.querySelectorAll('[data-values]')).map(group => {
-      try { return {group, values:JSON.parse(group.dataset.values)}; } catch (_) { return {group, values:[]}; }
+      try {
+        let values=JSON.parse(group.dataset.values);
+        if (!Array.isArray(values)) {
+          const p=values;
+          if (!p || ![1,2].includes(p.v) || !Number.isInteger(p.n) || p.n<0 || p.n>2000 || !Number.isInteger(p.s) || p.s<0 || p.s>p.n) throw new Error('invalid chart values');
+          let data=p.d;
+          if (p.v===2) {
+            if (typeof p.b!=='string' || p.b.length>21336) throw new Error('invalid chart bytes');
+            const raw=atob(p.b);
+            if (raw.length%8 || raw.length>16000) throw new Error('invalid chart bytes');
+            const view=new DataView(Uint8Array.from(raw,c=>c.charCodeAt(0)).buffer);
+            data=Array.from({length:raw.length/8},(_,i)=>{const v=view.getFloat64(i*8,true);return Number.isNaN(v)?null:v;});
+          }
+          if (!Array.isArray(data) || p.s+data.length>p.n || data.some(v=>v!==null && (typeof v!=='number' || !Number.isFinite(v)))) throw new Error('invalid chart values');
+          values=Array(p.n).fill(null);
+          data.forEach((v,i)=>{values[p.s+i]=v;});
+        }
+        return {group,values};
+      } catch (_) { return {group, values:[]}; }
     });
     function tooltip(event) {
       // Touch gestures pan the charts; never treat them as hover inspection.

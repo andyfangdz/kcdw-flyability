@@ -16,7 +16,11 @@ from pathlib import Path
 import subprocess
 
 from .common import UTC, iso_z
-from .direct_ensemble_worker import SPECS, COUNTS, url_for, field_spec
+from .direct_ensemble_worker import SPECS, COUNTS as WORKER_COUNTS, url_for, field_spec, valid_point_url, expected_identity
+COUNTS = dict(WORKER_COUNTS, geps=21)
+PROVIDERS = {'gefs':'NOAA', 'ecmwf_ens':'ECMWF', 'aifs_ens':'ECMWF', 'geps':'ECCC'}
+ENDPOINTS = {'gefs':'https://noaa-gefs-pds.s3.amazonaws.com/', 'ecmwf_ens':'https://data.ecmwf.int/forecasts/', 'aifs_ens':'https://data.ecmwf.int/forecasts/', 'geps':'https://dd.weather.gc.ca/'}
+UNAVAILABLE = {'gefs':[], 'ecmwf_ens':['cloud_cover_low'], 'aifs_ens':['wind_gusts_10m'], 'geps':['wind_gusts_10m','cloud_cover_low']}
 ROOT=Path(__file__).resolve().parents[1]
 SAMPLING=('Native 6-hour samples; linear memberwise interpolation to hourly only between adjacent samples; '
           'u/v interpolated before paired speed/direction and quantiles. No extrapolation. '
@@ -24,6 +28,13 @@ SAMPLING=('Native 6-hour samples; linear memberwise interpolation to hourly only
           'Gust and low cloud remain missing unless independently supplied by the native catalog.')
 DERIVATION=('RH2m from native T/dewpoint; AIFS pressure-level RH from native q,T,p using Bolton (1980) '
             'liquid-water saturation vapor pressure; RH supersaturation retained without clamping. Pressure levels masked using same-member surface pressure.')
+SAMPLING_V3 = ('Complete native member sets at 6-hour samples, linearly interpolated memberwise between adjacent endpoints; no extrapolation. '
+               'Winds use paired u/v before speed/direction and quantiles. Rain amounts are uniformly disaggregated within each native interval, '
+               'after same-member cumulative differencing for ECMWF and GEPS; not precise hourly rain timing. '
+               'Negative differences within verified GRIB packing error are zero increments; larger decreases remain unknown. '
+               'GEFS gust is instantaneous; IFS gust samples are maxima over their actual source intervals and interpolated display values are not hourly maxima. '
+               'GEFS low cloud is a native interval average; AIFS low cloud is instantaneous. Their interpolated displays do not add timing skill. '
+               'IFS low cloud, AIFS gust and GEPS gust/low cloud are unavailable from the verified native catalog.')
 FALLBACK='Direct native source unavailable or insufficient validated coverage; explicit Open-Meteo fallback.'
 
 
@@ -65,23 +76,28 @@ def interpolate(samples,targets):
 def validate_metadata(meta,model,now):
     require(model in COUNTS and isinstance(meta,dict))
     require(meta.get('direct_native') is True and meta.get('provenance')=='direct-native' and meta.get('model_init_is_response_bound') is True)
-    require(meta['native_model']==model and meta['source_provider']==('NOAA' if model=='gefs' else 'ECMWF'))
+    require(meta['native_model']==model and meta['source_provider']==PROVIDERS[model])
     init=time(meta['initialization_time']);require(init.hour in (0,6,12,18) and init.minute==init.second==0)
     require(-timedelta(minutes=5)<=now-init<=timedelta(hours=24))
     first,last=time(meta['original_collected_at']),time(meta['original_fetched_at'])
     require(init<=first<=last<=now+timedelta(minutes=5) and now-first<=timedelta(hours=12))
     require(meta.get('availability_time') is None)
-    require(meta['sampling']==SAMPLING and meta['native_timestep_hours']==6 and meta['derivation']==DERIVATION)
+    version=meta.get('native_version',2);require(version in (2,3))
+    require(meta['sampling']==(SAMPLING_V3 if version==3 else SAMPLING) and meta['native_timestep_hours']==6 and meta['derivation']==DERIVATION)
+    if version==3:require(meta.get('unavailable_fields')==UNAVAILABLE[model])
     expected=[f'{i:02}' for i in (range(1,51) if model=='ecmwf_ens' else range(COUNTS[model]))]
     require(meta['member_ids']==expected and meta['offered_members']==len(expected))
     require(meta['control_member']==(None if model=='ecmwf_ens' else '00'))
-    end=time(meta['data_end_time']);require(init<=end<=init+timedelta(hours=384 if model=='gefs' else 360))
+    end=time(meta['data_end_time']);require(init<=end<=init+timedelta(hours=384 if model in ('gefs','geps') else 360))
     require(type(meta['validated_points']) is int and 0<meta['validated_points']<=100000)
     require(meta['ok'] is True and meta['fresh'] is True and type(meta['covers_display']) is bool)
     return meta
 
 
 def validate_packet(packet,model,now):
+    if model=='geps':
+        from .direct_geps_worker import validate_packet as validate_geps
+        return validate_geps(packet,now)
     require(packet['model']==model);init=time(packet['init']);require(now-timedelta(hours=24)<=init<=now)
     expected=[f'{i:02}' for i in (range(1,51) if model=='ecmwf_ens' else range(COUNTS[model]))]
     require(packet['offered_members']==expected)
@@ -92,14 +108,12 @@ def validate_packet(packet,model,now):
         require((member,name,lead) not in seen);seen.add((member,name,lead))
         require(p['model']==model and p['init']==packet['init'])
         group=member if model=='gefs' else 'ef' if model=='ecmwf_ens' else 'cf' if member=='00' else 'pf'
-        require(p['url']==url_for(model,init,lead,group))
+        require(valid_point_url(p['url'],model,init,lead,member,name))
         require(p['latitude']==41 and p['longitude']==(-74.5 if model=='gefs' else -74.25))
         pid,unit,kind,level,lo,hi=field_spec(model,name);number(p['value'],lo,hi)
         ident=p['identity'];valid=init+timedelta(hours=lead)
-        expected_identity=dict(edition=2,centre='kwbc' if model=='gefs' else 'ecmf',paramId=pid,units=unit,typeOfLevel=kind,level=level,dataDate=int(init.strftime('%Y%m%d')),dataTime=int(init.strftime('%H%M')),validityDate=int(valid.strftime('%Y%m%d')),validityTime=int(valid.strftime('%H%M')),startStep=lead,endStep=lead,stepType='instant',gridType='regular_ll',Ni=720 if model=='gefs' else 1440,Nj=361 if model=='gefs' else 721,number=int(member))
-        if name=='tp':expected_identity.update(stepType='accum',startStep=lead-6 if model=='gefs' else 0)
-        if model!='gefs':expected_identity.update(marsClass='ai' if model=='aifs_ens' else 'od',marsStream='enfo',marsType='cf' if member=='00' else 'pf')
-        require(ident==expected_identity)
+        proof=expected_identity(model,init,lead,member,name,start_step=ident.get('startStep'),schema=ident.get('proof_schema',2),param_id=ident.get('paramId'))
+        require(ident==proof)
         a,b=p['range'];require(type(a) is int and type(b) is int and 0<=a<=b<20_000_000_000 and b-a<8_000_000)
         require(isinstance(p['sha256'],str) and len(p['sha256'])==64 and all(c in '0123456789abcdef' for c in p['sha256']))
         collected,fetched=time(p['collected_at']),time(p['fetched_at']);require(init<=collected<=fetched<=now+timedelta(minutes=5) and now-collected<=timedelta(hours=12))
@@ -107,17 +121,17 @@ def validate_packet(packet,model,now):
 
 
 def collect_native(client,model,start,end,now):
-    """One hard-bounded producer per model/range/client; shared by chart and RH."""
+    """Read completed immutable runs only; never download inside page collection."""
     require(getattr(client,'direct_native',False) is True and model in COUNTS)
     cache=getattr(client,'_direct_ensemble_cache',None)
     if cache is None:cache={};setattr(client,'_direct_ensemble_cache',cache)
     key=(model,iso_z(end))
     if key not in cache:
-        request=dict(model=model,start=iso_z(start),end=iso_z(end),now=iso_z(datetime.now(UTC)),seconds=175,focus=iso_z(end-timedelta(days=2)+timedelta(hours=12)))
+        from .native_ensemble_cache import load_completed
         try:
-            run=subprocess.run([str(ROOT/'var/native-weather-venv/bin/python'),'-m','kcdw.direct_ensemble_worker'],cwd=ROOT,input=json.dumps(request),capture_output=True,text=True,timeout=185,check=True)
-            require(len(run.stdout)<=80_000_000);cache[key]=validate_packet(json.loads(run.stdout),model,datetime.now(UTC))
-        except Exception:cache[key]=None
+            cache[key]=load_completed(model,start,end,now)
+        except (OSError, ValueError, KeyError, TypeError):
+            cache[key]=None
     packet=cache[key];require(packet is not None)
     validate_packet(packet,model,datetime.now(UTC))
     return packet
@@ -128,6 +142,7 @@ def hourly_members(packet,axis):
     from .event_ensemble import VARIABLES
     from .event_moisture_ensemble import VARIABLES as RH
     init=time(packet['init']);targets=[(time(t)-init).total_seconds()/3600 for t in axis]
+    precision={(p['member'],p['lead']):p.get('packing_error',0.) for p in packet['points'] if p['field']=='tp'}
     native={}
     for p in packet['points']:native.setdefault(p['member'],{}).setdefault(p['field'],{})[p['lead']]=p['value']
     out={f:{} for f in (*VARIABLES,*RH,'wind_direction_10m')}
@@ -136,7 +151,7 @@ def hourly_members(packet,axis):
         leads=sorted({h for row in fields.values() for h in row})
         for h in leads:
             vals={n:row[h] for n,row in fields.items() if h in row}
-            for n,f,scale,offset in [('sp','surface_pressure',.01,0),('msl','pressure_msl',.01,0),('2t','temperature_2m',1,-273.15),('lcc','cloud_cover_low',100,0),('r2','relative_humidity_2m',1,0)]:
+            for n,f,scale,offset in [('sp','surface_pressure',.01,0),('msl','pressure_msl',.01,0),('2t','temperature_2m',1,-273.15),('lcc','cloud_cover_low',1 if packet.get('native_version')==3 else 100,0),('gust','wind_gusts_10m',3600/1852,0),('r2','relative_humidity_2m',1,0)]:
                 if n in vals:samples[f][h]=vals[n]*scale+offset
             if 'r2' not in vals and {'2t','2d'}<=vals.keys():samples['relative_humidity_2m'][h]=rh_from_dewpoint(vals['2t'],vals['2d'])
             for level in (1000,925,850):
@@ -158,7 +173,8 @@ def hourly_members(packet,axis):
                 if before is None:
                     continue
                 amount = (value-before)*(1000 if packet['model']=='ecmwf_ens' else 1)
-            if amount < -1e-6:
+            tolerance=(precision.get((member,lead),0.)+precision.get((member,previous),0.))*(1000 if packet['model']=='ecmwf_ens' else 1)
+            if amount < -(1e-6+tolerance):
                 continue
             for hour in range(previous+1, lead+1):
                 rain[hour] = max(0., amount)/6
@@ -172,10 +188,13 @@ def hourly_members(packet,axis):
 
 def metadata(packet,axis,now):
     model=packet['model'];points=packet['points'];init=time(packet['init']);last=init+timedelta(hours=max(p['lead'] for p in points))
-    return dict(ok=True,fresh=True,direct_native=True,provenance='direct-native',model_init_is_response_bound=True,native_model=model,source_provider='NOAA' if model=='gefs' else 'ECMWF',initialization_time=packet['init'],availability_time=None,data_end_time=iso_z(last),native_timestep_hours=6,covers_display=last>=time(axis[-1]),sampling=SAMPLING,derivation=DERIVATION,binding_note='Exact native GRIB model/init/member/lead/field binding; partial coverage remains null.',member_ids=packet['offered_members'],offered_members=len(packet['offered_members']),control_member=None if model=='ecmwf_ens' else '00',control_note='IFS open ef catalog provides 50 perturbations; no control advertised.' if model=='ecmwf_ens' else 'Member 00 is the separately identified native control.',original_collected_at=min(p['collected_at'] for p in points),original_fetched_at=max(p['fetched_at'] for p in points),validated_points=len(points),license='NOAA public domain' if model=='gefs' else 'ECMWF open data CC BY 4.0')
+    result = dict(ok=True,fresh=True,direct_native=True,provenance='direct-native',model_init_is_response_bound=True,native_model=model,source_provider=PROVIDERS[model],initialization_time=packet['init'],availability_time=None,data_end_time=iso_z(last),native_timestep_hours=6,covers_display=last>=time(axis[-1]),sampling=SAMPLING,derivation=DERIVATION,binding_note='Exact native GRIB model/init/member/lead/field binding; partial coverage remains null.',member_ids=packet['offered_members'],offered_members=len(packet['offered_members']),control_member=None if model=='ecmwf_ens' else '00',control_note='IFS open ef catalog provides 50 perturbations; no control advertised.' if model=='ecmwf_ens' else 'Member 00 is the separately identified native control.',original_collected_at=min(p['collected_at'] for p in points),original_fetched_at=max(p['fetched_at'] for p in points),validated_points=len(points),license='NOAA public domain' if model=='gefs' else 'ECCC Open Government Licence Canada' if model=='geps' else 'ECMWF open data CC BY 4.0')
+    if packet.get('native_version')==3:
+        result.update(native_version=3, sampling=SAMPLING_V3, unavailable_fields=UNAVAILABLE[model], binding_note='Complete native member/field/time matrix from one run; past hours may be missing. Unsupported fields are explicitly unavailable.')
+    return result
 
 
-def label(spec):return f'{spec.name} direct {"NOAA" if spec.key=="gefs" else "ECMWF"} native members; descriptive spread, not calibrated flight odds.'
+def label(spec):return f'{spec.name} direct {PROVIDERS[spec.key]} native members; descriptive spread, not calibrated flight odds.'
 
 
 def seal(data):
@@ -193,15 +212,15 @@ def digest(data):
 def validate_normalized(data,spec,now):
     meta=validate_metadata(data['metadata'],spec.key,now)
     require(data['model_id']==spec.model_id and data['model']==spec.name and data['members']==COUNTS[spec.key])
-    require(data['label']==label(spec) and data['endpoint']==('https://noaa-gefs-pds.s3.amazonaws.com/' if spec.key=='gefs' else 'https://data.ecmwf.int/forecasts/'))
+    require(data['label']==label(spec) and data['endpoint']==ENDPOINTS[spec.key])
     require(meta['normalized_sha256']==digest(data))
-    require(data['grid_point']=={'latitude':41.,'longitude':-74.5 if spec.key=='gefs' else -74.25})
+    require(data['grid_point']=={'latitude':41.,'longitude':-74.5 if spec.key in ('gefs','geps') else -74.25})
     require(data['fetched_at']==meta['original_fetched_at'])
     return data
 
 
 def base_data(spec,packet,axis,now) -> dict:
-    return dict(model_id=spec.model_id,model=spec.name,label=label(spec),members=COUNTS[spec.key],fetched_at=max(p['fetched_at'] for p in packet['points']),endpoint='https://noaa-gefs-pds.s3.amazonaws.com/' if spec.key=='gefs' else 'https://data.ecmwf.int/forecasts/',metadata=metadata(packet,axis,now),grid_point={'latitude':41.,'longitude':-74.5 if spec.key=='gefs' else -74.25})
+    return dict(model_id=spec.model_id,model=spec.name,label=label(spec),members=COUNTS[spec.key],fetched_at=max(p['fetched_at'] for p in packet['points']),endpoint=ENDPOINTS[spec.key],metadata=metadata(packet,axis,now),grid_point={'latitude':41.,'longitude':-74.5 if spec.key in ('gefs','geps') else -74.25})
 
 
 def _covers_future(data, fields, start, end, now):
@@ -219,7 +238,11 @@ def _covers_future(data, fields, start, end, now):
     indices = {time(stamp): i for i, stamp in enumerate(hourly['time'])}
     while hour < end:
         index = indices.get(hour)
-        if index is None or any(hourly[field]['sample_counts'][index] < 1 for field in fields):
+        minimum = data['members'] if data.get('metadata', {}).get('native_version') == 3 else 1
+        # Complete raw member/field matrices are admitted by the cache reader.
+        # A cumulative total can still decrease beyond its packing precision;
+        # keep those derived rain increments unknown, with true sample counts.
+        if index is None or any(hourly[field]['sample_counts'][index] < (1 if field=='precipitation' else minimum) for field in fields):
             return False
         hour += timedelta(hours=1)
     return True
@@ -231,7 +254,12 @@ def collect_rh(client,spec,start,end,now):
     packet=collect_native(client,spec.key,start,end,now);members=hourly_members(packet,axis)
     members={f:members[f] for f in VARIABLES};data=base_data(spec,packet,axis,now)
     data.update(hourly_units=dict(UNITS),member_ids={f:sorted(m for m,row in rows.items() if any(v is not None for v in row)) for f,rows in members.items()},hourly=_fans(members,axis))
-    if not _covers_future(data, ('relative_humidity_2m', 'relative_humidity_850hPa'), start, end, now):
+    required = ('relative_humidity_2m', 'surface_pressure') if packet.get('native_version')==3 else ('relative_humidity_2m', 'relative_humidity_850hPa')
+    coverage=data
+    if packet.get('native_version')==3:
+        counts=[sum(row[i] is not None for row in members['surface_pressure'].values()) for i in range(len(axis))]
+        coverage=dict(data, hourly=dict(data['hourly'], surface_pressure={'sample_counts':counts}))
+    if not _covers_future(coverage, required, start, end, now):
         return None
     return seal(data)
 
@@ -242,7 +270,10 @@ def collect_chart(client,spec,event,start,end,now):
     axis=[iso_z(start+timedelta(hours=i)) for i in range(int((end-start).total_seconds()/3600))]
     packet=collect_native(client,spec.key,start,end,now);members=hourly_members(packet,axis)
     data=base_data(spec,packet,axis,now);data.update(key=spec.key,provider=data['metadata']['source_provider'],hourly_units=dict(UNITS)|{'time':'iso8601 UTC'},hourly=_hourly_stats([time(t) for t in axis],{f:members[f] for f in VARIABLES}))
-    if not _covers_future(data, ('pressure_msl', 'wind_speed_10m', 'precipitation'), start, end, now):
+    if packet.get('native_version')==3:
+        data['metadata']['rain_unknown_member_hours']=sum(COUNTS[spec.key]-count for stamp,count in zip(axis,data['hourly']['precipitation']['sample_counts']) if time(stamp)>=now)
+    required = tuple(field for field in VARIABLES if field not in UNAVAILABLE[spec.key]) if packet.get('native_version')==3 else ('pressure_msl', 'wind_speed_10m', 'precipitation')
+    if not _covers_future(data, required, start, end, now):
         return None
     data['window'] = _window_scenarios(event, [time(t) for t in axis], members) if event is not None else None
     return seal(data)

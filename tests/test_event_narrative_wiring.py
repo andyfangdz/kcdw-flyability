@@ -26,11 +26,15 @@ class EventNarrativeWiringTests(unittest.TestCase):
                 work_dir.mkdir(parents=True)
                 (work_dir/'analysis.json').write_text(json.dumps(narrative))
                 return narrative
+            def collected(client, event, now):
+                self.assertTrue(client.direct_native)
+                self.assertTrue(client.direct_ensembles)
+                return snapshot
             def rendered(value, now, events_path):
                 self.assertEqual(value['event_narrative'], narrative)
                 return '<html>narrative</html>', {}
             with patch.object(event_update, 'upcoming_events', return_value=[EVENT]), \
-                 patch.object(event_update, 'collect_event', return_value=snapshot), \
+                 patch.object(event_update, 'collect_event', side_effect=collected), \
                  patch.object(event_update,'collect_wind',return_value=None), \
                  patch.object(event_update,'collect_native_wind',return_value=None), \
                  patch.object(event_update,'build_wind_trends',return_value=None), \

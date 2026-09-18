@@ -65,6 +65,18 @@ class NarrativeTests(unittest.TestCase):
         for name in ['evidence.json', 'prompt.txt', 'analysis.json', 'codex.log']:
             self.assertEqual(stat.S_IMODE((self.work / name).stat().st_mode), 0o600)
 
+    def test_generated_schema_allows_only_current_available_citations(self):
+        def limited(snapshot,now):
+            packet=evidence(snapshot,now)
+            packet['sources'].append({'id':'wind_surface','label':'Omitted','url':None,'status':'unavailable','evidence':{'reason':'budget'}})
+            return packet
+        with patch.object(narrative,'build_event_evidence',side_effect=limited):
+            self.generate()
+        schema=json.loads(Path(self.command[self.command.index('--output-schema')+1]).read_text())
+        refs=[schema['properties']['sections']['items']['properties']['source_ids'],schema['properties']['next_check']['properties']['source_ids']]
+        for field in refs:self.assertEqual(field['items']['enum'],['wn3_point'])
+        self.assertEqual(stat.S_IMODE((self.work/'schema.json').stat().st_mode),0o600)
+
     def test_stale_mismatched_and_future_suppressed(self):
         self.generate()
         for now in [NOW + timedelta(hours=3), NOW + timedelta(hours=9), NOW - timedelta(minutes=10)]:

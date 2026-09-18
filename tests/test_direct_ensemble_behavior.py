@@ -6,10 +6,29 @@ from kcdw import direct_ensemble as d
 from kcdw.event_ensemble import MODELS
 
 class NativeBehaviorTests(unittest.TestCase):
-    def test_incomplete_native_chart_enters_real_open_meteo_fallback(self):
+    def test_production_native_deterministic_client_skips_native_ensemble_charts(self):
         from tests.test_events import FakeClient, EVENT, NOW
         from kcdw.event_ensemble import collect_model
         client=FakeClient();client.direct_native=True
+        with patch.object(d,'collect_chart',side_effect=AssertionError('native ensemble must not run')) as native:
+            result=collect_model(client,MODELS[0],EVENT,NOW)
+        native.assert_not_called()
+        self.assertNotIn('direct_fallback_reason',result['metadata'])
+        self.assertTrue(all(result['hourly']['pressure_msl']['sample_counts']))
+
+    def test_production_native_deterministic_client_skips_native_ensemble_rh(self):
+        from tests.test_event_moisture_ensemble import Client, START, END, NOW
+        from kcdw.event_moisture_ensemble import collect_moisture_ensemble,validate_moisture_ensemble
+        client=Client();client.direct_native=True
+        with patch.object(d,'collect_rh',side_effect=AssertionError('native ensemble must not run')) as native:
+            result=collect_moisture_ensemble(client,START,END,NOW)
+        native.assert_not_called()
+        self.assertTrue(all(v['available'] for v in validate_moisture_ensemble(result,NOW)['models'].values()))
+
+    def test_incomplete_native_chart_enters_real_open_meteo_fallback(self):
+        from tests.test_events import FakeClient, EVENT, NOW
+        from kcdw.event_ensemble import collect_model
+        client=FakeClient();client.direct_native=True;client.direct_ensembles=True
         with patch.object(d,'collect_chart',return_value=None):
             result=collect_model(client,MODELS[0],EVENT,NOW)
         self.assertIsInstance(result,dict)

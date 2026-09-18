@@ -41,6 +41,29 @@ class ChartNavigationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             encode_chart_values([float('nan')])
 
+    def test_long_null_prefix_and_tail_compress_without_changing_values(self):
+        from kcdw.event_renderer import encode_chart_values
+        values=[None]*130+[0,12.3456789,None,-4]+[None]*70
+        encoded=encode_chart_values(values)
+        self.assertLess(len(encoded),150)
+        packet=json.loads(encoded)
+        restored=[None]*packet['n']
+        restored[packet['s']:packet['s']+len(packet['d'])]=packet['d']
+        self.assertEqual(restored,values)
+
+    def test_dense_full_precision_values_have_lossless_binary_encoding(self):
+        import base64,struct
+        from kcdw.event_renderer import encode_chart_values
+        values=[i/7.123456789 if i%11 else None for i in range(300)]
+        encoded=encode_chart_values(values);packet=json.loads(encoded)
+        self.assertEqual(packet['v'],2)
+        raw=base64.b64decode(packet['b'])
+        import math
+        decoded=[None if math.isnan(v) else v for (v,) in struct.iter_unpack('<d',raw)]
+        restored=[None]*packet['n'];restored[packet['s']:packet['s']+len(decoded)]=decoded
+        self.assertEqual(restored,values)
+        self.assertLess(len(encoded),len(json.dumps(values))*.8)
+
     def test_svg_point_padding_is_removed_without_changing_geometry(self):
         points=[(0,0),(0.123,100),(2,0),(3.123,1.234),(4,0)]
         before=' '.join(f'{x:.1f},{y:.1f}' for x,y in points)

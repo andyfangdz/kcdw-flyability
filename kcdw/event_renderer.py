@@ -38,9 +38,17 @@ def esc(value) -> str:
 
 
 def encode_chart_values(values):
-    """Lossless JSON compaction; whole floats and integers decode identically."""
-    return json.dumps([int(v) if isinstance(v, float) and v.is_integer() else v for v in values],
-                      separators=(',', ':'), allow_nan=False)
+    """Losslessly trim long empty margins; legacy arrays remain supported."""
+    values=[int(v) if isinstance(v,float) and v.is_integer() else v for v in values]
+    plain=json.dumps(values,separators=(',', ':'),allow_nan=False)
+    first=next((i for i,v in enumerate(values) if v is not None),len(values))
+    last=next((i+1 for i in range(len(values)-1,first-1,-1) if values[i] is not None),first)
+    packed=json.dumps(dict(v=1,n=len(values),s=first,d=values[first:last]),separators=(',', ':'),allow_nan=False)
+    if len(values)>2000:return plain
+    import base64,struct
+    raw=b''.join(struct.pack('<d',float('nan') if v is None else v) for v in values[first:last])
+    binary=json.dumps(dict(v=2,n=len(values),s=first,b=base64.b64encode(raw).decode('ascii')),separators=(',', ':'))
+    return min((plain,packed,binary),key=lambda text:len(esc(text)))
 
 
 class Chart:

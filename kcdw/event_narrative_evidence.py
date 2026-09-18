@@ -217,8 +217,9 @@ def build_event_evidence(snapshot, now) -> dict:
                 evidence = _current(snapshot, 'wn3' if alias == 'wn3_point' else alias, now, sample, rain_times)
                 direct = evidence.get('source_provenance')
                 if direct:
-                    source['url'] = ('https://www.nco.ncep.noaa.gov/pmb/products/gfs/'
-                                     if direct['source_provider'] == 'NOAA' else 'https://www.ecmwf.int/en/forecasts/datasets/open-data')
+                    source['url'] = {'NOAA':'https://www.nco.ncep.noaa.gov/pmb/products/gfs/',
+                                     'ECMWF':'https://www.ecmwf.int/en/forecasts/datasets/open-data',
+                                     'ECCC':'https://eccc-msc.github.io/open-data/msc-data/nwp_geps/readme_geps_en/'}[direct['source_provider']]
                     result['version'] = 2
                 available = True
             elif alias in ('nhc', 'cpc_wpc'):
@@ -325,10 +326,11 @@ def build_event_evidence(snapshot, now) -> dict:
             background = [(len(p['text']), p, 'text', 350)
                           for s in result['sources'] for p in s['evidence'].get('products', [])
                           if len(p.get('text', '')) > 350]
-            background += [(len(s['evidence'][key]), s['evidence'], key, 1000)
+            cyclone_floor = 600 if snapshot.get('native_ensemble_evidence_version') == 1 else 1000
+            background += [(len(s['evidence'][key]), s['evidence'], key, cyclone_floor)
                            for s in result['sources'] if s['id'] == 'wn3_cyclones'
                            for key in ('mission', 'preceding_48h')
-                           if len(s['evidence'].get(key, '')) > 1000]
+                           if len(s['evidence'].get(key, '')) > cyclone_floor]
             if background:
                 size, packet, key, floor = max(background, key=lambda item: item[0])
                 packet[key] = packet[key][:max(floor, size // 2)]

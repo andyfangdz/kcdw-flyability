@@ -254,7 +254,7 @@ def collect_moisture_ensemble(client, start, end, now):
                 'range': {'start': iso_z(start), 'end': iso_z(end)}, 'models': {}}
     for spec in MODELS:
         fallback = False
-        if getattr(client, 'direct_native', False) is True:
+        if getattr(client, 'direct_ensembles', False) is True:
             try:
                 from .direct_ensemble import collect_rh
                 data = collect_rh(client, spec, clipped, end, now)

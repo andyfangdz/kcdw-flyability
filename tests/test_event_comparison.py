@@ -32,7 +32,12 @@ class ComparisonTests(unittest.TestCase):
         svg = self.svg(markup, field)
         match = re.search(r'<g data-model="' + key + r'"[^>]*data-values="([^"]+)"', svg)
         assert match is not None
-        return json.loads(unescape(match.group(1)))
+        values=json.loads(unescape(match.group(1)))
+        if isinstance(values,dict):
+            restored=[None]*values['n']
+            restored[values['s']:values['s']+len(values['d'])]=values['d']
+            return restored
+        return values
 
     def test_sources_share_svg_and_controls_label_statistics(self):
         markup, _ = render(self.snapshot(), NOW)

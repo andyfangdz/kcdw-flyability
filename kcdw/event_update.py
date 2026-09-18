@@ -133,7 +133,7 @@ def update(var: Path, cloud_config: Path | None, now: datetime | None = None, ev
     failures = 0
     for event in events:
         try:
-            snapshot = collect_event(HttpClient(timeout=40, direct_native=True), event, now)
+            snapshot = collect_event(HttpClient(timeout=40, direct_native=True, direct_ensembles=True), event, now)
             now = max(now, datetime.fromisoformat(snapshot["collected_at"].replace("Z", "+00:00")))
             from .chart_retention import retain_chart_coverage
             retain_chart_coverage(snapshot, var / "events" / event.slug / "runs", now)
@@ -142,6 +142,7 @@ def update(var: Path, cloud_config: Path | None, now: datetime | None = None, ev
             snapshot["event_timing"] = load_event_timing(event, events_path)
             snapshot["initialization_provenance_version"] = 1
             snapshot["narrative_sampling_dictionary_version"] = 1
+            snapshot["native_ensemble_evidence_version"] = 1
             for key, collect in (
                 ("event_wind", lambda: collect_wind(HttpClient(timeout=15, retries=0, direct_native=True), snapshot, now)),
                 ("native_wind", lambda: collect_native_wind(snapshot, var / "events" / event.slug / "native-wind-cache", now)),

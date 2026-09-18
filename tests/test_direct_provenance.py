@@ -28,6 +28,15 @@ class DirectProvenanceTests(unittest.TestCase):
         self.assertEqual(p['source_provenance']['source_provider'], 'NOAA')
         self.assertNotIn('availability_time', p['source_provenance'])
 
+    def test_geps_eccc_native_binding_reaches_current_evidence(self):
+        d=snapshot();direct(d['models']['geps']['data'],provider='ECCC')
+        _,sample,rain=_event(EVENT.as_dict())
+        with patch('kcdw.ensemble_trends.validate_snapshot') as validator:
+            point=_current(d,'geps',NOW,sample,rain)
+        validator.assert_called()
+        self.assertEqual(point['run_binding'],BOUND)
+        self.assertEqual(point['source_provenance']['source_provider'],'ECCC')
+
     def test_direct_metadata_cannot_bypass_source_validation(self):
         d = snapshot(); direct(d['models']['gefs']['data'])
         _, sample, rain = _event(EVENT.as_dict())

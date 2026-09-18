@@ -156,11 +156,14 @@ Production event clients explicitly enable `direct_native=True`; ordinary client
 and legacy fixtures retain their original behavior. Operational GFS charts and
 GFS/IFS/AIFS Single humidity profiles first request NOAA/ECMWF GRIB data across
 the entire current chart range. Validated deterministic humidity proofs also feed
-the cloud-layer diagnostics without another download. GEFS, ECMWF ENS and
-AIFS-ENS use bounded native ensemble workers, sharing each source/range packet
-between the chart and RH adapters. GEPS and the legacy WeatherNext 2 comparator
-remain on Open-Meteo. Supplemental paired-member runway-wind collection retains
-its separately labeled source; a native chart does not relabel that packet.
+the cloud-layer diagnostics without another download. Production dated-event
+clients also explicitly enable `direct_ensembles=True`: GEFS, ECMWF ENS, AIFS-ENS
+and GEPS chart/RH adapters read only verified complete native run caches, with
+Open-Meteo/eligible whole-packet retention as fallback. Ordinary clients default
+to `direct_ensembles=False`, independently of `direct_native`, so supplemental
+paired-member runway-wind collection retains its separately labeled source.
+The legacy WeatherNext 2 comparator remains on Open-Meteo. A native chart does
+not relabel other source packets.
 
 Native data carries its actual supplying initialization, provider, grid and
 sampling description. Open-Meteo fallback stays explicitly identified; a direct
@@ -176,7 +179,7 @@ full-range source. Retention copies a whole model packet (or RH envelope), never
 splices different runs or relabels saved Open-Meteo data as native. Repeated use
 never renews the original retention age. These archive reads occur only during
 collection, not rendering; retained-source clocks also reach narrative evidence.
-ECMWF ENS uses the available 50 perturbations, not an invented deterministic
+Native ECMWF ENS uses the available 50 perturbations, not an invented deterministic
 control; AIFS-ENS has 51 members and GEFS 31. Missing native gust/low-cloud fields
 remain unknown.
 
@@ -194,6 +197,52 @@ persisted evidence, with no native discovery or downloads. Snapshots distinguish
 collection start from completion; old archives receive no new native labels.
 Private proofs/caches stay local, and the 60 KB narrative and 800 KB publication
 caps remain unchanged.
+
+### Resumable complete-run ensemble cache
+
+`direct_ensembles=True` now reads committed private run manifests; it does not
+launch GRIB downloads from a page refresh. Missing, stale or incomplete caches
+enter the existing explicit Open-Meteo fallback/whole-packet retention path.
+The independent producer is:
+
+```sh
+var/native-weather-venv/bin/python -m kcdw.native_ensemble_cache \
+  --models gefs geps ecmwf_ens aifs_ens --seconds 2700 --workers 12
+```
+
+The default range follows upcoming event display endpoints; `--end` can supply an
+explicit exclusive UTC endpoint. A producer-wide flock prevents duplicate work.
+Point downloads are resumable, partial progress is never promoted, and an atomic
+packet/hash manifest commits only a complete member × supported-field × native
+lead matrix. Newer incomplete cycles do not displace eligible completed cycles.
+The cache reader performs no network access and preserves all original clocks.
+Each model receives an independent hard process budget; useful incomplete cycles
+resume rather than being abandoned at every new cycle. Parent shutdown reaps the
+active worker before releasing the global lock. Incomplete upstream catalogs are
+invalidated in the worker-owned cache so the next attempt sees publication progress.
+Systemd service/timer templates live under `deploy/systemd` (15-minute schedule).
+
+GEFS combines `pgrb2ap5` core fields with `pgrb2bp5` gust/low-cloud data. ECMWF
+uses its official Google Cloud replica with origin index fallback and identical
+GRIB identity checks. GEPS downloads ECCC grouped-field files containing all 21
+members. Persistent per-thread HTTP connections and validated index caches avoid
+repeated connection setup and index/HEAD requests. Raw global files are not kept.
+
+Native GEFS gust is instantaneous and its low cloud is an interval average.
+IFS gust samples are maxima over actual source intervals; interpolation does
+not create hourly gust maxima. AIFS low cloud is native percent, not a fraction.
+No native IFS low cloud, AIFS gust, or GEPS gust/low cloud substitutes are invented.
+The whole-packet retention safeguard may therefore keep an eligible Open-Meteo
+IFS chart packet to preserve its low-cloud curve, while IFS RH uses native data.
+GEFS precipitation is a native interval amount; IFS, AIFS and GEPS cumulative
+precipitation is differenced within the same member before disaggregation.
+Where cumulative totals decrease, collection retrieves SHA-bound GRIB packing
+precision only for the affected pairs. Differences within combined packing error
+are zero increments; larger decreases remain unknown, with true per-hour sample
+counts and `rain_unknown_member_hours` metadata. Raw totals and clocks are unchanged.
+Pressure-level RH is masked below the same member's surface; supersaturation
+remains intact. Complete-run versioned metadata leaves historical packets' source
+and sampling contracts unchanged.
 
 ## Event NWS forecaster readings
 

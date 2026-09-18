@@ -38,9 +38,10 @@ AFD_OFFICES = {
 
 
 class Client:
-    def __init__(self, timeout: float = 15, retries: int = 2, *, direct_native: bool = False):
+    def __init__(self, timeout: float = 15, retries: int = 2, *, direct_native: bool = False, direct_ensembles: bool = False):
         self.timeout, self.retries = timeout, retries
         self.direct_native = direct_native
+        self.direct_ensembles = direct_ensembles
 
     def get(self, url: str):
         request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/geo+json, application/json, text/plain"})

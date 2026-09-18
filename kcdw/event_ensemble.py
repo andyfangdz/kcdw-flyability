@@ -265,7 +265,7 @@ def collect_model(client, spec: MemberModel, event: Event | None, now: datetime,
     else:
         raise ValueError("non-event collection requires an explicit display range")
     fallback = False
-    if getattr(client, 'direct_native', False) is True and spec.key in ('gefs', 'ecmwf_ens', 'aifs_ens'):
+    if getattr(client, 'direct_ensembles', False) is True and spec.key in ('gefs', 'ecmwf_ens', 'aifs_ens', 'geps'):
         try:
             from .direct_ensemble import collect_chart
             native = collect_chart(client, spec, event, start.astimezone(UTC), end.astimezone(UTC), now)

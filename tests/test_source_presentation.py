@@ -20,6 +20,8 @@ class SourcePresentationTests(unittest.TestCase):
         from kcdw.collector import Client
         self.assertFalse(Client().direct_native)
         self.assertTrue(Client(direct_native=True).direct_native)
+        self.assertFalse(Client(direct_native=True).direct_ensembles)
+        self.assertTrue(Client(direct_ensembles=True).direct_ensembles)
 
     def test_archive_keeps_native_proof_within_compact_storage_budget(self):
         import json

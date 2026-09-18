@@ -1,0 +1,12 @@
+[Unit]
+Description=Resume private native ensemble cache every 15 minutes
+
+[Timer]
+OnBootSec=2min
+OnCalendar=*-*-* *:00,15,30,45:00
+RandomizedDelaySec=30s
+Persistent=true
+Unit=kcdw-flyability-native-ensembles.service
+
+[Install]
+WantedBy=timers.target

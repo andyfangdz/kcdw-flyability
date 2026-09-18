@@ -1,0 +1,22 @@
+[Unit]
+Description=Warm complete native ensemble runs for offline KCDW consumers
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/ubuntu/projects/kcdw-flyability
+Environment=HOME=/home/ubuntu
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/home/ubuntu/projects/kcdw-flyability/var/native-weather-venv/bin/python -m kcdw.native_ensemble_cache --models gefs ecmwf_ens aifs_ens geps --seconds 2700 --workers 12
+TimeoutStartSec=46min
+TimeoutStopSec=10s
+KillMode=control-group
+SuccessExitStatus=124
+UMask=0077
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/projects/kcdw-flyability/var

@@ -37,7 +37,7 @@ def _direct_provenance(data):
         return None
     run = meta.get('initialization_time')
     if (meta.get('model_init_is_response_bound') is not True
-            or meta.get('source_provider') not in ('NOAA', 'ECMWF')
+            or meta.get('source_provider') not in ('NOAA', 'ECMWF', 'ECCC')
             or not isinstance(meta.get('sampling'), str) or not meta['sampling'].strip()
             or iso_z(_time(run)) != run):
         raise ValueError('invalid direct provenance')

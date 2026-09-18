@@ -127,6 +127,25 @@ class WindWiringTests(unittest.TestCase):
             self.assertEqual(sources[alias]['status'],'available')
             self.assertTrue(all(p['coverage']=='ends before mission' for p in sources[alias]['evidence']['products']))
 
+    def test_native_rollout_budget_shortens_cyclone_prose_before_sources(self):
+        snap=self.snapshot();snap['native_ensemble_evidence_version']=1
+        snap.setdefault('synoptic_context',{})['wn3_cyclones']={}
+        changes={'notes':['']}
+        with patch('kcdw.event_narrative_evidence._current',return_value={'pressure':{'p50':1010}}), \
+             patch('kcdw.event_narrative_evidence.validate_wn3_cyclones',return_value={'ok':True}), \
+             patch('kcdw.event_narrative_evidence.context_evidence',return_value={'products':[{'source':'wn3_cyclones','text':'context '*125}]}), \
+             patch('kcdw.event_narrative_evidence._official',return_value={'products':[]}), \
+             patch('kcdw.event_narrative_evidence.validated_event_changes',return_value=changes), \
+             patch('kcdw.event_wind_view.wind_sources',return_value={'wind_native':NATIVE}):
+            base=build_event_evidence(snap,NOW)
+            changes['notes']=['x'*(60000-len(json.dumps(base).encode())+500)]
+            evidence=build_event_evidence(snap,NOW)
+        sources={x['id']:x for x in evidence['sources']}
+        self.assertEqual(sources['wind_native']['status'],'available')
+        self.assertEqual(sources['wn3_cyclones']['status'],'available')
+        self.assertTrue(sources['wn3_cyclones']['evidence']['truncated'])
+        self.assertLessEqual(len(json.dumps(evidence).encode()),60000)
+
     def test_tables_escape_labels_and_show_missing_gusts_and_assumptions(self):
         from kcdw.event_wind_view import render_wind
         surface=copy.deepcopy(SURFACE);surface['ensembles']['gefs']['label']='<script>GEFS</script>'

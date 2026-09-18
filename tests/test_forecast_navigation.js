@@ -6,11 +6,11 @@ const vm = require('node:vm');
 const path = require('node:path');
 const code = fs.readFileSync(path.join(__dirname, '../kcdw/assets/forecast-navigation.js'), 'utf8');
 
-function harness({fine=true, width=1280, today=null}={}) {
+function harness({fine=true, width=1280, today=null, payload=null}={}) {
   const eventTarget = () => ({handlers:{},addEventListener(type,fn){(this.handlers[type]??=[]).push(fn);},fire(type,event={}){for(const fn of this.handlers[type]??[])fn(event);}});
   const charts = Array.from({length:2},()=> {
     const output={hidden:true,textContent:''};
-    const group={dataset:{label:'GFS / deterministic',unit:'hPa',values:JSON.stringify(Array(97).fill(1012.3))}};
+    const group={dataset:{label:'GFS / deterministic',unit:'hPa',values:JSON.stringify(payload??Array(97).fill(1012.3))}};
     const plane=Object.assign(eventTarget(),{style:{},getBoundingClientRect:()=>({left:0,width:1200}),querySelectorAll:()=>[group]});
     const chart=Object.assign(eventTarget(),{clientWidth:600,scrollWidth:1200,scrollLeft:0,dataset:{axisStart:'2026-09-22T00:00:00Z',axisEnd:'2026-09-26T00:00:00Z',eventCenter:'2026-09-24T12:00:00Z'},
       querySelector:()=>plane,querySelectorAll:()=>[],closest:()=>({querySelector:()=>output}),plane,output});
@@ -19,9 +19,26 @@ function harness({fine=true, width=1280, today=null}={}) {
   const buttons=Object.fromEntries(['today','full','checkride'].map(mode=>[mode,Object.assign(eventTarget(),{dataset:{forecastView:mode}})]));
   const document=Object.assign(eventTarget(),{querySelectorAll:selector=>selector==='[data-sync-group="forecast"]'?charts:selector==='.chart-tooltip'?charts.map(c=>c.output):selector==='[data-forecast-view]'?Object.values(buttons):selector==='[data-forecast-today]'&&today?[{dataset:{forecastToday:today}}]:[]});
   const window=Object.assign(eventTarget(),{innerWidth:width,matchMedia:()=>({matches:fine})});
-  vm.runInNewContext(code,{document,window,innerWidth:width,matchMedia:window.matchMedia,getComputedStyle:()=>({display:'inline'}),requestAnimationFrame:fn=>fn(),console});
+  vm.runInNewContext(code,{atob,document,window,innerWidth:width,matchMedia:window.matchMedia,getComputedStyle:()=>({display:'inline'}),requestAnimationFrame:fn=>fn(),console});
   return {charts,document,window,buttons};
 }
+
+test('losslessly compacted gaps retain exact hover-hour alignment',()=>{
+  const {charts}=harness({payload:{v:1,n:97,s:48,d:[1012.3456,null,1010.75]}});
+  for(const [x,expected] of [[0,'missing'],[600,'1012.35'],[612.5,'missing'],[625,'1010.75'],[1200,'missing']]) {
+    charts[0].plane.fire('pointermove',{pointerType:'mouse',buttons:0,clientX:x});
+    assert.ok(charts[0].output.textContent.includes(expected+' hPa'));
+  }
+});
+
+test('binary float hover preserves precision and missing interior samples',()=>{
+  const bytes=Buffer.alloc(24);[1012.3456,NaN,1010.75].forEach((v,i)=>bytes.writeDoubleLE(v,i*8));
+  const {charts}=harness({payload:{v:2,n:97,s:48,b:bytes.toString('base64')}});
+  for(const [x,expected] of [[0,'missing'],[600,'1012.35'],[612.5,'missing'],[625,'1010.75'],[1200,'missing']]) {
+    charts[0].plane.fire('pointermove',{pointerType:'mouse',buttons:0,clientX:x});
+    assert.ok(charts[0].output.textContent.includes(expected+' hPa'));
+  }
+});
 
 test('Today targets collection day instead of the earliest historical date',()=>{
   const {charts,buttons}=harness({today:'2026-09-24T00:00:00Z'});
