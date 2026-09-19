@@ -1,4 +1,4 @@
-"""Optional, evidence-bound Codex prose; never changes deterministic readiness."""
+"""Optional, evidence-bound agent prose; never changes deterministic readiness."""
 from __future__ import annotations
 
 import hashlib
@@ -20,6 +20,9 @@ SCHEMA_PATH = Path(__file__).resolve().parents[1] / 'schema' / 'event-narrative.
 MAX_AGE = timedelta(hours=8)
 CLOCK_SKEW = timedelta(minutes=5)
 TITLE = 'What this means for your checkride'
+AGENT_TIMEOUT = 420
+# Accepted (provider, model) envelopes and their display label; the Codex pair keeps archived narratives renderable.
+PROVIDERS = {('claude-code', 'claude-fable-5-1'): 'Claude', ('codex', 'gpt-6-astra'): 'Codex'}
 UNAVAILABLE = f'<section id="event-narrative"><h2>{TITLE}</h2><p>Current weather explanation unavailable.</p></section>'
 
 
@@ -148,6 +151,7 @@ def generate_event_narrative(snapshot: dict, work_dir: Path, now: datetime, *, r
     work_dir.chmod(0o700)
     prompt = '''Write a concise, event-specific weather explanation for this checkride using ONLY the enclosed evidence. Return JSON matching the provided schema, no Markdown fences.
 Target 300–450 words; shorter when evidence is sparse. Use a headline, lead, three or four meaningful sections, and an actionable next_check. Each section and next_check must cite available source_ids from the evidence catalog. Do not supply URLs or HTML.
+Output shape, exactly: {"headline": string, "lead": string, "sections": [{"heading": string, "body": string, "source_ids": [string, ...]}, ...], "next_check": {"text": string, "source_ids": [string, ...]}}. next_check is an OBJECT like a section: open it with {"text": " and never write its prose directly after "next_check":. Every string value is double-quoted with inner quotes escaped.
 Explain the observed pattern, its practical implications for this checkride, uncertainty, and what concrete next evidence would change the assessment. Do not reuse a fixed today diagnosis, repeat statistics definitions, or add generic disclaimers. Distinguish a physically plausible scenario from a forecast supported by the collected sources. Discuss onshore flow or stratus ONLY as a conditional mechanism unless the evidence directly supports them; never infer wind direction from speed or cloud cover alone.
 Prefer available WeatherNext 3 guidance beyond 48 hours, with other models as independent comparisons; do not pool them into flight odds. Cloud fraction is not a ceiling or low-ceiling probability. Never invent ceilings, wind direction, vertical profiles, visibility, gusts, flight odds, or source content. Numbers must come from values explicitly supplied in evidence; round sensibly for prose (about one decimal for wind, pressure and rainfall, whole-percent cloud cover), but make no other new calculations or invented thresholds. Avoid excessive decimal precision and boilerplate such as "these comparisons support planning, not combined flight odds"; explain only the limitations that materially affect this event. Mention unavailable information only when materially relevant. Do not claim initialization trends without run-history evidence. When snapshot_changes is available, devote a section to what changed over its explicitly supplied comparison interval: evaluate GFS low-cloud and RH persistence or reversal, independent AIFS-ENS cloud/RH and rain changes, GEFS wet-side/RH changes, and whether deterministic AIFS Single or IFS still supports a moist competing scenario. State the net operational direction and the meaningful counterevidence, rather than only listing current values. These are saved forecasts for the SAME future event, not observations. Rolling snapshot changes are not exact initialization trends; unchanged repeated values are not independent confirmations. Use run_history for the latest WeatherNext 3 rainfall/wind evolution and keep its mean distinct from ensemble medians. Name the baseline and current collection times in Eastern time (or UTC if conversion is uncertain); say overnight only when the interval actually spans the local night. Do not hardcode a diagnosis: improvements, deterioration, and disagreement must follow the current supplied pairs. If the comparison is unavailable, do not invent a previous state. Neither the narrative nor its labels change deterministic readiness.
 When afd_okx, afd_phi or afd_aly is available, include a compact NWS forecaster synthesis and connect it to the model scenarios. OKX is local to KCDW, PHI is the southern perspective and ALY the northern perspective: geographic differences are not automatically forecast disagreements, and these offices are not independent model votes. Resolve named days and "next week" from each bulletin's issuance date in America/New_York, not the retrieval date. State the periods actually discussed and distinguish setup before the event from direct coverage of the event date. Do not extend Monday-Wednesday guidance to Thursday or confuse this week's Thursday with next week's checkride. AFD aviation excerpts are regional outlooks, not a KCDW TAF. Forecaster reasoning should lead within its applicable period; beyond its stated period retain the model comparison and explain the coverage gap. Do not claim that a southward front, high pressure, or absence of rain ensures cloud clearance. Attribute direct forecaster statements with the relevant afd source_ids and label your conditional implications as inference. Do not freeze today's frontal pattern into future narratives. Excerpts omit parts of the full bulletin; do not infer that unquoted hazards were ruled out.
@@ -166,26 +170,11 @@ BEGIN EVIDENCE JSON
     for name, content in [('schema.json', _canonical(schema)+'\n'), ('evidence.json', _canonical(evidence) + '\n'), ('prompt.txt', prompt),
                           ('analysis.json', ''), ('codex.log', '')]:
         _private_file(work_dir / name, content)
-    executable = os.environ.get('CODEX_BIN') or shutil.which('codex') or '/home/ubuntu/.local/bin/codex'
-    # Flags verified against local Codex 0.154.0 help/features list. Ignoring
-    # user config prevents inherited MCP servers/hooks; auth stays in CODEX_HOME.
-    command = [executable, '-a', 'never', 'exec', '--ignore-user-config', '--ignore-rules',
-               '--model', 'gpt-6-astra', '-c', 'model_reasoning_effort="medium"',
-               '-c', 'web_search="disabled"', '--ephemeral', '--sandbox', 'read-only',
-               '--skip-git-repo-check', '--color', 'never', '--cd', str(work_dir),
-               '--output-schema', str(work_dir / 'schema.json'), '--output-last-message', str(work_dir / 'analysis.json')]
-    for feature in ('shell_tool', 'unified_exec', 'browser_use', 'browser_use_external',
-                    'browser_use_full_cdp_access', 'computer_use', 'apps', 'multi_agent',
-                    'plugins', 'hooks', 'code_mode', 'code_mode_host', 'image_generation',
-                    'view_image', 'skill_search'):
-        command.extend(['--disable', feature])
-    command.append('-')
+    from . import claude_agent
     try:
-        with (work_dir / 'codex.log').open('a', encoding='utf-8') as log:
-            completed = (runner or subprocess.run)(command, input=prompt, text=True,
-                stdout=log, stderr=subprocess.STDOUT, cwd=work_dir, timeout=240, check=True)
-            if completed.returncode:
-                raise subprocess.CalledProcessError(completed.returncode, command)
+        # No tools: the narrative may only restate the bound evidence packet. See claude_agent for the isolation flags.
+        claude_agent.run(prompt, claude_agent.cli_schema(schema), work_dir / 'analysis.json', work_dir / 'codex.log',
+                         tools=(), cwd=work_dir, timeout=AGENT_TIMEOUT, runner=runner)
         analysis_path = work_dir / 'analysis.json'
         if analysis_path.is_symlink() or analysis_path.stat().st_size > 32000:
             raise ValueError('Invalid narrative artifact')
@@ -200,7 +189,7 @@ BEGIN EVIDENCE JSON
         with (work_dir / 'codex.log').open('a', encoding='utf-8') as log:
             log.write('\nNarrative failed: ' + type(exc).__name__ + '\n')
         raise
-    return {'version': 1, 'provider': 'codex', 'model': 'gpt-6-astra',
+    return {'version': 1, 'provider': claude_agent.PROVIDER, 'model': claude_agent.MODEL,
             'generated_at': generated.isoformat(), 'snapshot_collected_at': snapshot['collected_at'],
             'evidence_sha256': evidence_sha256(evidence), 'data': data}
 
@@ -214,7 +203,7 @@ def render_event_narrative(snapshot: dict, now: datetime) -> str:
         if not isinstance(envelope, dict) or set(envelope) != {'version', 'provider', 'model', 'generated_at',
                 'snapshot_collected_at', 'evidence_sha256', 'data'}:
             raise ValueError('Invalid narrative envelope')
-        if type(envelope['version']) is not int or envelope['version'] != 1 or envelope['provider'] != 'codex' or envelope['model'] != 'gpt-6-astra':
+        if type(envelope['version']) is not int or envelope['version'] != 1 or (envelope['provider'], envelope['model']) not in PROVIDERS:
             raise ValueError('Invalid narrative provider/version')
         generated = _time(envelope['generated_at'])
         if not -CLOCK_SKEW <= now - generated <= MAX_AGE or generated < collected - CLOCK_SKEW:
@@ -238,7 +227,7 @@ def render_event_narrative(snapshot: dict, now: datetime) -> str:
                               if source.get('url') else label)
             return '<p class="narrative-sources">Sources: ' + ' · '.join(values) + '</p>'
         chunks = [f'<section id="event-narrative"><h2>{TITLE}</h2>',
-                  f'<p class="narrative-generated">Codex · Generated <time datetime="{esc(generated.isoformat(), quote=True)}">{esc(generated.astimezone(TZ).strftime("%b %-d, %H:%M %Z"))}</time></p>',
+                  f'<p class="narrative-generated">{esc(PROVIDERS[(envelope["provider"], envelope["model"])])} · Generated <time datetime="{esc(generated.isoformat(), quote=True)}">{esc(generated.astimezone(TZ).strftime("%b %-d, %H:%M %Z"))}</time></p>',
                   f'<h3>{esc(data["headline"])}</h3><p>{esc(data["lead"])}</p>']
         for section in data['sections']:
             chunks.append(f'<h3>{esc(section["heading"])}</h3><p>{esc(section["body"])}</p>' + links(section['source_ids']))

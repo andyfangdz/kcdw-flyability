@@ -117,6 +117,30 @@ def ensemble_metadata(update_interval_seconds: int = 43_200) -> dict:
     }
 
 
+
+MOCK_CLAUDE = """#!/usr/bin/env python3
+import json, os, sys
+if sys.argv[1:] == ['--version']:
+    print('claude-test'); sys.exit(0)
+if os.environ.get('MOCK_CALLED'):
+    open(os.environ['MOCK_CALLED'], 'w').close()
+if os.environ.get('MOCK_ARGS'):
+    open(os.environ['MOCK_ARGS'], 'w').write('\\n'.join(sys.argv[1:]))
+    open(os.environ['MOCK_ARGS'] + '.stdin', 'w').write(sys.stdin.read())
+if not os.environ.get('MOCK_ANALYSIS'):
+    sys.exit(int(os.environ.get('MOCK_EXIT', '2')))
+print(json.dumps({'type': 'result', 'is_error': False, 'modelUsage': {'claude-fable-5-1': {}},
+                  'structured_output': json.load(open(os.environ['MOCK_ANALYSIS']))}))
+"""
+
+
+def mock_claude(directory: Path) -> Path:
+    mock = directory / "claude"
+    mock.write_text(MOCK_CLAUDE, encoding="utf-8")
+    mock.chmod(0o755)
+    return mock
+
+
 class ProjectTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -604,14 +628,12 @@ class ProjectTests(unittest.TestCase):
         self.assertEqual(stale["status"], "stale")
         self.assertEqual(stale["stale_after"], 5400)
 
-    def test_failed_codex_preserves_index(self):
+    def test_failed_agent_preserves_index(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp); public = tmp / "public"; var = tmp / "var"; public.mkdir()
             index = public / "index.html"; index.write_text("known-good", encoding="utf-8")
-            mock = tmp / "codex"
-            mock.write_text("#!/bin/sh\nif [ \"$1\" = --version ]; then echo codex-test; exit 0; fi\nexit 42\n", encoding="utf-8")
-            mock.chmod(0o755)
-            env = os.environ | {"PUBLIC_DIR":str(public), "VAR_DIR":str(var), "SNAPSHOT_FIXTURE":str(FIX / "sample_snapshot.json"), "CODEX_BIN":str(mock)}
+            mock = mock_claude(tmp)
+            env = os.environ | {"PUBLIC_DIR":str(public), "VAR_DIR":str(var), "SNAPSHOT_FIXTURE":str(FIX / "sample_snapshot.json"), "CLAUDE_BIN":str(mock), "MOCK_EXIT":"42"}
             result = subprocess.run([str(ROOT / "scripts" / "update_report.sh")], cwd=ROOT, env=env, capture_output=True)
             self.assertEqual(result.returncode, 42, result.stderr.decode())
             feedback = json.loads((var / "agent-feedback.jsonl").read_text())
@@ -620,7 +642,7 @@ class ProjectTests(unittest.TestCase):
             self.assertEqual(index.read_text(), "known-good")
             self.assertIn("publication=preserved", (var / "update.log").read_text())
 
-    def test_update_attaches_collected_radar_frames_to_codex(self):
+    def test_update_attaches_collected_radar_frames_to_agent(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp); public = tmp / "public"; var = tmp / "var"; radar = tmp / "radar"
             public.mkdir(); radar.mkdir()
@@ -630,25 +652,13 @@ class ProjectTests(unittest.TestCase):
             snapshot = tmp / "snapshot.json"
             snapshot.write_text(json.dumps(snapshot_with_radar(self.snapshot)), encoding="utf-8")
             args_file = tmp / "args.txt"
-            mock = tmp / "codex"
-            mock.write_text(
-                "#!/bin/sh\n"
-                "if [ \"$1\" = --version ]; then echo codex-test; exit 0; fi\n"
-                "printf '%s\\n' \"$@\" > \"$MOCK_ARGS\"\n"
-                "while [ \"$#\" -gt 0 ]; do\n"
-                "  if [ \"$1\" = --output-last-message ]; then cp \"$MOCK_ANALYSIS\" \"$2\"; exit 0; fi\n"
-                "  shift\n"
-                "done\n"
-                "exit 2\n",
-                encoding="utf-8",
-            )
-            mock.chmod(0o755)
+            mock = mock_claude(tmp)
             env = os.environ | {
                 "PUBLIC_DIR": str(public),
                 "VAR_DIR": str(var),
                 "RADAR_DIR": str(radar),
                 "SNAPSHOT_FIXTURE": str(snapshot),
-                "CODEX_BIN": str(mock),
+                "CLAUDE_BIN": str(mock),
                 "MOCK_ARGS": str(args_file),
                 "MOCK_ANALYSIS": str(FIX / "sample_analysis.json"),
             }
@@ -660,11 +670,17 @@ class ProjectTests(unittest.TestCase):
             self.assertEqual(feedback["data_requests"], [])
             args = args_file.read_text().splitlines()
             self.assertIn("--model", args)
-            self.assertEqual(args[args.index("--model") + 1], "gpt-6-astra")
-            self.assertIn('model_reasoning_effort="medium"', args)
-            self.assertIn('web_search="live"', args)
-            attached = [args[index + 1] for index, value in enumerate(args) if value == "--image"]
-            self.assertEqual(attached, [str(path) for path in frame_paths])
+            self.assertEqual(args[args.index("--model") + 1], "claude-fable-5-1")
+            self.assertEqual(args[args.index("--effort") + 1], "high")
+            self.assertEqual(args[args.index("--tools") + 1], "Read,WebSearch,WebFetch")
+            for flag in ("--print", "--restricted", "--strict-mcp-config", "--disable-slash-commands", "--no-session-persistence"):
+                self.assertIn(flag, args)
+            self.assertNotIn("$schema", args[args.index("--json-schema") + 1])
+            self.assertEqual(args[args.index("--add-dir") + 1], str(radar.resolve()))
+            sent = (tmp / "args.txt.stdin").read_text()
+            positions = [sent.index(f"{number}. {path.resolve()}") for number, path in enumerate(frame_paths, 1)]
+            self.assertEqual(positions, sorted(positions))
+            self.assertIn("agent=claude-code model=claude-fable-5-1 effort=high", (var / "update.log").read_text())
 
     def test_update_rejects_unbound_or_malformed_radar_files(self):
         cases = (
@@ -686,19 +702,11 @@ class ProjectTests(unittest.TestCase):
                     (radar / name).write_bytes(content)
                 snapshot = tmp / "snapshot.json"
                 snapshot.write_text(json.dumps(snapshot_value), encoding="utf-8")
-                marker = tmp / "codex-called"
-                mock = tmp / "codex"
-                mock.write_text(
-                    "#!/bin/sh\n"
-                    "if [ \"$1\" = --version ]; then echo codex-test; exit 0; fi\n"
-                    "touch \"$MOCK_CALLED\"\n"
-                    "exit 2\n",
-                    encoding="utf-8",
-                )
-                mock.chmod(0o755)
+                marker = tmp / "agent-called"
+                mock = mock_claude(tmp)
                 env = os.environ | {
                     "PUBLIC_DIR": str(public), "VAR_DIR": str(var), "RADAR_DIR": str(radar),
-                    "SNAPSHOT_FIXTURE": str(snapshot), "CODEX_BIN": str(mock), "MOCK_CALLED": str(marker),
+                    "SNAPSHOT_FIXTURE": str(snapshot), "CLAUDE_BIN": str(mock), "MOCK_CALLED": str(marker),
                 }
                 result = subprocess.run([str(ROOT / "scripts" / "update_report.sh")], cwd=ROOT, env=env, capture_output=True)
                 self.assertEqual(result.returncode, 1, result.stderr.decode())
@@ -711,21 +719,10 @@ class ProjectTests(unittest.TestCase):
             public.mkdir(); latest.mkdir(parents=True)
             (latest / "frame-01.png").write_bytes(b"known-good")
             (latest / "manifest.json").write_text('{"known":"good"}', encoding="utf-8")
-            mock = tmp / "codex"
-            mock.write_text(
-                "#!/bin/sh\n"
-                "if [ \"$1\" = --version ]; then echo codex-test; exit 0; fi\n"
-                "while [ \"$#\" -gt 0 ]; do\n"
-                "  if [ \"$1\" = --output-last-message ]; then cp \"$MOCK_ANALYSIS\" \"$2\"; exit 0; fi\n"
-                "  shift\n"
-                "done\n"
-                "exit 2\n",
-                encoding="utf-8",
-            )
-            mock.chmod(0o755)
+            mock = mock_claude(tmp)
             env = os.environ | {
                 "PUBLIC_DIR": str(public), "VAR_DIR": str(var),
-                "SNAPSHOT_FIXTURE": str(FIX / "sample_snapshot.json"), "CODEX_BIN": str(mock),
+                "SNAPSHOT_FIXTURE": str(FIX / "sample_snapshot.json"), "CLAUDE_BIN": str(mock),
                 "MOCK_ANALYSIS": str(FIX / "sample_analysis.json"),
             }
             result = subprocess.run([str(ROOT / "scripts" / "update_report.sh")], cwd=ROOT, env=env, capture_output=True)

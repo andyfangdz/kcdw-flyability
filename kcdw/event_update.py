@@ -1,6 +1,6 @@
 """Refresh every upcoming dated-event page: collect members, render, archive, publish.
 
-Independent of the main report; a bounded Codex narrative explains each fresh
+Independent of the main report; a bounded agent narrative explains each fresh
 event snapshot. Narrative failures leave the deterministic charts available.
 """
 from __future__ import annotations
@@ -12,6 +12,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from .claude_agent import PROVIDER as AGENT_PROVIDER
 from .cloud_publish import Client, publish_event, publish_events_index
 from .collector import Client as HttpClient
 from .common import UTC, atomic_write, iso_z, load_json
@@ -184,7 +185,7 @@ def update(var: Path, cloud_config: Path | None, now: datetime | None = None, ev
             try:
                 work_dir = var / "events" / event.slug / "narratives" / run_id
                 snapshot["event_narrative"] = generate_event_narrative(snapshot, work_dir, now)
-                record(f"event={event.slug} narrative=success provider=codex")
+                record(f"event={event.slug} narrative=success provider={AGENT_PROVIDER}")
             except Exception as exc:
                 snapshot["event_narrative"] = None
                 record(f"event={event.slug} narrative=unavailable error={type(exc).__name__}")

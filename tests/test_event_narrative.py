@@ -1,4 +1,4 @@
-"""Fail-closed narrative integration, with no live Codex or authentication."""
+"""Fail-closed narrative integration, with no live agent or authentication."""
 import json
 import stat
 import subprocess
@@ -41,8 +41,8 @@ class NarrativeTests(unittest.TestCase):
 
     def runner(self, command, **kwargs):
         self.command, self.kwargs = command, kwargs
-        Path(command[command.index('--output-last-message') + 1]).write_text(json.dumps(output()))
-        return subprocess.CompletedProcess(command, 0)
+        envelope = {'type': 'result', 'is_error': False, 'modelUsage': {'claude-fable-5-1': {}}, 'structured_output': output()}
+        return subprocess.CompletedProcess(command, 0, stdout=json.dumps(envelope))
 
     def generate(self):
         result = narrative.generate_event_narrative(self.snapshot, self.work, NOW, runner=self.runner, clock=lambda: NOW)
@@ -52,16 +52,23 @@ class NarrativeTests(unittest.TestCase):
     def test_schema_binding_escaped_text_and_catalog_links(self):
         result = self.generate()
         html = narrative.render_event_narrative(self.snapshot, NOW + timedelta(minutes=5))
-        self.assertEqual(result['provider'], 'codex')
+        self.assertEqual((result['provider'], result['model']), ('claude-code', 'claude-fable-5-1'))
+        self.assertIn('Claude · Generated', html)
         self.assertIn('What this means for your checkride', html)
         self.assertIn('&lt;script&gt;', html)
         self.assertNotIn('<script>', html)
         self.assertIn('WN3 &lt;source&gt;', html)
         self.assertIn('https://example.org/weather?a=1&amp;b=2', html)
-        self.assertEqual(self.kwargs['timeout'], 240)
-        self.assertIn('web_search="disabled"', self.command)
-        self.assertIn('--ignore-user-config', self.command)
+        self.assertEqual(self.kwargs['timeout'], 420)
+        self.assertEqual(self.command[self.command.index('--tools') + 1], '')
+        self.assertEqual(self.command[self.command.index('--effort') + 1], 'high')
+        for flag in ('--restricted', '--strict-mcp-config', '--disable-slash-commands', '--no-session-persistence'):
+            self.assertIn(flag, self.command)
+        self.assertNotIn('--allowedTools', self.command)
         self.assertEqual(self.kwargs['input'], (self.work / 'prompt.txt').read_text())
+        # The structured-output call repeatedly emitted bare prose after "next_check": without this explicit shape.
+        self.assertIn('"next_check": {"text": string, "source_ids": [string, ...]}}', self.kwargs['input'])
+        self.assertIn('next_check is an OBJECT', self.kwargs['input'])
         for name in ['evidence.json', 'prompt.txt', 'analysis.json', 'codex.log']:
             self.assertEqual(stat.S_IMODE((self.work / name).stat().st_mode), 0o600)
 
@@ -72,7 +79,7 @@ class NarrativeTests(unittest.TestCase):
             return packet
         with patch.object(narrative,'build_event_evidence',side_effect=limited):
             self.generate()
-        schema=json.loads(Path(self.command[self.command.index('--output-schema')+1]).read_text())
+        schema=json.loads(self.command[self.command.index('--json-schema')+1])
         refs=[schema['properties']['sections']['items']['properties']['source_ids'],schema['properties']['next_check']['properties']['source_ids']]
         for field in refs:self.assertEqual(field['items']['enum'],['wn3_point'])
         self.assertEqual(stat.S_IMODE((self.work/'schema.json').stat().st_mode),0o600)

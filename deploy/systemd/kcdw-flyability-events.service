@@ -1,5 +1,5 @@
 [Unit]
-Description=Refresh KCDW event guidance and live Codex narrative
+Description=Refresh KCDW event guidance and live Claude Code narrative
 After=network-online.target
 Wants=network-online.target
 
@@ -9,9 +9,9 @@ WorkingDirectory=/home/ubuntu/projects/kcdw-flyability
 Environment=HOME=/home/ubuntu
 Environment=PATH=/home/ubuntu/.local/bin:/home/ubuntu/.hermes/node/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=/usr/bin/flock -n var/events-update.lock /usr/bin/python3 -m kcdw.event_update --var var
-TimeoutStartSec=10min
+TimeoutStartSec=15min
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/home/ubuntu/projects/kcdw-flyability/var /home/ubuntu/.codex
+ReadWritePaths=/home/ubuntu/projects/kcdw-flyability/var /home/ubuntu/.claude /home/ubuntu/.claude.json

@@ -75,14 +75,13 @@ radar_args=()
 for frame in "${radar_files[@]}"; do radar_args+=(--image "$frame"); done
 log "radar_attachments=$radar_count radar_source=$radar_state"
 
-codex_bin="${CODEX_BIN:-codex}"
-codex_version="$($codex_bin --version 2>&1 | head -n 1 | tr -cd '[:alnum:]. _/-')"
-log "codex_version=${codex_version:-unknown}"
+agent_version="$(python3 -m kcdw.claude_agent --version-only 2>/dev/null | head -n 1)"
+log "agent=claude-code model=claude-fable-5-1 effort=high agent_version=${agent_version:-unknown}"
 set +e
-timeout "${CODEX_TIMEOUT:-12m}" "$codex_bin" -c 'web_search="live"' exec --model gpt-6-astra -c 'model_reasoning_effort="medium"' --ephemeral --sandbox read-only --color never --output-schema schema/analysis.schema.json --output-last-message "$analysis" "${radar_args[@]}" - < "$prompt" >"$codex_log" 2>&1
+timeout "${AGENT_TIMEOUT:-12m}" python3 -m kcdw.claude_agent --research --prompt "$prompt" --schema schema/analysis.schema.json --output "$analysis" --log "$codex_log" "${radar_args[@]}" >>"$codex_log" 2>&1
 codex_rc=$?
 set -e
-log "codex_exit=$codex_rc"
+log "agent_exit=$codex_rc"
 if (( codex_rc != 0 )); then log "validation=not_run publication=preserved"; exit "$codex_rc"; fi
 
 previous_args=()

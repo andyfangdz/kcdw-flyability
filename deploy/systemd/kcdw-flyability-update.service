@@ -1,5 +1,5 @@
 [Unit]
-Description=Generate KCDW flyability report with Codex
+Description=Generate KCDW flyability report with Claude Code
 After=network-online.target
 Wants=network-online.target
 
@@ -14,4 +14,4 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/home/ubuntu/projects/kcdw-flyability/public /home/ubuntu/projects/kcdw-flyability/var /home/ubuntu/.codex
+ReadWritePaths=/home/ubuntu/projects/kcdw-flyability/public /home/ubuntu/projects/kcdw-flyability/var /home/ubuntu/.claude /home/ubuntu/.claude.json

@@ -40,12 +40,11 @@ def main():
         return
     # Validation binds image attachments to the retained snapshot.
     _, frames = validate_radar_evidence(snapshot, args.output / 'radar')
-    command = ['codex', '-c', 'web_search="disabled"', 'exec', '--model', 'gpt-6-astra', '-c', 'model_reasoning_effort="medium"', '--ephemeral', '--sandbox', 'read-only', '--color', 'never', '--output-schema', str(Path('schema/analysis.schema.json').resolve()), '--output-last-message', str((args.output / 'analysis.json').resolve())]
-    for frame in frames:
-        command.extend(['--image', str(frame.resolve())])
-    command.append('-')
-    with (args.output / 'prompt.txt').open() as prompt, (args.output / 'codex.log').open('w') as log:
-        subprocess.run(command, stdin=prompt, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=720)
+    from . import claude_agent
+    schema = claude_agent.cli_schema(json.loads(Path('schema/analysis.schema.json').read_text()))
+    # Replays stay offline: radar frames are readable, web research is not.
+    claude_agent.run((args.output / 'prompt.txt').read_text(), schema, args.output / 'analysis.json', args.output / 'codex.log',
+                     tools=('Read',) if frames else (), images=frames, timeout=720)
     subprocess.run(['python3', '-m', 'kcdw.renderer', str(args.output / 'snapshot.json'), str(args.output / 'analysis.json'), '--now', snapshot['collected_at'], '--output', str(args.output / 'index.html'), '--health', str(args.output / 'health.json')], check=True)
 
 
