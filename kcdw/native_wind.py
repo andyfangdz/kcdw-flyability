@@ -184,7 +184,8 @@ def collect_native_wind(snapshot,cache_dir,now):
             _keys(run,'init leads')
             init,leads=_persisted_selection(snapshot,key,run['init'],now)
             _check(isinstance(run['leads'],list) and all(type(h) is int for h in run['leads']) and run['leads']==leads)
-            digest=hashlib.sha256(json.dumps([key,iso_z(init),window],sort_keys=True).encode()).hexdigest()[:24]
+            # 'gust3' marks packets collected with ECMWF three-hour gust support; older same-run caches lack those fields.
+            digest=hashlib.sha256(json.dumps([key,iso_z(init),window,'gust3'],sort_keys=True).encode()).hexdigest()[:24]
             path=_safe(directory/f'wind-v2-{digest}.json')
             if path.exists() and path.stat().st_size<=MAX_BYTES:
                 try:
