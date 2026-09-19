@@ -163,3 +163,5 @@
 .model-matrix .matrix-change[data-change="worse"]{color:#a6352c}
 .model-matrix .matrix-missing td{color:var(--muted)}
 .model-matrix details{margin-top:6px}.model-matrix details p{font-size:12px;max-width:950px}
+.wn2-members{border-top:1px solid var(--line);padding-top:18px}.wn2-members h2{font-size:26px}
+.model-matrix .matrix-note{font-size:11px;color:var(--muted);max-width:950px;margin:8px 0 0}

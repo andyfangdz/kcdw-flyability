@@ -262,6 +262,17 @@ and the briefing's *Maneuvers ceiling* card reports how many models keep low ove
 probabilities, votes or a go/no-go decision. The persisted packet is revalidated before rendering (run bounds, value ranges,
 recomputed screens and changes); an absent or invalid packet renders nothing and leaves the card at "Not resolved".
 
+### WeatherNext 2 member screens
+
+Below the scorecard, `kcdw.event_wn2_members` reduces all 64 WeatherNext 2 members (Open-Meteo `google_weathernext2_ensemble`) to
+member counts and median/10th–90th-percentile values at the model's native six-hour valid times bracketing the expected flight:
+members with at least 75% low cloud, members with wind from 020–070°, 10 m and 100 m wind, sea-level pressure, and members with at
+least 1 mm of rain inside the flight window. Only these reductions are persisted. WeatherNext 2 has no gust field, so 100 m wind is
+shown as context and never labeled a gust. The rolling response is not run-bound; the advertised initialization is labeled as
+advertised. At least 48 valid members are required, the packet is revalidated before rendering, and an absent or invalid packet
+renders nothing. The legacy mean/standard-deviation comparator is still collected because the hourly charts and saved forecast
+history use that shape.
+
 ## Event NWS forecaster readings
 
 Hourly event updates independently collect the latest NWS AFDs from **OKX**

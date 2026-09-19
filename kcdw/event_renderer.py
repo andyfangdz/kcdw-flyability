@@ -557,6 +557,8 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
     from .event_model_matrix_view import render_matrix
     matrix_html = render_matrix(snapshot, now)
     matrix_link = '<a href="#model-matrix">Scorecard</a>' if matrix_html else ''
+    from .event_wn2_members_view import render_wn2_members
+    matrix_html += render_wn2_members(snapshot, now)
     afd_link = '<a href="#forecaster-discussion">NWS readings</a>' if afd_html else ''
     wn3_link = '<a href="#wn3-numbers">WN3 detail</a>' if wn3_numbers else ''
     navigation = (Path(__file__).parent / 'assets/forecast-navigation.js').read_text()
