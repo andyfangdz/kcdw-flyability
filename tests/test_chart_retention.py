@@ -68,6 +68,24 @@ class ChartRetentionTests(unittest.TestCase):
         self.retain()
         self.assertTrue(self.current['models']['gefs']==self.previous['models']['gefs'], 'full saved GEFS series must be retained')
 
+    def test_newer_native_run_is_not_replaced_by_an_older_run_with_more_fields(self):
+        self.current['models']['gefs']=copy.deepcopy(self.previous['models']['gefs'])
+        source=self.current['models']['gefs']['data']
+        source['metadata'].update(direct_native=True, initialization_time='2026-09-19T00:00:00Z')
+        self.previous['models']['gefs']['data']['metadata']['initialization_time']='2026-09-18T18:00:00Z'
+        fan=source['hourly']['wind_gusts_10m']
+        fan['sample_counts']=[0]*len(fan['sample_counts'])
+        for key in ('p10','p50','p90'):
+            fan[key]=[None]*len(fan[key])
+        kept=copy.deepcopy(self.current['models']['gefs'])
+        self.retain()
+        self.assertEqual(self.current['models']['gefs'], kept)
+        self.assertFalse(self.current.get('chart_retention'))
+        # The same run (or a newer one) may still restore the missing field.
+        self.previous['models']['gefs']['data']['metadata']['initialization_time']='2026-09-19T00:00:00Z'
+        self.retain()
+        self.assertTrue(self.current['models']['gefs']==self.previous['models']['gefs'])
+
     def test_stale_or_wrong_range_archive_cannot_fill(self):
         original=copy.deepcopy(self.current)
         self.retain(now=NOW+timedelta(hours=13))

@@ -55,6 +55,15 @@ def _rh_ok(envelope, display, now):
                for item in status['models'].values())
 
 
+def _initialized(source):
+    """Initialization time of a model packet; a packet without one sorts as the newest so it is never displaced."""
+    from datetime import datetime, timezone
+    try:
+        return parse_time(source['data']['metadata']['initialization_time'])
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return datetime.max.replace(tzinfo=timezone.utc)
+
+
 def _origin(candidate, scope, model, value, now):
     stamp = parse_time(candidate['collected_at'])
     original = value['collected_at'] if scope == 'event_moisture_ensemble' else candidate['collected_at']
@@ -100,6 +109,9 @@ def retain_chart_coverage(snapshot, runs_dir, now):
                     previous = source['data']['hourly']
                     if not any(_covers(previous, (field,), display, now) and
                                not _covers(current, (field,), display, now) for field in VARIABLES):
+                        continue
+                    # An extra field never justifies showing an older model run in place of a usable newer one.
+                    if _initialized(source) < _initialized(snapshot['models'][key]):
                         continue
                 note = _origin(candidate, 'models', key, source, now)
                 if source['data'].get('metadata', {}).get('direct_native') is True:
