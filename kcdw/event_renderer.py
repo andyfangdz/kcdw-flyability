@@ -24,6 +24,7 @@ from .trend_renderer import render_trends
 from .run_history import render_run_history
 
 STALE_AFTER = 8 * 3600
+CHART_HISTORY = False
 PAGE_BUDGET = 790_000  # the worker's checkHtml cap is 800,000 characters
 MODEL_COLORS = {"gfs": "#172b3a", "gefs": "#b54a2b", "ecmwf_ens": "#1f5f8b", "aifs_ens": "#26764e", "geps": "#6b4f9e", "wn3": "#c02679", "wn2": "#9b6021"}
 W, H, PAD_L, PAD_R, PAD_T, PAD_B = 1000, 240, 48, 14, 14, 34
@@ -286,7 +287,7 @@ def _comparison_charts(snapshot: dict, models: list[dict], times: list[datetime]
     from .chart_retention import render_retention
     retained_note = render_retention(snapshot)
     body = (f'<section id="multimodel-comparison" class="multimodel-comparison" data-forecast-today="{today:%Y-%m-%dT%H:%M:%SZ}"><h2>Multimodel comparison</h2>{retained_note}'
-            '<p class="comparison-intro">Gold = forecast context window · Eastern time. Pan any forecast chart to move all forecast charts together; y-axes stay fixed. Full dates include available earlier saved forecasts through the checkride and its following day.</p>'
+            '<p class="comparison-intro">Gold = forecast context window · Eastern time. Pan any forecast chart to move all forecast charts together; y-axes stay fixed. Charts run from today through the checkride and its following day.</p>'
             '<div class="forecast-controls" role="group" aria-label="Forecast time view"><button type="button" data-forecast-view="today">Today</button><button type="button" data-forecast-view="checkride">Center checkride</button><button type="button" data-forecast-view="full">Full date range</button></div>'
             '<fieldset class="comparison-controls"><legend>Show models / uncertainty</legend>' + controls +
             '<label><input id="compare-bands" type="checkbox" checked>Show ensemble ranges / SD</label></fieldset>'
@@ -487,7 +488,9 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
     start, end = day + timedelta(hours=event.start_hour), day + timedelta(hours=event.end_hour)
     from .forecast_domain import forecast_times
     times = forecast_times(snapshot, models, times, now, start)
-    history = _validated_history(snapshot, now)
+    # Saved forecasts for hours already past doubled the chart width and the comparison markup without informing the
+    # event; charts now run from the collection day forward. Run-to-run change lives in the scorecard and trend sections.
+    history = _validated_history(snapshot, now) if CHART_HISTORY else None
     cutoff = parse_time(snapshot["range"]["start"])
     historical = [parse_time(stamp) for source in (history or {}).get("sources", {}).values()
                   for i, stamp in enumerate(source["hourly"]["time"])

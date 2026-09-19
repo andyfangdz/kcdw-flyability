@@ -15,6 +15,10 @@ from test_events import NOW
 
 class ForecastHistoryRenderingTests(unittest.TestCase):
     def setUp(self):
+        # Saved-forecast chart history is switched off in production; these tests keep the retained code path honest.
+        switch = patch.object(renderer, 'CHART_HISTORY', True)
+        switch.start()
+        self.addCleanup(switch.stop)
         self.snapshot = gfs_tests.GfsComparisonTests().snapshot()
         self.models = renderer._ok_models(self.snapshot)
         self.times = [parse_time(t) for t in self.models[0]['hourly']['time']]
@@ -131,6 +135,15 @@ class ForecastHistoryRenderingTests(unittest.TestCase):
                 history['provenance']={'truncated':sampled}
                 markup=renderer._comparison_charts(self.snapshot,self.models,self.times,(30,39),NOW,history)
                 self.assertEqual('data-history-coverage="sampled"' in markup,sampled)
+
+    def test_chart_history_is_off_by_default_and_charts_start_at_the_forecast_range(self):
+        self.snapshot['forecast_history'] = self.history()
+        with patch.object(renderer, 'CHART_HISTORY', False), patch.object(renderer, '_validated_history', return_value=self.history()) as validated:
+            markup, _ = renderer.render(self.snapshot, NOW)
+        validated.assert_not_called()
+        self.assertNotIn('data-history="saved-forecast"', markup)
+        self.assertNotIn('Earlier saved forecasts—not observations', markup)
+        self.assertIn('Charts run from today through the checkride', markup)
 
     def test_rejected_history_cannot_extend_or_render(self):
         self.snapshot['forecast_history'] = {'untrusted': 'persisted junk'}
