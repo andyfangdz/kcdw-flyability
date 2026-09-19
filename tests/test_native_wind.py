@@ -249,6 +249,57 @@ class NativeWindTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             worker.identity('ifs', 'gust', init, 0)
 
+    def test_ifs_three_hour_gusts_inside_144h_build_a_verified_six_hour_maximum(self):
+        init = NOW.replace(hour=12)
+        now_field = worker.identity('ifs', 'gust3', init, 126)
+        before = worker.identity('ifs', 'gust3_prev', init, 126)
+        self.assertEqual((now_field['paramId'], now_field['startStep'], now_field['endStep'], now_field['stepType']), (228028, 123, 126, 'max'))
+        self.assertEqual((before['startStep'], before['endStep']), (120, 123))
+        self.assertEqual(before['validityTime'], int((init + timedelta(hours=123)).strftime('%H%M')))
+        for bad in (('gfs', 'gust3', 126), ('aifs_single', 'gust3', 126), ('ifs', 'gust3', 3)):
+            with self.assertRaises(ValueError):
+                worker.identity(bad[0], bad[1], init, bad[2])
+        with self.assertRaises(ValueError):
+            worker.identity('ifs', 'gust3', init, 126, legacy=True)
+
+        def with_gusts(request):
+            rows = samples(request)
+            if request['model'] == 'ifs':
+                start = nw._time(request['init'])
+                for row in rows:
+                    for name, value in (('gust3', 12.2), ('gust3_prev', 10.5)):
+                        row['fields'][name] = {'identity': worker.identity('ifs', name, start, row['lead']), 'value': value, 'latitude': 41.,
+                                               'longitude': -74.25, 'proof': {'start': 0, 'end': 99, 'total': 1000, 'bytes': 100, 'sha256': 'b'*64}}
+                    row['fields']['gust3_prev']['url'] = worker.url_for('ifs', start, row['lead'] - 3)
+            return rows
+
+        s = snapshot()
+        with patch.object(nw, 'discover_run', side_effect=discovery, create=True), patch.object(nw, '_run_worker', side_effect=with_gusts):
+            p = nw.collect_native_wind(s, self.tmp_path, NOW)
+        s['native_wind'] = p
+        self.assertIsNotNone(nw.validate_native_wind(p, s, NOW)['models']['ifs'])
+        gust = nw.native_wind_evidence(s, NOW)['models']['ifs']['samples'][0]['gust']
+        first = p['models']['ifs']['samples'][0]
+        self.assertEqual(gust['kt'], round(12.2 * 1.943844492, 1))
+        self.assertEqual(gust['semantics'], 'six-hour maximum from two three-hour maxima')
+        self.assertEqual(gust['start'], nw.iso_z(nw._time(p['models']['ifs']['init']) + timedelta(hours=first['lead'] - 6)))
+        # Only the half ending at the sample: an honest three-hour maximum.
+        half = copy.deepcopy(p)
+        for row in half['models']['ifs']['samples']:
+            del row['fields']['gust3_prev']
+        s['native_wind'] = half
+        self.assertEqual(nw.native_wind_evidence(s, NOW)['models']['ifs']['samples'][0]['gust']['semantics'], 'three-hour maximum')
+        # Tampering: a previous-step field without its sample half, a wrong file, or a wrong interval is rejected.
+        for mutate in (lambda f: f.pop('gust3'), lambda f: f['gust3_prev'].update(url=first['url']),
+                       lambda f: f['gust3_prev']['identity'].update(startStep=0), lambda f: f['gust3'].update(value=-1.0)):
+            bad = copy.deepcopy(p)
+            mutate(bad['models']['ifs']['samples'][0]['fields'])
+            self.assertIsNone(nw.validate_native_wind(bad, s, NOW)['models']['ifs'])
+        # GFS and AIFS packets never accept the ECMWF three-hour gust names.
+        bad = copy.deepcopy(p)
+        bad['models']['gfs']['samples'][0]['fields']['gust3'] = copy.deepcopy(first['fields']['gust3'])
+        self.assertIsNone(nw.validate_native_wind(bad, s, NOW)['models']['gfs'])
+
     def test_gust_decode_mismatch_remains_unknown_without_losing_core(self):
         init = NOW.replace(hour=12)
         ranges = {name: (0, 99) for name in (*worker.CORE, 'gust')}

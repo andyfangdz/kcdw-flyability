@@ -32,7 +32,21 @@ def url_for(model, init, lead, *, legacy=False):
             f'{init:%Y%m%d%H}0000-{lead}h-{stream}-fc.grib2')
 
 
+GUST3 = ('gust3', 'gust3_prev')
+
+
 def identity(model, name, init, lead, *, legacy=False):
+    if name in GUST3:
+        # Inside 144 h ECMWF publishes 10fg3, a three-hour maximum, instead of the six-hour 10fg. gust3 ends at the
+        # sample; gust3_prev is the preceding three hours from the previous step's file, so both halves stay verifiable.
+        require(model=='ifs' and not legacy and lead>=6)
+        end=lead if name=='gust3' else lead-3
+        valid=init+timedelta(hours=end)
+        return dict(edition=2,centre='ecmf',paramId=228028,typeOfLevel='heightAboveGround',level=10,units='m s**-1',
+                    dataDate=int(init.strftime('%Y%m%d')),dataTime=int(init.strftime('%H%M')),
+                    validityDate=int(valid.strftime('%Y%m%d')),validityTime=int(valid.strftime('%H%M')),
+                    stepType='max',startStep=end-3,endStep=end,gridType='regular_ll',Ni=1440,Nj=721,
+                    marsClass='od',marsStream='oper',marsType='fc')
     valid=init+timedelta(hours=lead)
     gust=name=='gust'
     if gust and model=='ifs' and not legacy:
@@ -93,7 +107,7 @@ def indexed_ranges(model,text,init,lead,*,legacy=False):
         require(1<len(rows)<=1500)
         for row in rows:
             param=row.get('param'); level=row.get('levelist')
-            name=param if param in ('10u','10v') else param+str(level) if param in ('u','v') and str(level) in ('925','850') else 'gust' if param in ('10fg','10fg6') and model=='ifs' else None
+            name=param if param in ('10u','10v') else param+str(level) if param in ('u','v') and str(level) in ('925','850') else 'gust' if param in ('10fg','10fg6') and model=='ifs' else 'gust3' if param=='10fg3' and model=='ifs' and not legacy else None
             if name:
                 require(row.get('date')==init.strftime('%Y%m%d') and row.get('time')==init.strftime('%H%M'))
                 require(row.get('step')==str(lead) and row.get('type')=='fc' and row.get('domain')=='g')
@@ -123,10 +137,27 @@ def decode(content,model,name,init,lead):
         require(lat==41.0 and lon==-74.25 and math.isfinite(value) and abs(value)<=200)
         require(value!=ec.codes_get(g,'missingValue'))
         if ec.codes_get(g,'bitmapPresent'): require(ec.codes_get_array(g,'bitmap')[int(p['index'])])
-        if name=='gust': require(value>=0)
+        if name=='gust' or name in GUST3: require(value>=0)
         return dict(identity=expected,value=value,latitude=lat,longitude=lon)
     finally:
         ec.codes_release(g)
+
+
+def previous_gust3(model,init,lead):
+    """10fg3 from the file three hours before the sample: the first half of the six-hour bracket."""
+    url=url_for(model,init,lead-3)
+    text,_=fetch(url[:-6]+'.index',250_000)
+    rows=[json.loads(line) for line in text.decode('ascii').splitlines()]
+    require(1<len(rows)<=1500)
+    found=[row for row in rows if row.get('param')=='10fg3']
+    require(len(found)==1)
+    row=found[0]
+    require(row.get('date')==init.strftime('%Y%m%d') and row.get('time')==init.strftime('%H%M') and row.get('step')==str(lead-3))
+    require(row.get('type')=='fc' and row.get('domain')=='g' and row.get('class')=='od' and row.get('stream')=='oper' and row.get('levtype')=='sfc')
+    a,n=row['_offset'],row['_length']; require(type(a) is int and type(n) is int and 0<=a and 0<n<=MAX_FIELD)
+    raw,proof=fetch(url,MAX_FIELD,(a,a+n-1))
+    # decode() validates against the sample lead: gust3_prev's identity is the three hours ending at lead-3.
+    return dict(decode(raw,model,'gust3_prev',init,lead),proof=proof,url=url)
 
 
 def sample(model,init,lead):
@@ -140,8 +171,13 @@ def sample(model,init,lead):
             raw,proof=fetch(url,MAX_FIELD,byte_range)
             fields[name]=dict(decode(raw,model,name,init,lead),proof=proof)
         except Exception:
-            if name!='gust': raise
+            if name!='gust' and name not in GUST3: raise
             # Gust remains unavailable; never substitute instantaneous wind.
+    if 'gust3' in fields and 'gust' not in fields:
+        try:
+            fields['gust3_prev']=previous_gust3(model,init,lead)
+        except Exception:
+            pass  # The sample then reports an honest three-hour maximum only.
     return dict(at=(init+timedelta(hours=lead)).strftime('%Y-%m-%dT%H:%M:%SZ'),lead=lead,url=url,fields=fields)
 
 

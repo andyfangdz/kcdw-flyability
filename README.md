@@ -141,7 +141,11 @@ HTTP byte ranges. It does not wait for Open-Meteo metadata or require that the
 corresponding rolling API source succeed. An incomplete/unavailable cycle can
 fall back to an older eligible index set; failed GRIB decoding remains unavailable.
 IFS 06/18Z horizons cannot supply a seven-day target; current IFS streams use
-`oper`, including 06/18Z. AIFS Single's six-hour steps extend to 360 hours.
+`oper`, including 06/18Z. Inside 144 hours ECMWF publishes the gust as `10fg3`, a three-hour maximum, and the
+six-hour `10fg` only beyond that; the wind worker reads `10fg3` at the sample step and at the step three
+hours earlier, identity-checks both, and reports their larger value as a six-hour maximum (or an explicit
+three-hour maximum when the earlier file is unavailable). Before this, native IFS gusts silently went
+missing as soon as an event came within six days. AIFS Single's six-hour steps extend to 360 hours.
 
 Native packet version 2 is validated solely against its persisted source run,
 mission and collection clock, without network access during rendering. Legacy

@@ -21,7 +21,7 @@ from zoneinfo import ZoneInfo
 from .common import UTC, iso_z
 from .event_timing import timing_evidence
 from .native_runs import discover_run
-from .native_wind_worker import CORE, identity, url_for
+from .native_wind_worker import CORE, GUST3, identity, url_for
 
 ROOT=Path(__file__).resolve().parents[1]
 PYTHON=ROOT/'var/native-weather-venv/bin/python'
@@ -125,11 +125,14 @@ def _validate_source(m,snapshot,key,now,version=1):
         _keys(s,'at lead url fields')
         _check(type(s['lead']) is int and s['lead']==lead and s['at']==iso_z(init+timedelta(hours=lead)))
         _check(s['url']==url_for(key,init,lead,legacy=version==1))
-        fs=s['fields']; _check(isinstance(fs,dict) and set(CORE)<=set(fs)<=set(CORE)|({'gust'} if key!='aifs_single' else set()))
+        gusts=({'gust'} if key!='aifs_single' else set())|(set(GUST3) if key=='ifs' and version!=1 else set())
+        fs=s['fields']; _check(isinstance(fs,dict) and set(CORE)<=set(fs)<=set(CORE)|gusts)
+        _check('gust3_prev' not in fs or 'gust3' in fs)
         for name,f in fs.items():
-            _keys(f,'identity value latitude longitude proof')
+            _keys(f,'identity value latitude longitude proof'+(' url' if name=='gust3_prev' else ''))
+            _check(name!='gust3_prev' or f['url']==url_for(key,init,lead-3))
             _check(f['identity']==identity(key,name,init,lead,legacy=version==1) and f['latitude']==41.0 and f['longitude']==-74.25)
-            v=f['value']; _check(type(v) in (int,float) and math.isfinite(v) and (-200 if name!='gust' else 0)<=v<=200)
+            v=f['value']; _check(type(v) in (int,float) and math.isfinite(v) and (0 if name=='gust' or name in GUST3 else -200)<=v<=200)
             p=f['proof']; _keys(p,'start end total bytes sha256')
             _check(all(type(p[k]) is int for k in ('start','end','total','bytes')))
             _check(0<=p['start']<=p['end']<p['total']<=1_000_000_000 and 0<p['bytes']==p['end']-p['start']+1<=8_000_000)
@@ -224,6 +227,11 @@ def native_wind_evidence(snapshot,now):
                 x,y=f[u]['value'],f[v]['value']
                 row[label]=dict(speed_kt=round(math.hypot(x,y)*1.943844492,1),from_true_deg=round(math.degrees(math.atan2(-x,-y))%360,1)%360)
             row['gust']=None
+            if 'gust3' in f and 'gust' not in f:
+                init=_time(m['init']); halves=[f[name] for name in GUST3 if name in f]
+                row['gust']=dict(kt=round(max(h['value'] for h in halves)*1.943844492,1),
+                                 start=iso_z(init+timedelta(hours=min(h['identity']['startStep'] for h in halves))),end=s['at'],
+                                 semantics='six-hour maximum from two three-hour maxima' if len(halves)==2 else 'three-hour maximum')
             if 'gust' in f:
                 g=f['gust']; ident=g['identity']; init=_time(m['init'])
                 row['gust']=dict(kt=round(g['value']*1.943844492,1),start=iso_z(init+timedelta(hours=ident['startStep'])),end=s['at'],semantics='six-hour maximum' if key=='ifs' else 'instantaneous gust diagnostic')
