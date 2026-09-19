@@ -554,6 +554,9 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
     wind_html = render_wind(snapshot, now)
     wind_link = '<a href="#wind-analysis">Winds</a>' if wind_html else ''
     afd_html = render_afds(snapshot, now)
+    from .event_model_matrix_view import render_matrix
+    matrix_html = render_matrix(snapshot, now)
+    matrix_link = '<a href="#model-matrix">Scorecard</a>' if matrix_html else ''
     afd_link = '<a href="#forecaster-discussion">NWS readings</a>' if afd_html else ''
     wn3_link = '<a href="#wn3-numbers">WN3 detail</a>' if wn3_numbers else ''
     navigation = (Path(__file__).parent / 'assets/forecast-navigation.js').read_text()
@@ -575,7 +578,8 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
 <main id="main" class="wrap">
 <header class="event-header"><div><p class="eyebrow">KCDW / Dated event briefing</p><h1>{esc(event.title)}</h1>{timing_header(snapshot, event)}</div><div class="event-meta"><p>{days} days out · {len(models)} of {len(MODELS)} systems</p><p class="freshness"><strong>{freshness}</strong><br><time datetime="{esc(snapshot['collected_at'])}">{esc(collected.astimezone(TZ).strftime('%b %-d, %H:%M %Z'))}</time> · {age // 3600}h {(age % 3600) // 60}m old at render</p><p>{esc(source_binding_label)}</p></div></header>
 <section id="briefing" class="operational-briefing" data-tone="{esc(briefing['tone'])}" aria-labelledby="briefing-title"><p class="eyebrow">At a glance</p><h2 id="briefing-title">{esc(briefing['headline'])}</h2><p class="brief-summary">{esc(briefing['summary'])}</p><div class="brief-cards">{cards}</div><div class="next-check"><strong>{esc(briefing['next_check']['title'])}</strong><p>{esc(briefing['next_check']['detail'])}</p></div><p class="brief-source">{esc(briefing['source'])}</p><p class="brief-limits">No calibrated flyability probability. Ceiling, visibility, convection and runway/crosswind suitability require an official aviation briefing.</p></section>
-<nav class="section-nav" aria-label="Briefing sections"><a href="#briefing">Brief</a><a href="#event-narrative">Weather story</a>{afd_link}{initialization_link}{wind_link}<a href="#multimodel-comparison">Compare models</a><a href="#low-cloud-analysis">Low cloud</a><a href="#low-level-rh">Humidity</a><a href="#ensemble-trends">Trends</a>{wn3_link}<a href="#synoptic-context">Tropics &amp; outlooks</a><a href="#sources-methods">Sources &amp; methods</a></nav>
+{matrix_html}
+<nav class="section-nav" aria-label="Briefing sections"><a href="#briefing">Brief</a>{matrix_link}<a href="#event-narrative">Weather story</a>{afd_link}{initialization_link}{wind_link}<a href="#multimodel-comparison">Model charts</a><a href="#low-cloud-analysis">Low cloud</a><a href="#low-level-rh">Humidity</a><a href="#ensemble-trends">Trends</a>{wn3_link}<a href="#synoptic-context">Tropics &amp; outlooks</a><a href="#sources-methods">Sources &amp; methods</a></nav>
 {narrative_html}{wind_html}{afd_html}{initializations_html}{comparison}{render_low_cloud(snapshot, now)}{moisture_html}{trends}{context_html}{wn3_numbers}
 <section class="supporting-detail" aria-labelledby="detail-title"><h2 id="detail-title">Supporting detail</h2>
 <details id="window-distributions"><summary>Forecast context / per-model distributions</summary><p>Median (10th–90th percentile), with complete-member counts. Rain sums preceding-hour intervals ending after the opening time through the closing time. Conventional wind/cloud/pressure use those same sampled endpoints, not continuous extrema. Missing low cloud is unavailable, never favorable.</p><div class="chart-scroll" tabindex="0" role="region" aria-label="Per-model event distributions"><table><thead><tr><th scope="col">Model</th><th scope="col">Rain total · mm</th><th scope="col">Peak sustained · kt</th><th scope="col">Mean low cloud · %</th><th scope="col">Lowest pressure · hPa</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div></details>

@@ -244,6 +244,24 @@ Pressure-level RH is masked below the same member's surface; supersaturation
 remains intact. Complete-run versioned metadata leaves historical packets' source
 and sampling contracts unchanged.
 
+## Event model scorecard
+
+`kcdw.event_model_matrix` adds one dense table directly under the event briefing: the latest run of ECMWF IFS, ECMWF AIFS,
+NCEP GFS, DWD ICON and UKMO Global for the **expected flight window** (falling back to the event window without timing).
+Every row comes from Open-Meteo's single-runs API with an explicit `run=`, so values are bound to the requested cycle; a
+bounded newest-first search (eight six-hour candidates, 120-second deadline, one 45-second pause-and-retry for rows that hit a rate limit, timeout or error, since this refresh shares Open-Meteo's per-minute allowance with the ensemble collectors) takes the newest run whose hourly fields cover
+the window plus the covering run before it, which yields a same-window "vs previous run" change. Short cycles that stop
+before the event (ICON/IFS 06/18Z) are skipped rather than relabeled. Because a run-pinned result never changes, results are cached per (model, run) in `var/events/<slug>/model-matrix-cache.json` (reset when the window, thresholds or packet version change): each refresh only probes for newer runs, two requests at a time, and an upstream outage or rate limit serves the cached rows with their true run age instead of dropping the section. A run that answers but stops short of the window is negatively cached only once it is 12 hours old, so a partially ingested cycle is retried. CMC GEM is omitted because that API currently fails
+for it.
+
+Columns are mean low-cloud cover, an estimated cloud base (lowest hourly 2 m temperature–dew-point spread × 410 ft/°C — a
+mixing estimate that can miss inversion-trapped stratus, never a ceiling), vector-mean wind with the peak hourly gust, window
+rain, the run-to-run change and a fixed-threshold screen (rain ≥ 1 mm; overcast ≥ 80% split at a 3,000 ft estimated base;
+broken ≥ 50%; gusts ≥ 25 kt demote a favorable row). The headline and summary sentence are deterministic counts and ranges,
+and the briefing's *Maneuvers ceiling* card reports how many models keep low overcast. Screens are planning thresholds, not
+probabilities, votes or a go/no-go decision. The persisted packet is revalidated before rendering (run bounds, value ranges,
+recomputed screens and changes); an absent or invalid packet renders nothing and leaves the card at "Not resolved".
+
 ## Event NWS forecaster readings
 
 Hourly event updates independently collect the latest NWS AFDs from **OKX**

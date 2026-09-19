@@ -64,6 +64,11 @@ def collect_layer_signals(client, snapshot, now):
     return collect(client, snapshot, now)
 
 
+def collect_model_matrix(client, snapshot, cache_path, now):
+    from .event_model_matrix import collect_matrix as collect
+    return collect(client, snapshot, now, cache_path)
+
+
 def _collection_clock(client, fallback):
     return datetime.now(UTC) if getattr(client, 'direct_native', False) is True else fallback
 
@@ -150,6 +155,7 @@ def update(var: Path, cloud_config: Path | None, now: datetime | None = None, ev
                 ("event_afds", lambda: collect_afds(HttpClient(timeout=10, retries=1), snapshot, now)),
                 ("cloud_ceiling", lambda: collect_ceiling(snapshot, var / "events" / event.slug / "native-ceiling-cache", now)),
                 ("cloud_layer_signals", lambda: collect_layer_signals(HttpClient(timeout=15, retries=0, direct_native=True), snapshot, now)),
+                ("model_matrix", lambda: collect_model_matrix(HttpClient(timeout=12, retries=0, direct_native=True), snapshot, var / "events" / event.slug / "model-matrix-cache.json", now)),
             ):
                 try:
                     snapshot[key] = collect()

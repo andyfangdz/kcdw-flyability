@@ -73,7 +73,12 @@ def operational_briefing(snapshot: dict, now: datetime) -> dict:
         {'label': 'Maneuvers ceiling', 'value': 'Not resolved', 'detail': 'Low-cloud fraction is not ceiling or visibility. Check representative TAFs and observations near the date.', 'tone': 'watch'},
         {'label': 'Model disagreement', 'value': agreement, 'detail': agreement_detail, 'tone': 'watch' if disagreement or medians_flag else 'neutral'},
     ]
-    watch = rain_watch or wind_watch or disagreement or medians_flag
+    from .event_model_matrix_view import ceiling_card
+    ceiling = None if stale or now >= end else ceiling_card(snapshot)
+    if ceiling:
+        cards[2].update(value=ceiling['value'], detail=ceiling['detail'], tone=ceiling['tone'])
+    low_cloud_watch = bool(ceiling and ceiling['low'])
+    watch = rain_watch or wind_watch or disagreement or medians_flag or low_cloud_watch
     if lead > timedelta(days=7):
         next_check = {'title': 'At 7 days · ' + (start - timedelta(days=7)).strftime('%b %-d'),
                       'detail': 'Compare successive model runs and NWS forecast/AFD. Retain a weather contingency; do not use the hourly curves to lock a time.'}
@@ -83,7 +88,7 @@ def operational_briefing(snapshot: dict, now: datetime) -> dict:
     else:
         next_check = {'title': 'Before committing to departure',
                       'detail': 'Use fresh METARs, representative terminal TAFs, NWS, radar and advisories. Confirm maneuvers ceiling, crosswind/gust limits and a safe return window.'}
-    concerns = [name for name, present in (('rain', rain_watch), ('wind', wind_watch), ('model disagreement', disagreement)) if present]
+    concerns = [name for name, present in (('rain', rain_watch), ('wind', wind_watch), ('low cloud', low_cloud_watch), ('model disagreement', disagreement)) if present]
     if medians_flag and not concerns:
         concerns.append('other models flag rain/wind')
     headline = ('Watch timing: ' + ', '.join(concerns) if watch else
