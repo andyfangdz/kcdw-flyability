@@ -24,6 +24,7 @@ from .trend_renderer import render_trends
 from .run_history import render_run_history
 
 STALE_AFTER = 8 * 3600
+PAGE_BUDGET = 790_000  # the worker's checkHtml cap is 800,000 characters
 MODEL_COLORS = {"gfs": "#172b3a", "gefs": "#b54a2b", "ecmwf_ens": "#1f5f8b", "aifs_ens": "#26764e", "geps": "#6b4f9e", "wn3": "#c02679", "wn2": "#9b6021"}
 W, H, PAD_L, PAD_R, PAD_T, PAD_B = 1000, 240, 48, 14, 14, 34
 
@@ -504,7 +505,10 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
     recovered = render_run_history(snapshot.get("ensemble_run_history"), snapshot["event"], now)
     if recovered:
         fetch_history = trends.replace("ensemble-trends", "ensemble-fetch-history")
-        trends = '<div id="ensemble-trends">' + recovered + '<details><summary>Earlier page-fetch history</summary>' + fetch_history + '</details></div>'
+        legacy_history = '<details><summary>Earlier page-fetch history</summary>' + fetch_history + '</details>'
+        trends = '<div id="ensemble-trends">' + recovered + legacy_history + '</div>'
+    else:
+        legacy_history = ''
     rows, provenance = [], []
     for m in models:
         cells = []
@@ -589,7 +593,19 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
 <details id="sources-methods"><summary>Sources &amp; methods · model runs, gaps and licenses</summary><p>{esc(event.description)}</p><h3>Source provenance and gaps</h3><p>{esc(source_introduction)}</p><ul class="runs">{''.join(provenance)}{failed}</ul><h3>WeatherNext 2 / mean and spread comparator</h3>{wn}<p>Point pressure cannot establish the absence of a hurricane, nearby storm, or convection. Low-cloud fraction cannot establish a usable maneuvers ceiling. Neither missing gusts nor low mean wind establishes runway/crosswind suitability. WeatherNext licensing and actual response-run metadata are retained in the screening diagnostic.</p></details></section>
 <section class="official-guidance" aria-labelledby="official-title"><h2 id="official-title">Near-term guidance</h2><p>Within 48 hours, prioritize official aviation guidance. Confirm issue times, valid periods and airport coverage; AWC and local NWS aviation products are linked here, while NHC/CPC/WPC products are fetched in the wider-weather section above.</p><p><a href="/">Current 7-day outlook</a> · <a href="https://aviationweather.gov/">AWC observations, TAFs &amp; advisories</a> · <a href="https://www.weather.gov/okx/">NWS forecasts</a> · <a href="https://www.nhc.noaa.gov/">NHC tropical outlooks</a></p></section>
 <footer class="site-footer"><span>Planning aid, not a go/no-go decision or official briefing.</span><a href="{esc(event.path())}/history">Guidance history ↗</a></footer></main><script data-forecast-script>{navigation}</script></body></html>'''
-    return compact_notes(doc), health
+    return fit_page_budget(doc, legacy_history), health
+
+
+def fit_page_budget(doc: str, optional_block: str, budget: int = PAGE_BUDGET) -> str:
+    """Compact the page; if it still exceeds the publisher's HTML cap, drop the superseded, collapsed fetch history.
+
+    The Cloudflare worker rejects HTML over 800,000 characters, which silently leaves the published page stale.
+    """
+    page = compact_notes(doc)
+    if len(page) <= budget or not optional_block or doc.count(optional_block) != 1:
+        return page
+    return compact_notes(doc.replace(optional_block, '<p class="muted">Earlier page-fetch history omitted from this page to stay within '
+                                     'the publication size limit; the recovered run history above is unaffected.</p>'))
 
 
 def render_initializations(snapshot, now):
