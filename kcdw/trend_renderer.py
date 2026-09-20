@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 COLORS = {'gefs': '#b54a2b', 'ecmwf_ens': '#1f5f8b', 'aifs_ens': '#26764e',
           'geps': '#6b4f9e', 'wn3': '#c02679', 'gfs': '#172b3a'}
 METRICS = {'pressure': ('PRESSURE', 'hPa', 750, 1150),
-           'wind': ('WIND', 'kn', 0, 300), 'rain': ('RAIN', 'mm', 0, 12000)}
+           'wind': ('WIND', 'kt', 0, 300), 'rain': ('RAIN', 'mm', 0, 12000)}
 
 
 def _text(value, limit=100):
@@ -265,7 +265,7 @@ def render_trends(trends: dict | None, event: dict, now: datetime) -> str:
         out.append(f'<div><h3>{label} · {unit}</h3>'+_chart(metric, models, start, end)+'</div>')
     out.append('</div><details><summary>All pressure-gap comparisons</summary><p>'+_summary(models, trends.get('pressure_comparisons'), now, fresh)+'</p></details>')
     out.append('<p><small>Faint vertical bars: per-update p10–p90 where supplied, not confidence probabilities. WN3 mean may lie outside its band; no WN3 rain band when unavailable. GFS is deterministic, without a band. Separate model updates are not interpolated onto shared cycles.</small></p>')
-    out.append('<details class="trend-detail"><summary>Latest values, changes and source timing</summary><table><thead><tr><th>Model / statistic</th><th>Pressure hPa</th><th>Rain mm</th><th>Wind kn</th><th>Latest retrieval UTC / cycle</th></tr></thead><tbody>')
+    out.append('<details class="trend-detail"><summary>Latest values, changes and source timing</summary><table><thead><tr><th>Model / statistic</th><th>Pressure hPa</th><th>Rain mm</th><th>Wind kt</th><th>Latest retrieval UTC / cycle</th></tr></thead><tbody>')
     for key, m in models.items():
         out.append(f'<tr><th>{m["label"]} / {m["statistic"]}</th>')
         for metric in ('pressure', 'rain', 'wind'):

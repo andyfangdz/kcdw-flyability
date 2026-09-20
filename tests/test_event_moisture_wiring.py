@@ -4,7 +4,6 @@ from kcdw import event_update, event_renderer
 from kcdw.event_narrative_evidence import build_event_evidence
 from test_events import EVENT, NOW
 import test_gfs_comparison
-from kcdw.events import Event
 from test_event_moisture_view import fixture
 
 

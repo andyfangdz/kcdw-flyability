@@ -120,7 +120,7 @@ def validate_forecast_history(envelope, event_dict, now):
             if key in RH_ALIASES:
                 allowed.update(RH_FIELDS)
             if key == 'wn3':
-                allowed -= {'cloud_cover_low', 'wind_gusts_10m'}
+                allowed.discard('wind_gusts_10m')
             fields = set(hourly)-{'time'}
             _require(bool(fields) and fields <= allowed)
             has_value = [False]*len(axis)

@@ -23,7 +23,7 @@ CPC_URL = 'https://www.cpc.ncep.noaa.gov/products/predictions/610day/fxus06.html
 WPC_URL = 'https://www.wpc.ncep.noaa.gov/discussions/pmdepd.html'
 ERO_URL = 'https://www.wpc.ncep.noaa.gov/discussions/qpferd.html'
 AGE_HOURS = {'cpc': 48, 'wpc': 36}
-MONTHS = {m: i for i, m in enumerate('JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC'.split(), 1)}
+MONTHS = {m: i for i, m in enumerate(['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'], 1)}
 REGION = re.compile(r'Northeast|New England|New Jersey|Mid[- ]Atlantic|Eastern U\.S\.|East Coast|Great Lakes', re.I)
 
 

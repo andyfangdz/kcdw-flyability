@@ -122,7 +122,8 @@ def _english_text(value, where="analysis") -> None:
 def validate_analysis(value: dict, snapshot: dict) -> dict:
     validate_weather_next3_source(snapshot)
     _english_text(value)
-    _exact(value, {"generated_at", "source_collected_at", "best_day", "backup_day", "summary", "controlling_hazards", "days", "data_requests"}, "analysis")
+    _exact(value, {"generated_at", "source_collected_at", "best_day", "backup_day", "summary", "controlling_hazards", "days", "data_requests"}
+           | ({"assessment"} if "assessment" in value else set()), "analysis")
     try:
         validate_requests(value["data_requests"])
     except ValueError as exc:
@@ -152,7 +153,8 @@ def validate_analysis(value: dict, snapshot: dict) -> dict:
         raise ValidationError("exactly seven days required")
     seen_dates = set()
     for day in value["days"]:
-        _exact(day, {"date", "confidence", "confidence_reason", "narrative", "hazards", "windows"} | ({"outlook"} if isinstance(day, dict) and "outlook" in day else set()), "day")
+        optional = {key for key in ('outlook', 'score', 'confidence_score') if isinstance(day, dict) and key in day}
+        _exact(day, {"date", "confidence", "confidence_reason", "narrative", "hazards", "windows"} | optional, "day")
         if day["date"] not in dates or day["date"] in seen_dates:
             raise ValidationError("unexpected or duplicate day")
         seen_dates.add(day["date"])
@@ -187,4 +189,9 @@ def validate_analysis(value: dict, snapshot: dict) -> dict:
             raise ValidationError("missing windows")
     if seen_dates != set(dates):
         raise ValidationError("missing dates")
+    from .typesafe_assessment import validate_metadata
+    try:
+        validate_metadata(value, snapshot)
+    except ValueError as exc:
+        raise ValidationError(str(exc)) from exc
     return value

@@ -22,11 +22,11 @@ def fixture():
 
 class MoistureViewTests(unittest.TestCase):
     def test_supersaturation_is_retained_and_fits_visible_axis(self):
-        from kcdw.moisture_chart import MoistureChart
+        from kcdw.event_renderer import Chart
         data=fixture()
         for source in data['models'].values():
             for field,_ in view.FIELDS:source['data']['hourly'][field]=[102.25]*10
-        with patch.object(view,'validated',return_value=data), patch('kcdw.moisture_chart.MoistureChart',wraps=MoistureChart) as chart:
+        with patch.object(view,'validated',return_value=data), patch('kcdw.event_renderer.Chart',wraps=Chart) as chart:
             text=view.render_moisture({},TIMES,(0,9),NOW)
         self.assertIn('102.25',text)
         self.assertTrue(all(call.args[2]>=102.25 for call in chart.call_args_list))

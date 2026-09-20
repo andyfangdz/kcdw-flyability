@@ -9,10 +9,8 @@ fixtures remain legacy unless client.direct_native is exactly True.
 from __future__ import annotations
 import bisect
 import copy
-import hashlib
 import json
 import math
-import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -230,8 +228,8 @@ def collect_native_profile(model,start,end,now,*,timeout=165,cache_dir=None):
     return packet
 
 def normalize_profile(packet,start,end,purpose='moisture'):
-    from .event_moisture import MODELS, VARIABLES as MV, UNITS as MU, INTERPRETATION
-    from .gfs_guidance import VARIABLES as GV, UNITS as GU, MODEL as GM
+    from .event_moisture import MODELS, UNITS as MU, INTERPRETATION
+    from .gfs_guidance import UNITS as GU, MODEL as GM
     model=packet['model']; init=parse(packet['initialization_time'])
     require(start.minute==end.minute==start.second==end.second==0 and end>start)
     times=[start+timedelta(hours=i) for i in range(int((end-start).total_seconds()/3600))]
@@ -285,8 +283,3 @@ def validate_direct_data(data,now,purpose='moisture'):
     expected=normalize_profile(packet,parse(data['requested_start']),parse(data['requested_end']),purpose)
     require(data==expected)
     return copy.deepcopy(data)
-
-def source_binding(data):
-    """Small UI contract; never infers a binding for legacy Open-Meteo data."""
-    meta=data.get('metadata',{})
-    return {k:meta.get(k) for k in ('provenance','model_init_is_response_bound','initialization_time','source_provider','sampling','direct_fallback_reason')}

@@ -13,7 +13,7 @@ class CompletedCacheAdapterTests(unittest.TestCase):
         packet={'model':'gefs'}
         loader=Mock(return_value=packet)
         module=types.ModuleType('kcdw.native_ensemble_cache');module.load_completed=loader
-        with patch.dict(sys.modules, {'kcdw.native_ensemble_cache':module}), patch.object(d,'validate_packet',side_effect=lambda packet,*_:packet), patch.object(d.subprocess,'run',side_effect=AssertionError('no download from page collection')) as run:
+        with patch.dict(sys.modules, {'kcdw.native_ensemble_cache':module}), patch.object(d,'validate_packet',side_effect=lambda packet,*_:packet), patch('subprocess.run',side_effect=AssertionError('no download from page collection')) as run:
             self.assertIs(d.collect_native(client,'gefs',self.now,self.now+timedelta(days=1),self.now),packet)
             self.assertIs(d.collect_native(client,'gefs',self.now,self.now+timedelta(days=1),self.now),packet)
         loader.assert_called_once();run.assert_not_called()

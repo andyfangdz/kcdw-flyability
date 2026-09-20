@@ -3,7 +3,7 @@ from html import escape
 from .events import local_clock as _local
 from .cloud_ceiling import validate_ceiling
 from .cloud_layer_signals import validate_layer_signals
-from .source_presentation import is_direct, source_description, SOURCE_LICENSES
+from .source_presentation import is_direct, SOURCE_LICENSES
 
 
 def low_cloud_evidence(snapshot, now):
@@ -103,33 +103,38 @@ def _table(headers, rows, label):
 def render_low_cloud(snapshot, now):
     data = low_cloud_evidence(snapshot, now)
     c, layer = data['ceiling'], data['layers']
-    parts = ['<section id="low-cloud-analysis" aria-labelledby="low-cloud-title"><p class="eyebrow">Maneuvering room</p><h2 id="low-cloud-title">Low-cloud analysis</h2>']
+    parts = ['<section id="low-cloud-analysis" aria-labelledby="low-cloud-title"><h2 id="low-cloud-title">Cloud &amp; ceiling</h2>'
+             '<p class="small">Cloud cover and humidity explain the scenario; neither establishes a usable ceiling.</p>']
     from .wn3_cloud_analysis import render_clouds
     parts.append(render_clouds(data.get('wn3')))
     if data.get('wn3'):
         from .wn3_cloud_analysis import render_comparison
-        parts.append(render_comparison(data['wn3'].get('run_comparison')))
+        parts.append('<details><summary>WN3 cloud changes since the previous run</summary>' + render_comparison(data['wn3'].get('run_comparison')) + '</details>')
         from .wn3_surface_context import render_surface
-        parts.append(render_surface(data['wn3'].get('surface_context')))
+        surface = render_surface(data['wn3'].get('surface_context'))
+        if surface:
+            parts.append('<details><summary>WN3 surface humidity &amp; elevated wind</summary>' + surface + '</details>')
     if not c and not layer:
         return ''.join(parts) + '<p>Independent ceiling and cloud-layer diagnostics unavailable.</p></section>'
     if c:
         heights = [s['ceiling_agl_ft'] for s in c['samples'] if s['ceiling_agl_ft'] is not None]
+        if heights:
+            span = _n(min(heights)) if min(heights) == max(heights) else _n(min(heights)) + '–' + _n(max(heights))
+            parts.append('<p><strong>GFS sampled ceiling: ' + span + ' ft above model terrain.</strong> '
+                         + str(len(heights)) + ' of ' + str(len(c['samples'])) + ' native samples available.</p>')
         if heights and all(h < 1000 for h in heights) and len(heights) == len(c['samples']):
             parts.append('<p><strong>GFS keeps a sub-1,000-ft deck at every native sample.</strong> That scenario would obstruct the visual maneuvers; later-day clearing is not supported by this run.</p>')
         elif any(h < 1000 for h in heights):
             parts.append('<p><strong>GFS has sub-1,000-ft ceilings at some native samples.</strong> Timing and daytime recovery remain important.</p>')
-        else:
-            parts.append('<p>Compare native ceiling height with independent moist-layer depth and the cloudy ensemble subset below.</p>')
-        parts.append('<h3>Native GFS ceiling · ft above model terrain</h3><p class="small">Run '+escape(c['model_init'])+' · retrieved '+escape(_local(c['fetched_at'], True))+'</p><div class="brief-cards">')
+        parts.append('<details><summary>Native GFS ceiling samples &amp; nearby cells</summary><p class="small">Heights in ft above model terrain. Run '+escape(c['model_init'])+' · retrieved '+escape(_local(c['fetched_at'], True))+'</p><div class="brief-cards">')
         for s in c['samples']:
             n = s['neighborhood']
             parts.append(f'<article class="brief-card"><h3>{escape(_local(s["valid_at"]))} Eastern</h3><p class="brief-value"><strong>{_n(s["ceiling_agl_ft"])} ft</strong></p><p>Low cloud {_n(s["low_cloud_pct"])}%</p><p>{n["under_1000_ft"]}/{n["ceiling_valid"]} valid nearby cells below 1,000 ft</p></article>')
-        parts.append('</div><p class="small">Native three-hour samples on the event date, including the closing endpoint when available; heights are approximate, not an airport TAF.</p>')
+        parts.append('</div><p class="small">Native three-hour samples on the event date, including the closing endpoint when available; heights are approximate, not an airport TAF.</p></details>')
     else:
         parts.append('<h3>Native GFS ceiling</h3><p>Current native ceiling unavailable.</p>')
     if layer:
-        parts.append('<h3>Independent cloud-layer signals</h3><p class="small">Collected '+escape(_local(layer['collected_at'], True))+' · '+('source binding listed below.' if 'source_bindings' in layer else 'rolling model profiles, not exact native-run attribution.')+'</p>')
+        parts.append('<details><summary>Cloud-layer profiles &amp; ensemble persistence</summary><p class="small">Collected '+escape(_local(layer['collected_at'], True))+' · '+('source binding listed below.' if 'source_bindings' in layer else 'rolling model profiles, not exact native-run attribution.')+'</p>')
         rows = []
         for key, source in layer['profiles'].items():
             if source is None:
@@ -156,7 +161,7 @@ def render_low_cloud(snapshot, now):
             for screen, label in [('rh925', '925 RH ≥90%'), ('joint_surface_rh925', 'Surface + 925 RH ≥90%'), ('joint_low_cloud_rh925', 'Cloud ≥75% + 925 RH ≥90%')]:
                 moisture_rows.append([source['model']+' · '+label]+[_count(p['screens'][screen]) for p in source['points']]+[_count(source['all_three'][screen])])
         parts.append(_table(headers, rows, 'Low-cloud ensemble member screens'))
-        parts.append('<details><summary>Moist-member cross-checks</summary>'+_table(headers, moisture_rows, 'Moist ensemble member screens')+'</details>')
+        parts.append('<details><summary>Moist-member cross-checks</summary>'+_table(headers, moisture_rows, 'Moist ensemble member screens')+'</details></details>')
     else:
         parts.append('<p>Independent profiles and member screens unavailable.</p>')
     parts.append('<details><summary>Low-cloud method &amp; sources</summary>')

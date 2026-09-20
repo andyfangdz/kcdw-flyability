@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-from kcdw.cloud_ceiling import collect_ceiling, validate_ceiling, _context, _source_url, NOTES
+from kcdw.cloud_ceiling import collect_ceiling, validate_ceiling, _context, _source_url
 from kcdw.gfs_guidance import collect_gfs, UNITS, VARIABLES
 from kcdw.events import find_event
 

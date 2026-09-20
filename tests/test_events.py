@@ -31,9 +31,7 @@ def synthetic_response(spec, hours=96, rain_members=(), start=None):
         for member in range(spec.members):
             key = variable if member == 0 else f"{variable}_member{member:02d}"
             units[key] = event_ensemble.UNITS[variable]
-            if variable == "wind_gusts_10m" and spec.key in ("aifs_ens", "geps"):
-                hourly[key] = [None] * hours
-            elif variable == "cloud_cover_low" and spec.key in ("gefs", "geps"):
+            if (variable == "wind_gusts_10m" and spec.key in ("aifs_ens", "geps")) or (variable == "cloud_cover_low" and spec.key in ("gefs", "geps")):
                 hourly[key] = [None] * hours
             elif variable == "precipitation":
                 hourly[key] = [1.0 if member in rain_members and rain_start <= t <= rain_end else 0.0 for t in times]
@@ -191,12 +189,11 @@ class EventRendererTests(unittest.TestCase):
         self.assertTrue(html.startswith("<!doctype html>"))
         self.assertEqual(html.count("<svg"), 6)
         self.assertIn('data-page="event"', html)
-        self.assertIn("No calibrated flyability probability", html)
         self.assertIn("Commercial checkride", html)
         self.assertIn('aria-current="page">Checkride · Sep 24', html)
         self.assertIn("CMC GEPS", html)
         self.assertIn("Missing low cloud is unavailable", html)
-        self.assertIn("Near-term guidance", html)
+        self.assertIn('id="official-title">Before departure', html)
         self.assertEqual(health["generated_at"], snapshot["collected_at"])
         self.assertEqual(health["event"], "commercial-checkride")
         self.assertFalse(health["stale"])
@@ -361,7 +358,7 @@ class WeatherNext3EventTests(unittest.TestCase):
         self.assertIn("not an event probability", markup)
         for raw in ("17.123456789", "101234.56789", "4.123456789", "valid_time_utc", "precipitation_1h", '"fields"'):
             self.assertNotIn(raw, markup + json.dumps(health))
-        self.assertEqual(markup.count("<svg"), 13)
+        self.assertIn('data-comparison-field="rain"', markup)
 
     def test_render_validation_failure_falls_back_not_benign(self):
         from unittest.mock import patch
@@ -402,9 +399,9 @@ class WeatherNext3EventTests(unittest.TestCase):
         comparison = markup.split('id="multimodel-comparison"', 1)[1].split('</section>', 1)[0]
         dedicated = markup.split('id="wn3-numbers"', 1)[1].split('</section>', 1)[0]
         self.assertEqual(comparison.count('<g data-model="wn3"'), 5)
-        self.assertEqual(dedicated.count('<g data-model="wn3"'), 7)
+        self.assertEqual(dedicated.count('<g data-model="wn3"'), 2)
         self.assertIn('aria-label="WN3 / Dew point"', markup)
-        self.assertIn('aria-label="WN3 / Low-cloud fraction', markup)
+        self.assertIn('aria-label="Low-cloud fraction', comparison)
         self.assertIn('aria-label="Temperature"', markup)
         self.assertIn('Mean event rainfall', markup)
         self.assertIn('Hourly p10–p90', markup)

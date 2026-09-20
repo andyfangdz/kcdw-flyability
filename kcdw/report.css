@@ -45,6 +45,11 @@
 }
 
 .day-detail>.field-label{font:10px/1.6 var(--mono);letter-spacing:.045em;margin:0 0 10px}.day-detail .hazards{margin:0 0 9px}
+.day-reasons{border-top:1px solid var(--line);margin:10px 0;padding:0;background:transparent}
+.day-reasons summary{font:12px/1.5 var(--body);padding:10px 0;cursor:pointer}
+.day-reasons ul{padding-left:18px}.day-reasons li,.day-reasons p{font-size:12px;line-height:1.6}
+.report-detail{margin:20px 0;border-block:1px solid var(--line);padding:0;background:transparent}
+.report-detail>summary{padding:16px 0;cursor:pointer;font-weight:600}
 
 /* Dated-event links share the masthead with the primary routes. */
 .nav-event{white-space:nowrap}

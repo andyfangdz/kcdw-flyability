@@ -291,40 +291,6 @@ def collect_model(client, spec: MemberModel, event: Event | None, now: datetime,
     return result
 
 
-def collect_weathernext_comparator(client, event: Event, now: datetime,
-                                 display_range: tuple[datetime, datetime] | None = None) -> dict:
-    from .ensemble_guidance import WEATHER_NEXT_2, _validate_metadata, _metadata_url
-    spec = WEATHER_NEXT_2
-    metadata = _validate_metadata(client.get(_metadata_url(spec)), spec, now)
-    start, end = display_range or event_range(event)
-    variables = ("pressure_msl", "wind_speed_10m", "cloud_cover_low", "precipitation")
-    fields = tuple(f for v in variables for f in (v, v + "_spread"))
-    params = {"latitude": LAT, "longitude": LON, "models": spec.model_id, "hourly": ",".join(fields),
-              "start_hour": start.astimezone(UTC).strftime("%Y-%m-%dT%H:%M"),
-              "end_hour": (end.astimezone(UTC)-timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M"),
-              "timezone": "GMT", "timeformat": "unixtime", "wind_speed_unit": "kn", "precipitation_unit": "mm"}
-    raw = client.get(ENDPOINT + "?" + urllib.parse.urlencode(params))
-    if abs(_required(raw["latitude"], "latitude")-LAT) > .5 or abs(_required(raw["longitude"], "longitude")-LON) > .5:
-        raise ValueError("WeatherNext grid mismatch")
-    if raw.get("timezone") != "GMT" or raw.get("utc_offset_seconds") != 0:
-        raise ValueError("WeatherNext timezone mismatch")
-    h, units = raw["hourly"], raw["hourly_units"]
-    n = int((end.astimezone(UTC)-start.astimezone(UTC)).total_seconds()/3600)
-    expected = [int((start.astimezone(UTC)+timedelta(hours=i)).timestamp()) for i in range(n)]
-    if set(h) != {"time", *fields} or h["time"] != expected or units != {"time": "unixtime", **{f: UNITS[f.removesuffix("_spread")] for f in fields}}:
-        raise ValueError("WeatherNext fields, units or exact time axis mismatch")
-    for f in fields:
-        values = h[f]
-        low, high = (0, 150 if f.startswith("pressure") else BOUNDS[f.removesuffix("_spread")][1]) if f.endswith("_spread") else BOUNDS[f]
-        if len(values) != n or any(not low <= _required(v, f) <= high for v in values):
-            raise ValueError("WeatherNext missing, non-finite or out-of-bounds data")
-    from .common import parse_time
-    if parse_time(metadata["data_end_time"]) < end - timedelta(hours=1):
-        raise ValueError("WeatherNext metadata does not cover event display")
-    return {"model_id": spec.model_id, "statistics": ["mean", "standard_deviation"], "metadata": metadata,
-            "hourly": {**h, "time": [iso_z(datetime.fromtimestamp(t,UTC)) for t in expected]}, "grid_point": {"latitude":raw["latitude"], "longitude":raw["longitude"]}}
-
-
 def validate_snapshot(snapshot: dict) -> None:
     """Recheck persisted normalized arrays and counts before render/publication."""
     from .common import parse_time

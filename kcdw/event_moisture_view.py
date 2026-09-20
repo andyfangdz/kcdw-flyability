@@ -1,6 +1,5 @@
 """Supplemental moisture plots and bounded narrative evidence."""
 from datetime import datetime, timedelta
-import json
 import math
 
 from .common import UTC, iso_z, parse_time
@@ -29,8 +28,8 @@ def validated(snapshot, now):
 
 
 def render_moisture(snapshot, times, window, now, history=None):
-    from .event_renderer import esc, MODEL_COLORS, _history_series, _saved_group, _aligned
-    from .moisture_chart import MoistureChart as Chart
+    from .event_renderer import (Chart, esc, MODEL_COLORS, _history_series,
+                                 _saved_group, _aligned, encode_chart_values)
     palette = {k: MODEL_COLORS.get(k, v[1]) for k, v in MODELS.items()}
     status = validated(snapshot, now).get('models', {})
     good = {k: status[k]['data'] for k in MODELS if status.get(k, {}).get('available')}
@@ -108,7 +107,6 @@ def render_moisture(snapshot, times, window, now, history=None):
                 missing.append(label)
                 continue
             statistic = 'median RH / p10–p90' if fan else 'deterministic RH'
-            from .event_renderer import encode_chart_values
             encoded = esc(encode_chart_values(values))
             chart.parts.append(f'<g data-rh-model="{key}" data-model="rh-{key}" data-label="{esc(label)} / {statistic}" data-unit="% RH" data-values="{encoded}"><title>{esc(label)} / {statistic}</title>')
             if fan:

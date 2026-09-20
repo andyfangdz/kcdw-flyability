@@ -171,15 +171,24 @@ class ForecastHistoryTests(unittest.TestCase):
     def test_wn3_uses_own_clock_normalizes_units_and_fractional_iso(self):
         from test_weathernext3 import fixture
         self.old['models'] = {}
-        self.old['weathernext3'] = {'ok': True, 'data': fixture()}
+        data = fixture()
+        forecast = data['forecast']
+        forecast['valid_time_utc'] = [stamp.replace('Z', '.000Z') for stamp in forecast['valid_time_utc']]
+        self.old['weathernext3'] = {'ok': True, 'data': data}
         self.save(self.old)
         result = self.build()
         source = result['sources']['wn3']
         self.assertEqual(source['statistic'], 'mean')
         self.assertEqual(source['hourly']['pressure_msl']['center'][0], 1010)
         self.assertAlmostEqual(source['hourly']['wind_speed_10m']['center'][0], 5*3600/1852)
+        self.assertEqual(source['hourly']['cloud_cover_low']['center'][0], 30)
+        self.assertEqual(source['hourly']['cloud_cover_low']['low'][0], 27)
+        self.assertEqual(source['hourly']['cloud_cover_low']['high'][0], 33)
+        self.assertNotIn('wind_gusts_10m', source['hourly'])
         self.assertEqual(result['start'], '2026-09-12T13:00:00Z')
         self.assertEqual(set(result['sources']), {'wn3'})
+        source['hourly']['wind_gusts_10m'] = copy.deepcopy(source['hourly']['wind_speed_10m'])
+        self.assertIsNone(validate_forecast_history(result, EVENT.as_dict(), self.now))
 
     def test_rh_real_validation_shared_aliases_sparse_axis_and_no_sd(self):
         from test_event_moisture_ensemble import Client, NOW as RH_NOW, START, END

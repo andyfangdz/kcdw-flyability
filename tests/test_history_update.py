@@ -1,6 +1,5 @@
 """Continuous run-history refresh triggers publication only for pending changes."""
 import copy
-import json
 import tempfile
 import unittest
 from pathlib import Path

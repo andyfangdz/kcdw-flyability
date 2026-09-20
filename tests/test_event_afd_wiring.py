@@ -116,4 +116,5 @@ class AfdWiringTests(unittest.TestCase):
         original=comparison.ComparisonTests().snapshot()
         _,old_health=event_renderer.render(original,NOW)
         self.assertEqual(new_health,old_health)
-        self.assertIn('href="#forecaster-discussion"',new_page)
+        self.assertIn('<summary>NWS forecaster excerpts</summary>',new_page)
+        self.assertIn('id="forecaster-discussion"',new_page)

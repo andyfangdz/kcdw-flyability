@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta
-from pathlib import Path
 
 from .common import UTC, iso_z
 from .events import TZ
@@ -262,11 +261,3 @@ def chart_css():
 ''' + '\n'.join(f'#weekly-ensembles:has(#compare-{key}:not(:checked)) [data-model="{key}"]{{display:none}}' for key in MODEL_COLORS) + '''
 @media(max-width:760px),(hover:none),(pointer:coarse){#weekly-ensembles .chart-tooltip{display:none!important}}
 '''
-
-
-weekly_css = chart_css
-
-
-def weekly_script():
-    """Unmodified shared asset; embed once and hash exact bytes for CSP."""
-    return (Path(__file__).parent / 'assets/forecast-navigation.js').read_text()

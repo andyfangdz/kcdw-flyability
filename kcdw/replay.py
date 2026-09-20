@@ -41,9 +41,14 @@ def main():
     # Validation binds image attachments to the retained snapshot.
     _, frames = validate_radar_evidence(snapshot, args.output / 'radar')
     from . import claude_agent
-    schema = claude_agent.cli_schema(json.loads(Path('schema/analysis.schema.json').read_text()))
+    from .prose_agent import Session
+    schema = json.loads(Path('schema/analysis.schema.json').read_text())
+    schema['properties'].pop('assessment', None)
+    for key in ('score', 'confidence_score'):
+        schema['$defs']['day']['properties'].pop(key, None)
+    schema = claude_agent.cli_schema(schema)
     # Replays stay offline: radar frames are readable, web research is not.
-    claude_agent.run((args.output / 'prompt.txt').read_text(), schema, args.output / 'analysis.json', args.output / 'codex.log',
+    Session().run((args.output / 'prompt.txt').read_text(), schema, args.output / 'analysis.json', args.output / 'codex.log',
                      tools=('Read',) if frames else (), images=frames, timeout=720)
     subprocess.run(['python3', '-m', 'kcdw.renderer', str(args.output / 'snapshot.json'), str(args.output / 'analysis.json'), '--now', snapshot['collected_at'], '--output', str(args.output / 'index.html'), '--health', str(args.output / 'health.json')], check=True)
 

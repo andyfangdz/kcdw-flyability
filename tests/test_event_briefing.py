@@ -1,6 +1,5 @@
 """Behavior tests for the compact operational event briefing."""
 import unittest
-from copy import deepcopy
 from datetime import timedelta
 from unittest.mock import patch
 from kcdw import event_ensemble

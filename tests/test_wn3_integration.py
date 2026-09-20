@@ -5,7 +5,6 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from kcdw.common import parse_time
 
 
 class WeatherNextIntegration(unittest.TestCase):
@@ -44,15 +43,21 @@ class WeatherNextIntegration(unittest.TestCase):
 
     def test_source_row_displays_run_and_fetch_without_forecast_values(self):
         from kcdw.renderer import source_rows
+        from kcdw.weathernext3 import SOURCE, LEGACY_SOURCE
         self.snapshot['sources'] = {'weather_next3': {'ok': True, 'fetched_at': self.snapshot['collected_at'], 'data': {
             'status': {'actual_run_utc': '2026-09-12T12:00:00Z', 'fetched_at': '2026-09-12T23:00:00Z', 'fallback': False},
             'forecast': {'fields': {'private_hourly': [123456.789]}}
         }}}
-        html = source_rows(self.snapshot)
-        self.assertIn('WeatherNext 3', html)
-        self.assertIn('2026-09-12T12:00:00Z', html)
-        self.assertIn('2026-09-12T23:00:00Z', html)
-        self.assertNotIn('123456.789', html)
+        forecast = self.snapshot['sources']['weather_next3']['data']['forecast']
+        for provider in (SOURCE, LEGACY_SOURCE):
+            with self.subTest(provider=provider):
+                forecast['source'] = provider
+                html = source_rows(self.snapshot)
+                self.assertIn(provider, html)
+                self.assertNotIn(LEGACY_SOURCE if provider == SOURCE else SOURCE, html)
+                self.assertIn('2026-09-12T12:00:00Z', html)
+                self.assertIn('2026-09-12T23:00:00Z', html)
+                self.assertNotIn('123456.789', html)
 
     def test_prepublication_rejects_invalid_wn3_claimed_available(self):
         from kcdw.validation import validate_snapshot_readiness, ValidationError

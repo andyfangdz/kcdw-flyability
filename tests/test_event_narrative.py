@@ -54,7 +54,7 @@ class NarrativeTests(unittest.TestCase):
         html = narrative.render_event_narrative(self.snapshot, NOW + timedelta(minutes=5))
         self.assertEqual((result['provider'], result['model']), ('claude-code', 'claude-fable-5-1'))
         self.assertIn('Claude · Generated', html)
-        self.assertIn('What this means for your checkride', html)
+        self.assertIn('id="event-narrative"', html)
         self.assertIn('&lt;script&gt;', html)
         self.assertNotIn('<script>', html)
         self.assertIn('WN3 &lt;source&gt;', html)
@@ -83,6 +83,31 @@ class NarrativeTests(unittest.TestCase):
         refs=[schema['properties']['sections']['items']['properties']['source_ids'],schema['properties']['next_check']['properties']['source_ids']]
         for field in refs:self.assertEqual(field['items']['enum'],['wn3_point'])
         self.assertEqual(stat.S_IMODE((self.work/'schema.json').stat().st_mode),0o600)
+
+    def test_new_narratives_are_short_but_archived_prose_is_preserved(self):
+        self.generate()
+        data = self.snapshot['event_narrative']['data']
+        data['sections'][0]['body'] = 'Archived explanation. ' * 40
+        catalog = narrative._catalog(evidence(self.snapshot, NOW))
+        narrative.validate_event_narrative(data, catalog)
+        with self.assertRaises(ValueError):
+            narrative.validate_event_narrative(data, catalog, concise=True)
+        markup = narrative.render_event_narrative(self.snapshot, NOW)
+        visible, detail = markup.split('<details class="narrative-detail">', 1)
+        self.assertIn(data['lead'], visible)
+        self.assertIn(data['next_check']['text'], visible)
+        self.assertNotIn(data['sections'][0]['body'], visible)
+        self.assertIn(data['sections'][0]['body'], detail)
+
+    def test_generation_rejects_output_that_exceeds_the_short_schema(self):
+        def too_long(command, **kwargs):
+            data = output()
+            data['next_check']['text'] = 'Check every model and every field. ' * 20
+            envelope = {'type': 'result', 'is_error': False,
+                        'modelUsage': {'claude-fable-5-1': {}}, 'structured_output': data}
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps(envelope))
+        with self.assertRaises(ValueError):
+            narrative.generate_event_narrative(self.snapshot, self.work, NOW, runner=too_long, clock=lambda: NOW)
 
     def test_stale_mismatched_and_future_suppressed(self):
         self.generate()

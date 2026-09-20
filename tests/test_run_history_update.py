@@ -1,5 +1,4 @@
 """Offline, initialization-bound forward collection contracts."""
-import copy
 import json
 import tempfile
 import unittest
@@ -165,7 +164,7 @@ class RunHistoryUpdateTests(unittest.TestCase):
 
     def test_seed_lower_bound_and_empty_seed_recent_bootstrap(self):
         seen=[]
-        def fail(run):seen.append(run);return None
+        def fail(run):seen.append(run);return
         self.refresh(gfs_fetcher=fail,wn3_fetcher=lambda r:{'records':[]})
         earliest=min(datetime.fromisoformat(p['run_time'].replace('Z','+00:00')) for p in self.seed['points'])
         self.assertTrue(all(r>=earliest for r in seen))

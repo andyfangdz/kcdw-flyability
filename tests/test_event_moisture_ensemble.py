@@ -50,9 +50,9 @@ class MoistureEnsembleTests(unittest.TestCase):
             data = source['data']
             fan = data['hourly'][FIELDS[0]]
             self.assertTrue(fan == {'p10': [low] * 3, 'p50': [median] * 3, 'p90': [high] * 3, 'sample_counts': [count] * 3})
-            self.assertTrue(not any(('_member' in key for key in data['hourly'])))
+            self.assertTrue(not any('_member' in key for key in data['hourly']))
         self.assertTrue({q['models'][0] for q in client.queries} == {'gfs05', 'ecmwf_ifs025', 'ecmwf_aifs025'})
-        self.assertTrue(all((q['timeformat'] == ['unixtime'] for q in client.queries)))
+        self.assertTrue(all(q['timeformat'] == ['unixtime'] for q in client.queries))
 
     def test_terrain_and_missing_pressure_are_memberwise_not_mean_mask(self):
 

@@ -16,6 +16,7 @@
   window.addEventListener('scroll', hideTooltips, {passive:true});
   function position() {
     for (const el of charts) {
+      if (!el.clientWidth) continue;
       const x = clamp(center * el.scrollWidth - el.clientWidth / 2, 0, el.scrollWidth - el.clientWidth);
       expected.set(el, x);
       el.scrollLeft = x;
@@ -37,6 +38,7 @@
   charts.forEach(el => {
     el.addEventListener('scroll', () => {
       hideTooltips();
+      if (!el.clientWidth || !el.scrollWidth) return;
       if (Math.abs(el.scrollLeft - (expected.get(el) ?? -10000)) < 1) return;
       center = (el.scrollLeft + el.clientWidth / 2) / el.scrollWidth;
       position();
@@ -90,6 +92,7 @@
     center = mode === 'today' ? todayCenter : fit ? .5 : eventCenter;
     layout();
   }));
+  document.addEventListener('toggle', layout, true);
   if (typeof ResizeObserver !== 'undefined') {
     const observer = new ResizeObserver(() => {
       if (!scheduled) { scheduled = true; requestAnimationFrame(layout); }

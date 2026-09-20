@@ -1,7 +1,7 @@
 """Compact, deterministic mission briefing; no calibrated flight probabilities."""
 from datetime import datetime, timedelta
 
-from .common import UTC, parse_time
+from .common import parse_time
 from .events import Event, TZ
 from .event_ensemble import weathernext3_diagnostic, WINDOW_RAIN_MM, WINDOW_WIND_KT
 
@@ -69,7 +69,7 @@ def operational_briefing(snapshot: dict, now: datetime) -> dict:
         agreement_detail += f' Peak-wind medians: {min(model_wind):.1f}–{max(model_wind):.1f} kt.'
     cards = [
         {'label': 'Rain · forecast context', 'value': rain_value, 'detail': rain_detail, 'tone': 'watch' if rain_watch else 'neutral'},
-        {'label': 'Runway wind', 'value': wind_value, 'detail': wind_detail, 'tone': 'watch' if wind_watch else 'neutral'},
+        {'label': 'Sustained wind · forecast context', 'value': wind_value, 'detail': wind_detail, 'tone': 'watch' if wind_watch else 'neutral'},
         {'label': 'Maneuvers ceiling', 'value': 'Not resolved', 'detail': 'Low-cloud fraction is not ceiling or visibility. Check representative TAFs and observations near the date.', 'tone': 'watch'},
         {'label': 'Model disagreement', 'value': agreement, 'detail': agreement_detail, 'tone': 'watch' if disagreement or medians_flag else 'neutral'},
     ]
@@ -100,7 +100,7 @@ def operational_briefing(snapshot: dict, now: datetime) -> dict:
         headline, watch = 'Guidance unavailable — check sources', True
     if lead <= timedelta(hours=48):
         headline = 'Use official aviation guidance for the decision'
-        summary = 'This event page contains global models; current aviation products are not collected here. Numbers below are supplemental.'
+        summary = 'Check current METARs, representative TAFs, radar and advisories before departure. This page includes model and NWS context; a complete aviation briefing is not collected here.'
         source = 'Official aviation guidance first · model display: ' + source
     if stale:
         headline, summary = 'Refresh needed — snapshot is outdated', 'Do not treat the archived model values as current guidance.'

@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
-from kcdw import collector
+from kcdw import collector, ensemble_guidance
 from kcdw.collector import report_dates
 from kcdw.geometry import point_in_polygon
 from kcdw.intervals import duration, expand_grid_values, expand_valid_time
@@ -251,11 +251,11 @@ class ProjectTests(unittest.TestCase):
 
         client = WeatherNextClient()
         now = datetime(2026, 9, 3, 12, 34, tzinfo=timezone.utc)
-        result = collector.collect_weather_next(client, now)
+        result = ensemble_guidance.collect_weather_next(client, now)
         parsed = urllib.parse.urlparse(client.url)
         query = urllib.parse.parse_qs(parsed.query)
 
-        self.assertEqual(parsed.scheme + "://" + parsed.netloc + parsed.path, collector.WEATHER_NEXT_ENDPOINT)
+        self.assertEqual(parsed.scheme + "://" + parsed.netloc + parsed.path, ensemble_guidance.WEATHER_NEXT_ENDPOINT)
         self.assertEqual(query["models"], ["google_weathernext2_ensemble_mean"])
         self.assertEqual(query["forecast_hours"], ["192"])
         self.assertEqual(query["timezone"], ["GMT"])
@@ -313,7 +313,7 @@ class ProjectTests(unittest.TestCase):
                 client = mock.Mock()
                 client.get.side_effect = [ensemble_metadata(), payload]
                 with self.assertRaises(ValueError):
-                    collector.collect_weather_next(
+                    ensemble_guidance.collect_weather_next(
                         client,
                         datetime(2026, 9, 3, 12, 34, tzinfo=timezone.utc),
                     )
@@ -386,7 +386,7 @@ class ProjectTests(unittest.TestCase):
             source["ok"] = False
         now = datetime(2026, 9, 3, 12, 34, tzinfo=timezone.utc)
         for source_key, collect, update_interval in (
-            ("weather_next", collector.collect_weather_next, 43_200),
+            ("weather_next", ensemble_guidance.collect_weather_next, 43_200),
             ("aifs_ens", collector.collect_aifs_ens, 21_600),
         ):
             client = mock.Mock()
@@ -422,7 +422,7 @@ class ProjectTests(unittest.TestCase):
         snapshot["sources"]["weather_next"] = {
             "ok": True,
             "fetched_at": snapshot["collected_at"],
-            "data": collector.collect_weather_next(
+            "data": ensemble_guidance.collect_weather_next(
                 client,
                 datetime(2026, 9, 3, 12, 34, tzinfo=timezone.utc),
             ),
@@ -444,7 +444,7 @@ class ProjectTests(unittest.TestCase):
         snapshot["sources"]["weather_next"] = {
             "ok": True,
             "fetched_at": snapshot["collected_at"],
-            "data": collector.collect_weather_next(
+            "data": ensemble_guidance.collect_weather_next(
                 client,
                 datetime(2026, 9, 3, 12, 34, tzinfo=timezone.utc),
             ),

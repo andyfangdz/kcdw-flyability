@@ -67,12 +67,12 @@ def render_clouds(data):
     return (f'<div id="wn3-cloud-layers"><h3>WN3 cloud layers around the flight</h3><p><strong>{summary}</strong></p>'
             f'<p>Flight window: {escape(local_clock(window["start"]))}–{escape(local_clock(window["end"]))} Eastern. '
             f'Actual model initialization: {escape(data["init_time"])}.</p>'
-            '<details open><summary>Hourly cloud coverage and uncertainty</summary><div class="chart-scroll" tabindex="0" role="region" aria-label="WN3 hourly cloud layers">'
+            '<details><summary>Hourly cloud coverage and uncertainty</summary><div class="chart-scroll" tabindex="0" role="region" aria-label="WN3 hourly cloud layers">'
             '<table><caption>Mean coverage; smaller numbers show the hourly p10–p90 range. All values are percent of the grid cell.</caption>'
             '<thead><tr><th scope="col">Eastern · period</th>'+''.join(f'<th scope="col">{v} cloud</th>' for v in LAYERS.values())+
-            '</tr></thead><tbody>'+''.join(rows)+'</tbody></table></div></details>'
+            '</tr></thead><tbody>'+''.join(rows)+'</tbody></table></div>'
             f'<p class="small">{escape(LIMITS)} Samples include each period’s opening hour and exclude its closing hour. '
-            f'<a href="{data["source_url"]}">Google WN3 ensemble statistics via BigQuery</a>.</p></div>')
+            f'<a href="{data["source_url"]}">Google WN3 ensemble statistics via BigQuery</a>.</p></details></div>')
 
 
 def collect_previous(snapshot, runs_dir, now, *, backfill=False):

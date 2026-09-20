@@ -13,7 +13,10 @@ class NumericalGuidanceTests(unittest.TestCase):
     def test_generation_receives_actual_numeric_summaries(self):
         snapshot = json.loads(Path('tests/fixtures/sample_snapshot.json').read_text())
         snapshot['collected_at'] = iso_z(NOW)
-        snapshot['sources']['weather_next3'] = {'ok': True, 'fetched_at': iso_z(NOW), 'data': fixture()}
+        data = fixture()
+        rain = data['forecast']['fields']['precipitation_1h']
+        rain['p90'] = [1.5] * len(rain['mean'])
+        snapshot['sources']['weather_next3'] = {'ok': True, 'fetched_at': iso_z(NOW), 'data': data}
         result = prepare(snapshot)
         field = result['sources']['weather_next3']['data']['days'][1]['fields']['precipitation_1h']
         self.assertEqual(field['mean_sum_mm'], 12)

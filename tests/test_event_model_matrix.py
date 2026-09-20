@@ -220,7 +220,7 @@ class ModelMatrixTests(unittest.TestCase):
 
 class NativeWN3MatrixTests(unittest.TestCase):
     def snapshot(self):
-        from test_weathernext3 import fixture, RUN
+        from test_weathernext3 import fixture
         data = fixture()
         shift = timedelta(days=6)
         for key in ('actual_run_utc', 'requested_init_utc', 'attempted_init_utc', 'fetched_at'):

@@ -60,6 +60,22 @@ test('legacy or invalid Today anchors safely retain start-of-range behavior',()=
   }
 });
 
+test('closing and reopening chart detail preserves the shared date position',()=>{
+  const {charts,document}=harness();
+  charts[0].scrollLeft=180;
+  charts[0].fire('scroll');
+  charts[1].clientWidth=0;
+  charts[1].scrollWidth=0;
+  charts[1].scrollLeft=0;
+  charts[1].fire('scroll');
+  document.fire('toggle');
+  assert.equal(charts[0].scrollLeft,180);
+  charts[1].clientWidth=600;
+  charts[1].scrollWidth=1200;
+  document.fire('toggle');
+  assert.ok(charts.every(chart=>chart.scrollLeft===180));
+});
+
 test('touch down, move and drag never expose chart overlays',()=>{
   for(const options of [{fine:false,width:390},{fine:true,width:1280}]) {
     const {charts}=harness(options);

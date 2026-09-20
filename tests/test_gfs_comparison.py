@@ -1,5 +1,4 @@
 """Deterministic GFS chart integration; all weather here is synthetic."""
-import re
 import unittest
 from unittest.mock import patch
 
@@ -90,7 +89,6 @@ class GfsComparisonTests(unittest.TestCase):
                 start, end = event_ensemble.event_range(EVENT, now)
                 utc_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
                 with patch.object(event_ensemble, 'collect_model', return_value={}), \
-                     patch.object(event_ensemble, 'collect_weathernext_comparator', return_value={}), \
                      patch.object(event_ensemble, 'collect_weather_next3', return_value={}), \
                      patch('kcdw.synoptic_context.collect_context', return_value={}), \
                      patch.object(event_ensemble, 'collect_gfs', return_value={'ok': True}) as collect:

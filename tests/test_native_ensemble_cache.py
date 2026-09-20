@@ -1,6 +1,4 @@
 """Offline behavioral coverage; no GRIB/network downloads in these tests."""
-import copy
-import json
 import tempfile
 import subprocess
 import sys

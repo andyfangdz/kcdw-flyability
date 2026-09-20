@@ -12,7 +12,6 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from .claude_agent import PROVIDER as AGENT_PROVIDER
 from .cloud_publish import Client, publish_event, publish_events_index
 from .collector import Client as HttpClient
 from .common import UTC, atomic_write, iso_z, load_json
@@ -114,7 +113,7 @@ def build_event_changes(snapshot, runs_dir, now):
 
 def generate_event_narrative(snapshot, work_dir, now):
     from .event_narrative import generate_event_narrative as generate
-    return generate(snapshot, work_dir, now)
+    return generate(snapshot, work_dir, now, typesafe_var=work_dir.parents[3])
 
 
 def archive_run(var: Path, slug: str, run_id: str, snapshot: dict, html: str, health: dict, text: str) -> Path:
@@ -128,6 +127,8 @@ def archive_run(var: Path, slug: str, run_id: str, snapshot: dict, html: str, he
     atomic_write(staging / "health.json", json.dumps(health, indent=2, sort_keys=True) + "\n")
     atomic_write(staging / "manifest.json", json.dumps({"kind": "event", "slug": slug, "run_id": run_id, "summary": text,
                  "source_collected_at": snapshot["collected_at"], "archived_at": iso_z(datetime.now(UTC)), "status": "validated"}, indent=2) + "\n")
+    from .runs import copy_typesafe
+    copy_typesafe(var / 'events' / slug / 'narratives' / run_id / 'typesafe', staging)
     os.replace(staging, destination)
     replace_link(var / "events" / slug / "current", destination)
     return destination
@@ -203,7 +204,8 @@ def update(var: Path, cloud_config: Path | None, now: datetime | None = None, ev
             try:
                 work_dir = var / "events" / event.slug / "narratives" / run_id
                 snapshot["event_narrative"] = generate_event_narrative(snapshot, work_dir, now)
-                record(f"event={event.slug} narrative=success provider={AGENT_PROVIDER}")
+                writer = (snapshot.get('event_narrative') or {}).get('provider', 'unknown')
+                record(f"event={event.slug} narrative=success provider={writer}")
             except Exception as exc:
                 snapshot["event_narrative"] = None
                 record(f"event={event.slug} narrative=unavailable error={type(exc).__name__}")

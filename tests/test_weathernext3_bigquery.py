@@ -1,5 +1,4 @@
 """Production WN3 BigQuery failure, cache and archive contracts."""
-import copy
 import json
 import tempfile
 import unittest

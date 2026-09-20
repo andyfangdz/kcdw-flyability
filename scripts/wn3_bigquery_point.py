@@ -13,7 +13,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from kcdw.weathernext3 import FIELD_SPECS, STATISTICS
-from kcdw.weathernext3_zarr import KCDW, parse_utc, run_name
 
 DEFAULT_TABLE = "866962084172.WeatherNext_3.weathernext_3_0_0_0p1deg"
 ARRAYS = {f"{s.array}_{stat}" for s in FIELD_SPECS.values() for stat in STATISTICS}

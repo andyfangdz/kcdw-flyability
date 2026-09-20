@@ -3,28 +3,82 @@
   "title": "Source-bound event weather narrative",
   "type": "object",
   "additionalProperties": false,
-  "required": ["headline", "lead", "sections", "next_check"],
+  "required": [
+    "headline",
+    "lead",
+    "sections",
+    "next_check"
+  ],
   "properties": {
-    "headline": {"type": "string", "minLength": 1, "maxLength": 240},
-    "lead": {"type": "string", "minLength": 1, "maxLength": 1800},
+    "headline": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "lead": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 420
+    },
     "sections": {
-      "type": "array", "minItems": 3, "maxItems": 4,
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
       "items": {
-        "type": "object", "additionalProperties": false,
-        "required": ["heading", "body", "source_ids"],
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "heading",
+          "body",
+          "source_ids"
+        ],
         "properties": {
-          "heading": {"type": "string", "minLength": 1, "maxLength": 160},
-          "body": {"type": "string", "minLength": 1, "maxLength": 2400},
-          "source_ids": {"type": "array", "minItems": 1, "maxItems": 12, "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$", "maxLength": 64}}
+          "heading": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 600
+          },
+          "source_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 12,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "maxLength": 64
+            }
+          }
         }
       }
     },
     "next_check": {
-      "type": "object", "additionalProperties": false,
-      "required": ["text", "source_ids"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "source_ids"
+      ],
       "properties": {
-        "text": {"type": "string", "minLength": 1, "maxLength": 1400},
-        "source_ids": {"type": "array", "minItems": 1, "maxItems": 12, "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$", "maxLength": 64}}
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 420
+        },
+        "source_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "maxLength": 64
+          }
+        }
       }
     }
   }

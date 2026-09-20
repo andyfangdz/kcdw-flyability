@@ -13,10 +13,9 @@ import hashlib
 import json
 import math
 from pathlib import Path
-import subprocess
 
 from .common import UTC, iso_z
-from .direct_ensemble_worker import SPECS, COUNTS as WORKER_COUNTS, url_for, field_spec, valid_point_url, expected_identity
+from .direct_ensemble_worker import SPECS, COUNTS as WORKER_COUNTS, field_spec, valid_point_url, expected_identity
 COUNTS = dict(WORKER_COUNTS, geps=21)
 PROVIDERS = {'gefs':'NOAA', 'ecmwf_ens':'ECMWF', 'aifs_ens':'ECMWF', 'geps':'ECCC'}
 ENDPOINTS = {'gefs':'https://noaa-gefs-pds.s3.amazonaws.com/', 'ecmwf_ens':'https://data.ecmwf.int/forecasts/', 'aifs_ens':'https://data.ecmwf.int/forecasts/', 'geps':'https://dd.weather.gc.ca/'}
@@ -107,11 +106,10 @@ def validate_packet(packet,model,now):
         member,name,lead=p['member'],p['field'],p['lead'];require(member in expected and name in SPECS and type(lead) is int and 0<=lead<=384 and lead%6==0)
         require((member,name,lead) not in seen);seen.add((member,name,lead))
         require(p['model']==model and p['init']==packet['init'])
-        group=member if model=='gefs' else 'ef' if model=='ecmwf_ens' else 'cf' if member=='00' else 'pf'
         require(valid_point_url(p['url'],model,init,lead,member,name))
         require(p['latitude']==41 and p['longitude']==(-74.5 if model=='gefs' else -74.25))
         pid,unit,kind,level,lo,hi=field_spec(model,name);number(p['value'],lo,hi)
-        ident=p['identity'];valid=init+timedelta(hours=lead)
+        ident=p['identity']
         proof=expected_identity(model,init,lead,member,name,start_step=ident.get('startStep'),schema=ident.get('proof_schema',2),param_id=ident.get('paramId'))
         require(ident==proof)
         a,b=p['range'];require(type(a) is int and type(b) is int and 0<=a<=b<20_000_000_000 and b-a<8_000_000)

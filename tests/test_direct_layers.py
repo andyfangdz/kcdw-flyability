@@ -1,6 +1,6 @@
 import copy
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from unittest.mock import patch
 from tests.test_cloud_layer_signals import Client, SNAPSHOT, NOW
 from kcdw import cloud_layer_signals as layers

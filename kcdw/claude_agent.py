@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -23,6 +24,26 @@ EFFORT = 'high'
 PROVIDER = 'claude-code'
 MAX_OUTPUT_BYTES = 4_000_000
 RESEARCH_TOOLS = ('Read', 'WebSearch', 'WebFetch')
+
+
+class UsageLimitError(subprocess.CalledProcessError):
+    """Claude explicitly reported exhausted credits/quota; eligible for fallback."""
+
+
+def usage_limited(stdout: str) -> bool:
+    """Inspect only failed CLI result envelopes, never successful weather prose."""
+    try:
+        value = json.loads(stdout)
+    except (ValueError, TypeError):
+        return False
+    if isinstance(value, list):
+        value = next((v for v in reversed(value) if isinstance(v, dict) and v.get('type') == 'result'), None)
+    if not isinstance(value, dict) or value.get('type') != 'result' or value.get('is_error') is not True:
+        return False
+    message = value.get('result')
+    return isinstance(message, str) and bool(re.search(
+        r"out of (?:usage )?credits|credit balance is too low|insufficient credits|(?:hit|reached|exceeded) (?:your |the )?(?:usage|rate|weekly|monthly) limit",
+        message, re.I))
 
 
 def executable() -> str:
@@ -91,6 +112,8 @@ def run(prompt: str, schema: str, output: Path, log: Path, *, tools: tuple[str, 
                                           stderr=subprocess.STDOUT, cwd=cwd or empty, timeout=timeout, check=False)
     with Path(log).open('a', encoding='utf-8') as handle:
         handle.write(done.stdout or '')
+    if usage_limited(done.stdout):
+        raise UsageLimitError(done.returncode or 1, command[:1])
     if done.returncode:
         raise subprocess.CalledProcessError(done.returncode, command[:1])
     result = extract(done.stdout or '')

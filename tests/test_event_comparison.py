@@ -51,7 +51,7 @@ class ComparisonTests(unittest.TestCase):
         self.assertIn('Median (p50)', markup)
         self.assertIn('Mean ±1 SD', markup)
         self.assertIn('id="compare-bands" type="checkbox" checked', markup)
-        self.assertEqual(markup.count('data-wn3-field='), 7)
+        self.assertEqual(set(re.findall(r'data-wn3-field="([^"]+)"', markup)), {'dewpoint', 'total-cloud'})
         self.assertNotIn('WeatherNext 2 / pressure', markup)
         self.assertNotEqual(MODEL_COLORS['wn3'], MODEL_COLORS['aifs_ens'])
         self.assertIn('<span class="legend-item"><span class="swatch"', markup)

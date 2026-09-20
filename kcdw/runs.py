@@ -17,7 +17,19 @@ def run_path(var, run_id):
     return var / "runs" / run_id
 
 
-def copy_inputs(destination, snapshot, analysis, prompt, radar, log):
+def copy_typesafe(source, destination):
+    """Private diagnostics stay outside public/ and never follow symlinks."""
+    if source is None or not source.is_dir() or source.is_symlink():
+        return
+    target = destination / 'typesafe'
+    target.mkdir(mode=0o700, exist_ok=True)
+    for path in source.glob('*.json'):
+        if path.is_file() and not path.is_symlink() and path.stat().st_size <= 4_000_000:
+            shutil.copyfile(path, target / path.name)
+            (target / path.name).chmod(0o600)
+
+
+def copy_inputs(destination, snapshot, analysis, prompt, radar, log, typesafe=None):
     destination.mkdir(parents=True, exist_ok=True)
     for source, name in ((snapshot, "snapshot.json"), (analysis, "analysis.json"), (prompt, "prompt.txt"), (log, "codex.log")):
         if source.is_file() and not source.is_symlink():
@@ -27,6 +39,7 @@ def copy_inputs(destination, snapshot, analysis, prompt, radar, log):
             if source.is_file() and not source.is_symlink() and source.stat().st_size <= 1_000_000:
                 (destination / "radar").mkdir(exist_ok=True)
                 shutil.copyfile(source, destination / "radar" / source.name)
+    copy_typesafe(typesafe, destination)
 
 
 def replace_link(link, target):
@@ -38,12 +51,12 @@ def replace_link(link, target):
         temporary.unlink(missing_ok=True)
 
 
-def publish(var, public, run_id, snapshot, analysis, prompt, radar, log, html, health, previous=None):
+def publish(var, public, run_id, snapshot, analysis, prompt, radar, log, html, health, previous=None, typesafe=None):
     destination = run_path(var, run_id)
     staging = destination.with_name(f".{run_id}.tmp")
     if destination.exists() or staging.exists():
         raise FileExistsError(f"run already archived: {run_id}")
-    copy_inputs(staging, snapshot, analysis, prompt, radar, log)
+    copy_inputs(staging, snapshot, analysis, prompt, radar, log, typesafe)
     (staging / "public").mkdir()
     shutil.copyfile(html, staging / "public" / "index.html")
     shutil.copyfile(health, staging / "public" / "health.json")
@@ -78,10 +91,10 @@ def publish(var, public, run_id, snapshot, analysis, prompt, radar, log, html, h
         print(f"publication committed; compatibility export failed: {exc}")
 
 
-def finish(var, run_id, snapshot, analysis, prompt, radar, log, exit_code):
+def finish(var, run_id, snapshot, analysis, prompt, radar, log, exit_code, typesafe=None):
     destination = run_path(var, run_id)
     if not destination.exists():
-        copy_inputs(destination, snapshot, analysis, prompt, radar, log)
+        copy_inputs(destination, snapshot, analysis, prompt, radar, log, typesafe)
     atomic_write(destination / "outcome.json", json.dumps({"exit_code": exit_code,
                  "finished_at": datetime.now(timezone.utc).isoformat()}, indent=2) + "\n")
 
@@ -97,12 +110,13 @@ def main():
     p.add_argument("--html", type=Path)
     p.add_argument("--health", type=Path)
     p.add_argument("--previous", type=Path)
+    p.add_argument("--typesafe", type=Path)
     p.add_argument("--exit-code", type=int, default=0)
     a = p.parse_args()
     if a.command == "publish":
-        publish(a.var, a.public, a.run_id, a.snapshot, a.analysis, a.prompt, a.radar, a.log, a.html, a.health, a.previous)
+        publish(a.var, a.public, a.run_id, a.snapshot, a.analysis, a.prompt, a.radar, a.log, a.html, a.health, a.previous, a.typesafe)
     else:
-        finish(a.var, a.run_id, a.snapshot, a.analysis, a.prompt, a.radar, a.log, a.exit_code)
+        finish(a.var, a.run_id, a.snapshot, a.analysis, a.prompt, a.radar, a.log, a.exit_code, a.typesafe)
 
 
 if __name__ == "__main__":

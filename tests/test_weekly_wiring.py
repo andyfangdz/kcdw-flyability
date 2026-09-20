@@ -23,7 +23,7 @@ class WeeklyWiringTests(unittest.TestCase):
             html, health = renderer.render(snapshot, analysis, NOW)
         weekly.render_weekly.assert_called_once_with(snapshot, NOW)
         self.assertIn('href="#weekly-ensembles"', html)
-        self.assertIn('href="#synoptic-context"', html)
+        self.assertIn('href="#regional-guidance"', html)
         self.assertIn('id="daily-outlook"', html)
         self.assertIn('WEEKLY CHARTS', html)
         self.assertIn('data-forecast-script', html)

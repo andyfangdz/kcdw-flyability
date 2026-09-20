@@ -21,6 +21,7 @@ analysis="$VAR_DIR/analysis.${run_id}.json"
 html_tmp="$VAR_DIR/index.${run_id}.html"
 health_tmp="$VAR_DIR/health.${run_id}.json"
 codex_log="$VAR_DIR/codex.${run_id}.log"
+typesafe_dir="$VAR_DIR/typesafe.${run_id}"
 managed_radar=0
 if [[ -n "${RADAR_DIR:-}" ]]; then
   radar_dir="$RADAR_DIR"
@@ -33,8 +34,10 @@ cleanup() {
   if ! python3 -m kcdw.feedback record "$VAR_DIR/agent-feedback.jsonl" "$run_id" "$snapshot" "$analysis" "$run_rc"; then
     log "feedback=failed"
   fi
-  if ! python3 -m kcdw.runs finish "$VAR_DIR" "$run_id" "$snapshot" "$analysis" "$prompt" "$radar_dir" "$codex_log" --exit-code "$run_rc"; then
+  if ! python3 -m kcdw.runs finish "$VAR_DIR" "$run_id" "$snapshot" "$analysis" "$prompt" "$radar_dir" "$codex_log" --typesafe "$typesafe_dir" --exit-code "$run_rc"; then
     log "archive=failed"
+  elif [[ -d "$typesafe_dir" ]]; then
+    rm -rf -- "$typesafe_dir"
   fi
   if [[ -f "$codex_log" ]]; then cat "$codex_log" >> "$VAR_DIR/codex.log"; fi
   rm -f "$codex_log" "$snapshot" "$prompt" "$analysis" "$html_tmp" "$health_tmp"
@@ -76,9 +79,9 @@ for frame in "${radar_files[@]}"; do radar_args+=(--image "$frame"); done
 log "radar_attachments=$radar_count radar_source=$radar_state"
 
 agent_version="$(python3 -m kcdw.claude_agent --version-only 2>/dev/null | head -n 1)"
-log "agent=claude-code model=claude-fable-5-1 effort=high agent_version=${agent_version:-unknown}"
+log "agent=claude-code model=claude-fable-5-1 effort=high fallback=codex fallback_model=gpt-6-astra agent_version=${agent_version:-unknown}"
 set +e
-timeout "${AGENT_TIMEOUT:-12m}" python3 -m kcdw.claude_agent --research --prompt "$prompt" --schema schema/analysis.schema.json --output "$analysis" --log "$codex_log" "${radar_args[@]}" >>"$codex_log" 2>&1
+timeout "${AGENT_TIMEOUT:-25m}" python3 -m kcdw.assessment_agent --research --snapshot "$snapshot" --var "$VAR_DIR" --artifacts "$typesafe_dir" --prompt "$prompt" --schema schema/analysis.schema.json --output "$analysis" --log "$codex_log" "${radar_args[@]}" >>"$codex_log" 2>&1
 codex_rc=$?
 set -e
 log "agent_exit=$codex_rc"
@@ -106,7 +109,7 @@ if ! python3 -m kcdw.renderer "$snapshot" "$analysis" --output "$html_tmp" --hea
   exit 1
 fi
 log "validation=success"
-if ! python3 -m kcdw.runs publish "$VAR_DIR" "$run_id" "$snapshot" "$analysis" "$prompt" "$radar_dir" "$codex_log" --public "$PUBLIC_DIR" --html "$html_tmp" --health "$health_tmp" "${previous_args[@]}"; then
+if ! python3 -m kcdw.runs publish "$VAR_DIR" "$run_id" "$snapshot" "$analysis" "$prompt" "$radar_dir" "$codex_log" --typesafe "$typesafe_dir" --public "$PUBLIC_DIR" --html "$html_tmp" --health "$health_tmp" "${previous_args[@]}"; then
   log "publication=failed"
   exit 1
 fi

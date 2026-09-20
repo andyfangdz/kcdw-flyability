@@ -1,5 +1,4 @@
 """Synthetic dated bulletins; live smoke is deliberately separate."""
-import copy
 import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock

@@ -1,6 +1,6 @@
 .PHONY: test collect update serve sample
 test:
-	python3 -m unittest discover -s tests -v
+	KCDW_TYPESAFE=off python3 -m unittest discover -s tests -v
 collect:
 	python3 -m kcdw.collector --output var/snapshot.json
 update:

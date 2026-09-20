@@ -38,7 +38,6 @@ def fixture(fallback=False):
             "mean": [value] * 360, "p10": [value - spread] * 360,
             "p90": [value + spread] * 360,
         }
-    objects = len(FIELD_SPECS) * 3 * 360
     return {
         "explicit_last_good": False,
         "status": {

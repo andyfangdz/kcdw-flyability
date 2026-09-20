@@ -1,15 +1,11 @@
-"""Render a dedicated outlook page for one dated event from per-member ensemble guidance.
-
-Charts are inline SVG built deterministically from the validated event snapshot.
-No model prose is involved. Shared charts distinguish medians, means and
-standard-deviation comparators alongside purpose-specific planning diagnostics.
-"""
+"""Render dated-event reports with snapshot-bound prose and inline SVG charts."""
 from __future__ import annotations
 
+import base64
+import hashlib
 import html
 import json
-import hashlib
-import base64
+import struct
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -20,6 +16,8 @@ from .events import TZ, Event
 from .event_timing import timing_header
 from .event_afd_view import render_afds
 from .event_ensemble import MODELS
+from .event_narrative import UNAVAILABLE, render_event_narrative
+from .low_cloud_analysis import render_low_cloud
 from .trend_renderer import render_trends
 from .run_history import render_run_history
 
@@ -30,27 +28,39 @@ MODEL_COLORS = {"gfs": "#172b3a", "gefs": "#b54a2b", "ecmwf_ens": "#1f5f8b", "ai
 W, H, PAD_L, PAD_R, PAD_T, PAD_B = 1000, 240, 48, 14, 14, 34
 
 
-def render_low_cloud(snapshot, now):
-    from .low_cloud_analysis import render_low_cloud as render
-    return render(snapshot, now)
-
-
 def esc(value) -> str:
     return html.escape(str(value), quote=True)
 
 
 def encode_chart_values(values):
     """Losslessly trim long empty margins; legacy arrays remain supported."""
-    values=[int(v) if isinstance(v,float) and v.is_integer() else v for v in values]
-    plain=json.dumps(values,separators=(',', ':'),allow_nan=False)
-    first=next((i for i,v in enumerate(values) if v is not None),len(values))
-    last=next((i+1 for i in range(len(values)-1,first-1,-1) if values[i] is not None),first)
-    packed=json.dumps(dict(v=1,n=len(values),s=first,d=values[first:last]),separators=(',', ':'),allow_nan=False)
-    if len(values)>2000:return plain
-    import base64,struct
-    raw=b''.join(struct.pack('<d',float('nan') if v is None else v) for v in values[first:last])
-    binary=json.dumps(dict(v=2,n=len(values),s=first,b=base64.b64encode(raw).decode('ascii')),separators=(',', ':'))
-    return min((plain,packed,binary),key=lambda text:len(esc(text)))
+    values = [int(v) if isinstance(v, float) and v.is_integer() else v for v in values]
+    plain = json.dumps(values, separators=(',', ':'), allow_nan=False)
+    if len(values) > 2000:
+        return plain
+    first = next((i for i, v in enumerate(values) if v is not None), len(values))
+    last = next((i + 1 for i in range(len(values) - 1, first - 1, -1) if values[i] is not None), first)
+    packed = json.dumps(dict(v=1, n=len(values), s=first, d=values[first:last]),
+                        separators=(',', ':'), allow_nan=False)
+    raw = b''.join(struct.pack('<d', float('nan') if v is None else v) for v in values[first:last])
+    binary = json.dumps(dict(v=2, n=len(values), s=first, b=base64.b64encode(raw).decode('ascii')),
+                        separators=(',', ':'))
+    return min((plain, packed, binary), key=lambda text: len(esc(text)))
+
+
+def _straight_points(points):
+    """Remove collinear interior points without changing the path's direction."""
+    result = []
+    for point in points:
+        while len(result) >= 2:
+            a, b = result[-2:]
+            ab = (b[0] - a[0], b[1] - a[1])
+            bc = (point[0] - b[0], point[1] - b[1])
+            if abs(ab[0] * bc[1] - ab[1] * bc[0]) > 1e-7 or ab[0] * bc[0] + ab[1] * bc[1] < 0:
+                break
+            result.pop()
+        result.append(point)
+    return result
 
 
 class Chart:
@@ -84,8 +94,8 @@ class Chart:
 
     @staticmethod
     def _points(points):
-        from .moisture_chart import straight_points
-        return " ".join(",".join(f"{v:.1f}".removesuffix(".0") for v in (x,y)) for x, y in straight_points(points))
+        return " ".join(",".join(f"{v:.1f}".removesuffix(".0") for v in point)
+                        for point in _straight_points(points))
 
     def band(self, low: list, high: list, fill: str, opacity: float) -> None:
         segments, current = [], []
@@ -382,7 +392,7 @@ def _comparison_charts(snapshot: dict, models: list[dict], times: list[datetime]
 
 
 def _wn3_numbers(snapshot: dict, times: list[datetime], window: tuple[int, int], now: datetime, history=None) -> str:
-    """Dedicated WN3 mean/range charts, with optional event-window numbers."""
+    """WN3 fields absent from the shared charts, plus event-window numbers."""
     from .event_ensemble import weathernext3_diagnostic
     if not weathernext3_diagnostic(snapshot, now)["available"]:
         return ""
@@ -406,23 +416,17 @@ def _wn3_numbers(snapshot: dict, times: list[datetime], window: tuple[int, int],
             f'<article><h3>Peak hourly mean low cloud</h3><p>{max(cloud):.0f}%</p><small>Fractional coverage, not ceiling height.</small></article>'
             f'<article><h3>Lowest hourly mean pressure</h3><p>{pressure:.1f} hPa</p></article></div>'
             '<p>Hourly p10–p90 bands are marginal model percentiles, not event-total percentiles or flyability probabilities. The central line is the mean, not the median; a skewed mean can lie outside the band. Gold shading marks the forecast context window, not a confirmed flight duration. Ceiling, visibility, gust and convection fields are not available in this WN3 surface set.</p>')
-    body = ('<section id="wn3-numbers" class="wn3-focus"><p class="eyebrow">WeatherNext 3 / Ensemble charts</p>'
-            '<h2>WN3 mean and ensemble range</h2><p>The magenta line is the ensemble mean; shading shows the hourly p10–p90 range, not the full ensemble minimum–maximum or event-total percentiles. Gold marks the forecast context window. WN3 also appears in the multimodel charts above. Swipe horizontally on small screens.</p>')
+    body = ('<section id="wn3-numbers" class="wn3-focus"><h3>Additional WeatherNext 3 fields</h3>'
+            '<p>Mean and hourly p10–p90. Rain, wind, low cloud, pressure and temperature appear in the shared charts.</p>')
     positions = {t: i for i, t in enumerate(axis)}
     if any(t not in positions for t in times):
         body += '<p>Only available forecast hours are drawn; missing surrounding hours remain gaps.</p>'
     for field, short, label, unit, factor in (
-        ('sea_level_pressure', 'pressure', 'Sea-level pressure', 'hPa', .01),
-        ('wind_speed_10m', 'wind', 'Sustained wind', 'kt', 3600 / 1852),
-        ('precipitation_1h', 'rain', 'Hourly precipitation', 'mm / preceding hour', 1),
-        ('temperature_2m', 'temperature', 'Temperature', '°C', 1),
         ('dewpoint_temperature_2m', 'dewpoint', 'Dew point', '°C', 1),
-        ('low_cloud_cover', 'cloud', 'Low-cloud fraction — not ceiling height', '%', 1),
         ('total_cloud_cover', 'total-cloud', 'Total cloud fraction', '%', 1),
     ):
         mean, low, high = ([fields[field][stat][positions[t]] * factor if t in positions else None for t in times] for stat in ('mean', 'p10', 'p90'))
-        history_field = {"sea_level_pressure": "pressure_msl", "precipitation_1h": "precipitation"}.get(field, field)
-        saved = [row for row in _history_series(snapshot, history, history_field, times, {"wn3": mean}) if row[0] == "wn3"]
+        saved = [row for row in _history_series(snapshot, history, field, times, {"wn3": mean}) if row[0] == "wn3"]
         lo, hi = _extent(mean, low, high, *(values for row in saved for values in row[1:4]))
         chart = Chart(times, lo, max(hi, lo + .1), window)
         for row in saved:
@@ -471,11 +475,6 @@ def _planning_panel(snapshot: dict, now: datetime) -> tuple[str, dict, str]:
     body += ('<details><summary>Transparent planning thresholds and limitations</summary><p>These are conservative screening triggers, not aircraft limits or regulatory minima. Model-mean precipitation uses the sum of hourly means: trigger ≥2 mm in the event window. Model-mean wind and low cloud use the maximum sampled hourly mean: triggers ≥15 kt and ≥60%. Percentile signals inspect each hourly p10/p90 against ≥0.2 mm preceding-hour precipitation, ≥15 kt wind, or ≥60% low cloud; no hourly percentiles are summed. Broad uncertainty means at least one hourly p90–p10 gap ≥0.2 mm rain, ≥5 kt wind, or ≥30 percentage points low cloud; otherwise tight relative to these thresholds.</p><p>Rain uses preceding-hour endpoints strictly after the window start through its end. Instantaneous wind and cloud use samples from the opening hour up to but not including the closing hour. Low-cloud fraction is not ceiling height. This diagnostic is not an event probability. It provides no conclusion on ceiling/visibility, convection, gusts, crosswind, runway state or safe completion of a commercial checkride. Retain scheduling flexibility and obtain an official briefing and current observations/TAFs closer to the event.</p></details>'
              '<p class="small">Google attribution: Google Weather Lab. © 2024-5 Google LLC, whose machine learning models were used to create the experimental data made available under the following licence terms. This data is intended for experimental modelling only and is not intended, validated, or approved for real world use. This independent planning diagnostic is not endorsed by Google; forecast data are provided as is, without warranties, and are not an official aviation briefing. <a href="https://storage.googleapis.com/weathernext-public/terms-of-use.pdf">WeatherNext data license and terms</a>. Numerical plots show model means and hourly marginal percentiles, not calibrated flyability probabilities.</p>')
     return '<details id="wn3-diagnostic" class="planning-diagnostic"><summary>Screening diagnostic · thresholds, provenance &amp; limitations</summary>' + body + '</details>', diagnostic, preferred
-
-
-def render_event_narrative(snapshot, now):
-    from .event_narrative import render_event_narrative as narrative
-    return narrative(snapshot, now)
 
 
 def render(snapshot: dict, now: datetime | None = None, events_path: Path | str | None = None) -> tuple[str, dict]:
@@ -561,24 +560,18 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
     try:
         narrative_html = render_event_narrative(snapshot, now)
     except Exception:
-        narrative_html = '<section id="event-narrative"><h2>What this means for your checkride</h2><p>Updated narrative unavailable; current model charts are below.</p></section>'
+        narrative_html = UNAVAILABLE
     initializations_html = render_initializations(snapshot, now)
-    initialization_link = '<a href="#model-initializations">Model times</a>' if initializations_html else ''
     from .event_wind_view import render_wind
     wind_html = render_wind(snapshot, now)
-    wind_link = '<a href="#wind-analysis">Winds</a>' if wind_html else ''
+    wind_link = '<a href="#wind-analysis">Wind &amp; runways</a>' if wind_html else ''
     afd_html = render_afds(snapshot, now)
     from .event_model_matrix_view import render_matrix
     matrix_html = render_matrix(snapshot, now)
-    matrix_link = '<a href="#model-matrix">Scorecard</a>' if matrix_html else ''
     from .event_wn2_members_view import render_wn2_members
-    matrix_html += render_wn2_members(snapshot, now)
-    afd_link = '<a href="#forecaster-discussion">NWS readings</a>' if afd_html else ''
-    wn3_link = '<a href="#wn3-numbers">WN3 detail</a>' if wn3_numbers else ''
+    wn2_html = render_wn2_members(snapshot, now)
     navigation = (Path(__file__).parent / 'assets/forecast-navigation.js').read_text()
     script_hash = base64.b64encode(hashlib.sha256(navigation.encode()).digest()).decode()
-    source_binding_label = ('Source binding shown per packet' if snapshot.get('direct_native_version')
-                            else 'Conventional cycle binding unverified')
     source_introduction = ('Direct native sources are preferred; fallback packets are labeled separately. '
                           'NOAA/NCEP native data are public domain; ECMWF native data and Open-Meteo fallback data are CC BY 4.0. '
                           'Native interval rainfall distributed to display hours does not establish hourly timing. '
@@ -588,20 +581,41 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
                           'Latest dataset metadata is not a cycle identifier for each returned value. '
                           'IFS 06/18Z short-cycle metadata can end before this display while the rolling extended response uses earlier long cycles. '
                           'Exact run attribution is unverified.')
+    current_narrative = narrative_html != UNAVAILABLE and briefing['tone'] != 'stale'
+    if current_narrative:
+        brief_html = narrative_html
+    else:
+        brief_html = (f'<p class="eyebrow">Flight brief</p><h2 id="briefing-title">{esc(briefing["headline"])}</h2>'
+                      f'<p class="brief-summary">{esc(briefing["summary"])}</p>'
+                      f'<div class="next-check"><strong>{esc(briefing["next_check"]["title"])}</strong>'
+                      f'<p>{esc(briefing["next_check"]["detail"])}</p></div>')
+        if briefing['tone'] != 'stale':
+            brief_html += '<p class="small">Written assessment unavailable; model evidence is below.</p>'
+    brief_html += (f'<details class="brief-context"><summary>Full-day model context · {event.start_hour:02d}:00–{event.end_hour:02d}:00 Eastern</summary>'
+                   f'<p class="small">These statistics cover the broader forecast context, not just the expected flight.</p>'
+                   f'<div class="brief-cards">{cards}</div><p class="brief-source">{esc(briefing["source"])}</p></details>')
+    if afd_html:
+        brief_html += '<details class="report-detail"><summary>NWS forecaster excerpts</summary>' + afd_html + '</details>'
+    cloud_html = ('<div class="evidence-group">' + render_low_cloud(snapshot, now)
+                  + '<details class="report-detail"><summary>Humidity profiles &amp; charts</summary>' + moisture_html + '</details></div>')
+    model_detail = ('<details class="report-detail"><summary>Model-run trends</summary>' + trends + '</details>'
+                    + ('<details class="report-detail"><summary>Additional WN3 fields &amp; event totals</summary>' + wn3_numbers + '</details>' if wn3_numbers else '')
+                    + ('<details class="report-detail"><summary>Independent WN2 member check</summary>' + wn2_html + '</details>' if wn2_html else ''))
     doc = f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="script-src 'sha256-{script_hash}'; object-src 'none'; base-uri 'none'"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KCDW · {esc(event.title)} · {esc(event.day.strftime("%b %-d"))}</title><style>{css}</style></head>
 <body data-page="event"><a class="skip-link" href="#main">Skip to briefing</a>
 <header class="top"><div class="wrap"><a class="brand" href="/">KCDW / Field notes</a><nav class="top-links" aria-label="Main navigation"><a href="/">Current outlook</a><a href="{esc(event.path())}" aria-current="page">{esc(event.nav_label)}</a><a href="{esc(event.path())}/history">History ↗</a></nav></div></header>
 <main id="main" class="wrap">
-<header class="event-header"><div><p class="eyebrow">KCDW / Dated event briefing</p><h1>{esc(event.title)}</h1>{timing_header(snapshot, event)}</div><div class="event-meta"><p>{days} days out · {len(models)} of {len(MODELS)} systems</p><p class="freshness"><strong>{freshness}</strong><br><time datetime="{esc(snapshot['collected_at'])}">{esc(collected.astimezone(TZ).strftime('%b %-d, %H:%M %Z'))}</time> · {age // 3600}h {(age % 3600) // 60}m old at render</p><p>{esc(source_binding_label)}</p></div></header>
-<section id="briefing" class="operational-briefing" data-tone="{esc(briefing['tone'])}" aria-labelledby="briefing-title"><p class="eyebrow">At a glance</p><h2 id="briefing-title">{esc(briefing['headline'])}</h2><p class="brief-summary">{esc(briefing['summary'])}</p><div class="brief-cards">{cards}</div><div class="next-check"><strong>{esc(briefing['next_check']['title'])}</strong><p>{esc(briefing['next_check']['detail'])}</p></div><p class="brief-source">{esc(briefing['source'])}</p><p class="brief-limits">No calibrated flyability probability. Ceiling, visibility, convection and runway/crosswind suitability require an official aviation briefing.</p></section>
-{matrix_html}
-<nav class="section-nav" aria-label="Briefing sections"><a href="#briefing">Brief</a>{matrix_link}<a href="#event-narrative">Weather story</a>{afd_link}{initialization_link}{wind_link}<a href="#multimodel-comparison">Model charts</a><a href="#low-cloud-analysis">Low cloud</a><a href="#low-level-rh">Humidity</a><a href="#ensemble-trends">Trends</a>{wn3_link}<a href="#synoptic-context">Tropics &amp; outlooks</a><a href="#sources-methods">Sources &amp; methods</a></nav>
-{narrative_html}{wind_html}{afd_html}{initializations_html}{comparison}{render_low_cloud(snapshot, now)}{moisture_html}{trends}{context_html}{wn3_numbers}
-<section class="supporting-detail" aria-labelledby="detail-title"><h2 id="detail-title">Supporting detail</h2>
+<header class="event-header"><div><p class="eyebrow">KCDW / Dated event briefing</p><h1>{esc(event.title)}</h1>{timing_header(snapshot, event)}</div><div class="event-meta"><p>{days} days out · {len(models)} of {len(MODELS)} systems</p><p class="freshness"><strong>{freshness}</strong><br><time datetime="{esc(snapshot['collected_at'])}">{esc(collected.astimezone(TZ).strftime('%b %-d, %H:%M %Z'))}</time> · {age // 3600}h {(age % 3600) // 60}m old at render</p></div></header>
+<nav class="section-nav" aria-label="Briefing sections"><a href="#briefing">Flight brief</a><a href="#low-cloud-analysis">Cloud &amp; ceiling</a>{wind_link}<a href="#model-guidance">Model comparison</a><a href="#regional-guidance">Regional context</a><a href="#notes-sources">Sources</a></nav>
+<section id="briefing" class="operational-briefing" data-tone="{esc(briefing['tone'])}" aria-label="Flight brief">{brief_html}</section>
+{cloud_html}{wind_html}
+<div id="model-guidance" class="evidence-group">{matrix_html}{comparison}{model_detail}</div>
+<details id="regional-guidance" class="report-detail"><summary>Regional outlooks &amp; tropical context</summary>{context_html}</details>
+<section class="supporting-detail" aria-labelledby="detail-title"><h2 id="detail-title">Reference</h2>
 <details id="window-distributions"><summary>Forecast context / per-model distributions</summary><p>Median (10th–90th percentile), with complete-member counts. Rain sums preceding-hour intervals ending after the opening time through the closing time. Conventional wind/cloud/pressure use those same sampled endpoints, not continuous extrema. Missing low cloud is unavailable, never favorable.</p><div class="chart-scroll" tabindex="0" role="region" aria-label="Per-model event distributions"><table><thead><tr><th scope="col">Model</th><th scope="col">Rain total · mm</th><th scope="col">Peak sustained · kt</th><th scope="col">Mean low cloud · %</th><th scope="col">Lowest pressure · hPa</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div></details>
 {planning_panel}
-<details id="sources-methods"><summary>Sources &amp; methods · model runs, gaps and licenses</summary><p>{esc(event.description)}</p><h3>Source provenance and gaps</h3><p>{esc(source_introduction)}</p><ul class="runs">{''.join(provenance)}{failed}</ul>{wn}<p>Point pressure cannot establish the absence of a hurricane, nearby storm, or convection. Low-cloud fraction cannot establish a usable maneuvers ceiling. Neither missing gusts nor low mean wind establishes runway/crosswind suitability. WeatherNext licensing and actual response-run metadata are retained in the screening diagnostic.</p></details></section>
-<section class="official-guidance" aria-labelledby="official-title"><h2 id="official-title">Near-term guidance</h2><p>Within 48 hours, prioritize official aviation guidance. Confirm issue times, valid periods and airport coverage; AWC and local NWS aviation products are linked here, while NHC/CPC/WPC products are fetched in the wider-weather section above.</p><p><a href="/">Current 7-day outlook</a> · <a href="https://aviationweather.gov/">AWC observations, TAFs &amp; advisories</a> · <a href="https://www.weather.gov/okx/">NWS forecasts</a> · <a href="https://www.nhc.noaa.gov/">NHC tropical outlooks</a></p></section>
+<details id="sources-methods"><summary>Sources &amp; methods · model runs, gaps and licenses</summary><p>{esc(event.description)}</p>{initializations_html}<h3>Source provenance and gaps</h3><p>{esc(source_introduction)}</p><ul class="runs">{''.join(provenance)}{failed}</ul>{wn}<p>Point pressure cannot establish the absence of a hurricane, nearby storm, or convection. Low-cloud fraction cannot establish a usable maneuvers ceiling. Neither missing gusts nor low mean wind establishes runway/crosswind suitability. WeatherNext licensing and actual response-run metadata are retained in the screening diagnostic.</p></details></section>
+<section class="official-guidance" aria-labelledby="official-title"><h2 id="official-title">Before departure</h2><p>Check current observations, TAFs, radar, advisories and NOTAMs against your flight and aircraft limits.</p><p><a href="/">Current 7-day outlook</a> · <a href="https://aviationweather.gov/">AWC observations, TAFs &amp; advisories</a> · <a href="https://www.weather.gov/okx/">NWS forecasts</a> · <a href="https://www.nhc.noaa.gov/">NHC tropical outlooks</a></p></section>
 <footer class="site-footer"><span>Planning aid, not a go/no-go decision or official briefing.</span><a href="{esc(event.path())}/history">Guidance history ↗</a></footer></main><script data-forecast-script>{navigation}</script></body></html>'''
     return fit_page_budget(doc, legacy_history), health
 

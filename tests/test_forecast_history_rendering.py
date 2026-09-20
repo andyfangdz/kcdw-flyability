@@ -116,7 +116,7 @@ class ForecastHistoryRenderingTests(unittest.TestCase):
         self.assertIn('data-rh-model="gefs" data-history="saved-forecast"', rh)
         values = self.values(rh, 'rh-gefs')
         self.assertEqual([values[i] if i < len(values) else None for i in range(4)], [30, None, 70, None])
-        self.assertIn('data-history="saved-forecast"', markup.split('data-wn3-field="rain"')[1].split('</svg>')[0])
+        self.assertIn('data-history="saved-forecast"', markup.split('data-comparison-field="rain"')[1].split('</svg>')[0])
         self.assertIn('data-forecast-today="' + self.snapshot['range']['start'] + '"', markup)
         self.assertLess(len(markup.encode()), 800000)
 

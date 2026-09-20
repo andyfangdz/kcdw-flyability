@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from .common import UTC, iso_z
-from .events import Event, TZ, SLUG, WINDOW
+from .events import TZ, SLUG, WINDOW
 from .event_ensemble import MODELS, UNITS, LAT, LON, validate_snapshot
 from .gfs_guidance import validate_gfs
 from .weathernext3 import validate_weather_next3

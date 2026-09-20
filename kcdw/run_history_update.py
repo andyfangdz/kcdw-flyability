@@ -15,7 +15,8 @@ import os
 import stat
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .common import UTC, atomic_write, iso_z

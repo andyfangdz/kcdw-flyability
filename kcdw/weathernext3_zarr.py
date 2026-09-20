@@ -303,7 +303,7 @@ class WeatherNext3Zarr:
             candidate -= timedelta(hours=6)
 
     @classmethod
-    def latest(cls, store: GrpcStore, now: datetime, *, attempts: int = 4) -> "WeatherNext3Zarr":
+    def latest(cls, store: GrpcStore, now: datetime, *, attempts: int = 4) -> WeatherNext3Zarr:
         """Open the newest published 6-hourly run at or before ``now``."""
         for candidate in cls.candidates(store, now, attempts=attempts):
             return candidate

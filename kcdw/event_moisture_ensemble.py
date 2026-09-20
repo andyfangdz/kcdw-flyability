@@ -156,7 +156,7 @@ def _validate_data(data, spec, axis, end, collected, now):
         if set(ids) != set(VARIABLES):
             raise ValueError('direct RH member fields mismatch')
         offered = set(data['metadata']['member_ids'])
-        for field, members in ids.items():
+        for members in ids.values():
             if members != sorted(set(members)) or not set(members) <= offered:
                 raise ValueError('direct RH member identity mismatch')
         if set(data['hourly']) != {'time', *RH_FIELDS}:

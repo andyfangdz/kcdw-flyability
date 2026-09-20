@@ -154,7 +154,7 @@ def previous_gust3(model,init,lead):
     row=found[0]
     require(row.get('date')==init.strftime('%Y%m%d') and row.get('time')==init.strftime('%H%M') and row.get('step')==str(lead-3))
     require(row.get('type')=='fc' and row.get('domain')=='g' and row.get('class')=='od' and row.get('stream')=='oper' and row.get('levtype')=='sfc')
-    a,n=row['_offset'],row['_length']; require(type(a) is int and type(n) is int and 0<=a and 0<n<=MAX_FIELD)
+    a,n=row['_offset'],row['_length']; require(type(a) is int and type(n) is int and a >= 0 and 0<n<=MAX_FIELD)
     raw,proof=fetch(url,MAX_FIELD,(a,a+n-1))
     # decode() validates against the sample lead: gust3_prev's identity is the three hours ending at lead-3.
     return dict(decode(raw,model,'gust3_prev',init,lead),proof=proof,url=url)

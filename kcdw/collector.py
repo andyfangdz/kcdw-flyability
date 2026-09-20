@@ -15,7 +15,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .common import UTC, atomic_write, iso_z, parse_time
-from .ensemble_guidance import WEATHER_NEXT_ENDPOINT, collect_aifs_ens, collect_weather_next
+from .ensemble_guidance import collect_aifs_ens
 from .geometry import geometry_contains
 from .nbm_guidance import collect_nbm
 from .weathernext3 import collect_weather_next3

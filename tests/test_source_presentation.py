@@ -41,7 +41,7 @@ class SourcePresentationTests(unittest.TestCase):
 
     def test_sampling_dictionary_is_lossless_and_keeps_numbers(self):
         from kcdw.event_evidence_compact import compact_sampling
-        import copy,json
+        import json
         text='native cadence and source semantics; '*30
         original={'sources':[{'sampling':text,'rh':102.4},{'nested':{'sampling':text},'rh':None}]}
         packed=compact_sampling(original)
