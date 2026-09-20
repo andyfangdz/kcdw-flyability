@@ -1,0 +1,66 @@
+{
+  "purpose": "Manual WN3 ensemble research; excluded from scheduled and published reports.",
+  "init": "2026-09-20T00:00:00Z",
+  "members": 64,
+  "profile_valid_times": [
+    "2026-09-24T12:00:00Z",
+    "2026-09-24T18:00:00Z"
+  ],
+  "coastal_low_snapshot_valid_time": "2026-09-24T15:00:00Z",
+  "artifacts": [
+    {
+      "path": "README.md",
+      "bytes": 3315,
+      "sha256": "cafd6822499bf4a6e85a34ca5147b00dac770a579c4df8146eecaae6cbaf0195"
+    },
+    {
+      "path": "coastal-low/analysis.md",
+      "bytes": 5171,
+      "sha256": "3129d14beb0cafefa5a857726dfc94e00fe7a5e2fb4b884b74a8f9d0d030e3ec"
+    },
+    {
+      "path": "coastal-low/wn3-low-center-summary.zip",
+      "bytes": 2312668,
+      "sha256": "1edc7e21b9f72d2523c97bedc7afe45402beb5bf94c8667b89f722eaf6595094"
+    },
+    {
+      "path": "coastal-low/wn3-member-low-centers.png",
+      "bytes": 618925,
+      "sha256": "1dd542c608e8a69d6c377fcd0f2f3998e1f4c3fbb759c2109189e9ff220c44dd"
+    },
+    {
+      "path": "profiles/analysis.md",
+      "bytes": 8536,
+      "sha256": "ca3714b9f97d3e195b1fc0bb1f516697638ef384aebb2799b7936d44df5d88f9"
+    },
+    {
+      "path": "profiles/wn3-kcdw-pressure-profiles.png",
+      "bytes": 609318,
+      "sha256": "91a0d77fb238ec6728bb948e1c35434fc2441b1c5130e5d367ec096f34dda209"
+    },
+    {
+      "path": "profiles/wn3-kcdw-pressure-profiles.zip",
+      "bytes": 3688413,
+      "sha256": "d6010f61b4fc5ad0ceb7a8083c81dc079da71e2330b10ac554c378dab5cb8c2c"
+    }
+  ],
+  "local_full_pressure_archive": {
+    "path": "var/research/wn3-members-20260920/wn3-pressure-members-thursday.zip",
+    "bytes": 82295947,
+    "sha256": "e9dd6a3f906df52db681b0073e24646d80d6ad8f18220c1b15fd48f0a38a02ca",
+    "included_in_git": false
+  },
+  "scope": {
+    "profile_bundle": "Complete extracted profiles, retained nine-point source chunks, cached surface-summary input, charts, scripts and validation.",
+    "coastal_low_bundle": "Diagnostics, all detected minima, six-hour ensemble mean grids, KCDW member pressure series, source manifests, charts and scripts; excludes the 64 large regional member grids."
+  },
+  "archive_verification": {
+    "all_artifact_hashes_verified": true,
+    "zip_integrity_passed": true,
+    "profile_replayed_from_isolated_archive": true,
+    "profile_diagnostics_unchanged": true,
+    "all_derived_arrays_unchanged": true,
+    "cloud_reads_required_for_replay": false,
+    "local_full_pressure_archive_hash_verified": true
+  }
+}
