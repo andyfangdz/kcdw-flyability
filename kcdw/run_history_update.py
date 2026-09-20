@@ -3,7 +3,7 @@
 Caller must serialize updates (including publication) with its event lock.
 Fetchers are injectable: GFS takes one UTC datetime and returns
 {raw, source_url, retrieved_at}; the default WN3 reader takes <=8 UTC runs plus
-the selected event times and returns generation-bound official-Zarr envelopes.
+the selected event times and returns initialization-bound BigQuery records.
 No live-source freshness test or rolling metadata establishes archive identity.
 """
 from __future__ import annotations
@@ -58,42 +58,36 @@ def fetch_gfs_run(run: datetime) -> dict:
 def fetch_wn3_runs(runs: list[datetime], sample: datetime, rain_times: list[datetime]) -> dict:
     if len(runs)>MAX_CATCHUP:
         raise ValueError('validation_error')
-    from concurrent.futures import ThreadPoolExecutor
     from .weathernext3 import FIELD_SPECS, SOURCE
-    from .weathernext3_zarr import GrpcStore, WeatherNext3Zarr
-    store=GrpcStore(cache_dir=Path('var/wn3-zarr'))
+    from .weathernext3_bigquery import BigQueryStore
+    store=BigQueryStore()
+    arrays=[f'{FIELD_SPECS[name].array}_{stat}' for name in ('sea_level_pressure','wind_speed_10m')
+            for stat in ('mean','p10','p90')] + ['total_precipitation_1hr_mean']
     records=[];errors=[]
     for run in runs:
         try:
-            source=WeatherNext3Zarr(store,iso_z(run))
-            jobs=[(name,statistic,sample) for name in ('sea_level_pressure','wind_speed_10m')
-                  for statistic in ('mean','p10','p90')]
-            jobs += [('precipitation_1h','mean',valid) for valid in rain_times]
-            def read(job):
-                name,statistic,valid=job;spec=FIELD_SPECS[name]
-                result=source.point(f'{spec.array}_{statistic}',iso_z(valid))
-                _require(result['unit']==spec.source_unit)
-                value=spec.convert(result['value']);_require(_number(value,spec.low,spec.high))
-                return name,statistic,valid,value,result['grid_point']
-            with ThreadPoolExecutor(max_workers=4) as pool:
-                rows=list(pool.map(read,jobs))
-            grids={(row[4]['latitude'],row[4]['longitude']) for row in rows};_require(len(grids)==1)
-            latitude,longitude=next(iter(grids))
+            result=store.fetch(iso_z(run), arrays)
+            rows={_time(row['valid_time']):row for row in result['rows']}
             fields={}
             for name in ('sea_level_pressure','wind_speed_10m'):
                 spec=FIELD_SPECS[name]
                 fields[name]=dict(unit=spec.unit,source_array=spec.array,
-                                  **{stat:next(row[3] for row in rows if row[:3]==(name,stat,sample))
+                                  **{stat:spec.convert(rows[sample][f'{spec.array}_{stat}'])
                                      for stat in ('mean','p10','p90')})
             spec=FIELD_SPECS['precipitation_1h']
             fields['precipitation_1h']=dict(unit=spec.unit,source_array=spec.array,
-                mean=[next(row[3] for row in rows if row[:3]==('precipitation_1h','mean',valid)) for valid in rain_times])
+                mean=[spec.convert(rows[valid][f'{spec.array}_mean']) for valid in rain_times])
+            point=rows[sample]
             records.append(dict(source=SOURCE,run_time=iso_z(run),sample_time=iso_z(sample),
                                 rain_times=[iso_z(value) for value in rain_times],
-                                grid_point=dict(latitude=latitude,longitude=longitude),fields=fields,
-                                retrieved_at=iso_z(datetime.now(UTC))))
-        except Exception:
+                                grid_point=dict(latitude=point['latitude'],longitude=point['longitude']),fields=fields,
+                                query=result['provenance'], retrieved_at=result['provenance']['retrieved_at']))
+        except LookupError:
             errors.append(dict(run_time=iso_z(run),error='upstream_error'))
+        except Exception:
+            # Do not multiply authorization/billing failures across a catch-up batch.
+            errors.extend(dict(run_time=iso_z(value),error='upstream_error') for value in runs[len(records)+len(errors):])
+            break
     return dict(records=records,errors=errors)
 
 
@@ -123,8 +117,13 @@ def _require(condition):
 
 
 def _base(key, run, record, sample, rain_times, grid, metrics):
+    if key == 'wn3':
+        source_url = ('https://developers.google.com/weathernext/guides/bigquery' if record.get('query')
+                      else 'https://storage.googleapis.com/weathernext3_statistics_spatial/weathernext_3_0_0_statistics/zarr/')
+    else:
+        source_url = record['source_url']
     return dict(model_key=key,model_id=12 if key=='wn3' else 'gfs_global',run_time=iso_z(run),
-                retrieved_at=record['retrieved_at'],source_url='https://storage.googleapis.com/weathernext3_statistics_spatial/weathernext_3_0_0_statistics/zarr/' if key=='wn3' else record['source_url'],
+                retrieved_at=record['retrieved_at'],source_url=source_url,
                 grid_point=grid,sample_time=iso_z(sample),rain_times=[iso_z(t) for t in rain_times],metrics=metrics,
                 run_binding='response-bound' if key=='wn3' else 'archive-request-bound')
 
@@ -169,9 +168,15 @@ def _gfs_point(record,run,sample,rain_times,now):
 
 
 def _wn3_point(record,run,sample,rain_times,now):
-    from .weathernext3 import FIELD_SPECS, SOURCE
-    _require(set(record)=={'source','run_time','sample_time','rain_times','grid_point','fields','retrieved_at'})
-    _require(record['source']==SOURCE and _time(record['run_time'])==run and _time(record['sample_time'])==sample)
+    from .weathernext3 import FIELD_SPECS, SOURCE, LEGACY_SOURCE
+    from .weathernext3_bigquery import validate_provenance
+    expected={'source','run_time','sample_time','rain_times','grid_point','fields','retrieved_at'}
+    if record.get('source') == SOURCE:
+        expected.add('query')
+        validate_provenance(record['query'])
+        _require(_time(record['query']['retrieved_at']) == _time(record['retrieved_at']))
+    _require(set(record)==expected)
+    _require(record['source'] in (SOURCE, LEGACY_SOURCE) and _time(record['run_time'])==run and _time(record['sample_time'])==sample)
     _require([_time(value) for value in record['rain_times']]==rain_times)
     grid=record['grid_point']
     _require(all(_finite(grid[k]) and abs(grid[k]-AIRPORT[k])<=.1 for k in grid))
@@ -297,6 +302,8 @@ def refresh_run_history(event_dir: Path,event: dict,now: datetime,*,wn3_fetcher=
                 # Only allowlisted weather data; never headers, RPC envelopes,
                 # arbitrary helper metadata, or exception bodies.
                 original_record={k:record[k] for k in (('source','run_time','sample_time','rain_times','grid_point','fields','retrieved_at') if key=='wn3' else ('raw','source_url','retrieved_at'))}
+                if key=='wn3' and 'query' in record:
+                    original_record['query']=record['query']
                 target=root/'backfill-sources'/key/(run.strftime('%Y%m%dT%H%MZ')+'.json')
                 if not target.exists():
                     try:_write(target,original_record)

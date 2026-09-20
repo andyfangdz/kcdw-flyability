@@ -1,14 +1,12 @@
 """AFDs supplement the event narrative without changing flight readiness."""
 import copy
 import json
-import tempfile
 import unittest
-from pathlib import Path
 from unittest.mock import patch
-from kcdw import event_renderer, event_update
+from kcdw import event_renderer
 from kcdw.event_narrative_evidence import build_event_evidence
 import test_event_comparison as comparison
-from test_events import EVENT, NOW
+from test_events import NOW
 
 
 def packets() -> dict:
@@ -119,24 +117,3 @@ class AfdWiringTests(unittest.TestCase):
         _,old_health=event_renderer.render(original,NOW)
         self.assertEqual(new_health,old_health)
         self.assertIn('href="#forecaster-discussion"',new_page)
-
-    def test_collector_runs_before_narration_and_failure_is_optional(self):
-        for fail in (False,True):
-            s=self.snapshot();s.pop('event_afds')
-            def narrative(snapshot,*_):
-                self.assertEqual(snapshot['event_afds'],None if fail else {'marker':'new'})
-                return None
-            with tempfile.TemporaryDirectory() as tmp, \
-                 patch.object(event_update,'upcoming_events',return_value=[EVENT]), \
-                 patch.object(event_update,'collect_event',return_value=s), \
-                 patch.object(event_update,'collect_wind',return_value=None), \
-                 patch.object(event_update,'collect_native_wind',return_value=None), \
-                 patch.object(event_update,'build_wind_trends',return_value=None), \
-                 patch.object(event_update,'collect_afds',return_value={'marker':'new'},side_effect=RuntimeError('down') if fail else None,create=True), \
-                 patch.object(event_update,'collect_ceiling',return_value=None), \
-                 patch.object(event_update,'collect_layer_signals',return_value=None), \
-                 patch.object(event_update,'generate_event_narrative',side_effect=narrative), \
-                 patch.object(event_update,'render',return_value=('<html>ok</html>',{})):
-                self.assertEqual(event_update.update(Path(tmp),None,NOW),0)
-                archived=json.loads((Path(tmp)/'events'/EVENT.slug/'current/snapshot.json').read_text())
-                self.assertIn('event_afds',archived)

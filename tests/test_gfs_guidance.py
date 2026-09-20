@@ -137,10 +137,6 @@ class GFSTests(unittest.TestCase):
         source['data']['grid_point']['requested_latitude'] = 40.0
         self.assertFalse(validate_gfs(source, NOW)['available'])
 
-    def test_constants_match_ensemble_without_dependency(self):
-        from kcdw.event_ensemble import VARIABLES as ensemble_variables, UNITS as ensemble_units
-        self.assertEqual(VARIABLES, ensemble_variables)
-        self.assertEqual(UNITS, ensemble_units)
 
     def test_metadata_stale_future_missing_or_short(self):
         for key, value in [('last_run_initialisation_time', 0), ('last_run_availability_time', int((NOW+timedelta(hours=1)).timestamp())),

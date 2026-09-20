@@ -73,9 +73,11 @@ class DisplayRangeTests(unittest.TestCase):
                         'hourly': hourly, 'hourly_units': units}
         with patch('kcdw.ensemble_guidance._validate_metadata', return_value={'data_end_time': '2026-09-27T00:00:00Z'}), \
              patch.object(ee, 'collect_gfs', return_value={'ok': False}) as gfs:
-            snapshot = self.collect(ComparatorClient())
-        self.assertTrue(snapshot['weathernext2']['ok'], snapshot['weathernext2'])
-        self.assertEqual(snapshot['weathernext2']['data']['hourly']['time'], snapshot['models']['gefs']['data']['hourly']['time'])
+            client = ComparatorClient()
+            snapshot = self.collect(client)
+        self.assertFalse(snapshot['weathernext2']['ok'])
+        self.assertTrue(snapshot['weathernext2']['retired'])
+        self.assertFalse(any('google_weathernext2' in url for url in client.urls))
         self.assertEqual(gfs.call_args.args[1:3], ee.event_range(EVENT, NOW))
         ee.validate_snapshot(snapshot)
 

@@ -115,7 +115,7 @@ class NarrativeTests(unittest.TestCase):
         self.snapshot['event_narrative'] = result
         rendered = narrative.render_event_narrative(self.snapshot, actual_now + timedelta(minutes=5))
         self.assertIn('&lt;script&gt;', rendered)
-        self.assertIn('https://storage.googleapis.com/weathernext3_statistics_spatial/', rendered)
+        self.assertIn('https://developers.google.com/weathernext/guides/bigquery', rendered)
         self.assertNotIn('unavailable', rendered)
 
     def test_generation_records_completion_time_not_collection_time(self):

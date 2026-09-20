@@ -4,11 +4,16 @@ Wants=network-online.target
 After=network-online.target
 
 [Service]
+Environment=CLAUDE_BIN=/home/andy/.local/bin/claude
+Environment=PATH=/home/andy/projects/kcdw-flyability/var/runtime-venv/bin:/home/andy/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=GOOGLE_APPLICATION_CREDENTIALS=/home/andy/.config/kcdw-flyability/google-adc.json
+Environment=CLAUDE_CONFIG_DIR=/home/andy/.config/kcdw-flyability/claude
+UMask=0077
 Type=oneshot
-WorkingDirectory=/home/ubuntu/projects/kcdw-flyability
-Environment=HOME=/home/ubuntu
+WorkingDirectory=/home/andy/projects/kcdw-flyability
+Environment=HOME=/home/andy
 Environment=PYTHONDONTWRITEBYTECODE=1
-ExecStart=/home/ubuntu/projects/kcdw-flyability/var/native-weather-venv/bin/python -m kcdw.native_ensemble_cache --models gefs ecmwf_ens aifs_ens geps --seconds 2700 --workers 12
+ExecStart=/home/andy/projects/kcdw-flyability/var/native-weather-venv/bin/python -m kcdw.native_ensemble_cache --models gefs ecmwf_ens aifs_ens geps --seconds 2700 --workers 12
 TimeoutStartSec=46min
 TimeoutStopSec=10s
 KillMode=control-group
@@ -19,4 +24,4 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/home/ubuntu/projects/kcdw-flyability/var
+ReadWritePaths=/home/andy/projects/kcdw-flyability/var

@@ -22,14 +22,14 @@ MAX_BYTES = 60_000
 MODEL_URL = 'https://open-meteo.com/en/docs/ensemble-api'
 WEATHERLAB_URL = 'https://storage.googleapis.com/weathernext3_statistics_spatial/weathernext_3_0_0_statistics/zarr/'
 SOURCES = {s.key: (s.name, MODEL_URL) for s in MODELS} | {
-    'wn3_point': ('WeatherNext 3 point guidance', WEATHERLAB_URL),
+    'wn3_point': ('WeatherNext 3 point guidance', 'https://developers.google.com/weathernext/guides/bigquery'),
     'gfs': ('GFS operational (deterministic)', 'https://open-meteo.com/en/docs/gfs-api'),
     'nhc': ('National Hurricane Center', 'https://www.nhc.noaa.gov/'),
     'cpc_wpc': ('CPC / WPC official outlooks', 'https://www.cpc.ncep.noaa.gov/products/predictions/610day/'),
     'wn3_cyclones': ('WeatherNext 3 experimental cyclones', WEATHERLAB_URL),
-    'run_history': ('Initialization history', WEATHERLAB_URL),
+    'run_history': ('Initialization history', 'https://developers.google.com/weathernext/guides/bigquery'),
     'low_level_rh': ('Surface and low-level humidity', MODEL_URL),
-    'low_cloud_analysis': ('Native ceiling, cloud layers and member persistence', MODEL_URL),
+    'low_cloud_analysis': ('WN3 cloud timing and uncertainty; native ceiling and independent member persistence', MODEL_URL),
     'snapshot_changes': ('Changes since the previous forecast', MODEL_URL),
 }
 ERRORS = (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowError)

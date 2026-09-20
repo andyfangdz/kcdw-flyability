@@ -9,7 +9,13 @@ from .source_presentation import is_direct, source_description, SOURCE_LICENSES
 def low_cloud_evidence(snapshot, now):
     ceiling = validate_ceiling(snapshot.get('cloud_ceiling'), snapshot, now)
     layers = validate_layer_signals(snapshot.get('cloud_layer_signals'), snapshot, now)
-    result: dict = {'ceiling': None, 'layers': None}
+    from .wn3_cloud_analysis import cloud_evidence
+    result: dict = {'ceiling': None, 'layers': None, 'wn3': cloud_evidence(snapshot, now)}
+    if result['wn3']:
+        from .wn3_cloud_analysis import run_comparison
+        from .wn3_surface_context import surface_evidence
+        result['wn3']['surface_context'] = surface_evidence(snapshot, now)
+        result['wn3']['run_comparison'] = run_comparison(snapshot, result['wn3'], now)
     if ceiling:
         result['ceiling'] = {k: ceiling[k] for k in ('model', 'model_init', 'fetched_at', 'notes')}
         result['ceiling']['samples'] = [{k: s[k] for k in ('valid_at', 'ceiling_agl_ft', 'low_cloud_pct', 'neighborhood')} for s in ceiling['samples']]
@@ -98,8 +104,15 @@ def render_low_cloud(snapshot, now):
     data = low_cloud_evidence(snapshot, now)
     c, layer = data['ceiling'], data['layers']
     parts = ['<section id="low-cloud-analysis" aria-labelledby="low-cloud-title"><p class="eyebrow">Maneuvering room</p><h2 id="low-cloud-title">Low-cloud analysis</h2>']
+    from .wn3_cloud_analysis import render_clouds
+    parts.append(render_clouds(data.get('wn3')))
+    if data.get('wn3'):
+        from .wn3_cloud_analysis import render_comparison
+        parts.append(render_comparison(data['wn3'].get('run_comparison')))
+        from .wn3_surface_context import render_surface
+        parts.append(render_surface(data['wn3'].get('surface_context')))
     if not c and not layer:
-        return ''.join(parts) + '<p>Current ceiling and cloud-layer diagnostics unavailable.</p></section>'
+        return ''.join(parts) + '<p>Independent ceiling and cloud-layer diagnostics unavailable.</p></section>'
     if c:
         heights = [s['ceiling_agl_ft'] for s in c['samples'] if s['ceiling_agl_ft'] is not None]
         if heights and all(h < 1000 for h in heights) and len(heights) == len(c['samples']):

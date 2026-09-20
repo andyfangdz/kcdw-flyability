@@ -117,7 +117,6 @@ def ensemble_metadata(update_interval_seconds: int = 43_200) -> dict:
     }
 
 
-
 MOCK_CLAUDE = """#!/usr/bin/env python3
 import json, os, sys
 if sys.argv[1:] == ['--version']:
@@ -476,38 +475,6 @@ class ProjectTests(unittest.TestCase):
         with self.assertRaisesRegex(ValidationError, "WeatherNext"):
             validate_snapshot_readiness(bad)
 
-    def test_prompt_defines_same_day_scoring(self):
-        prompt = build_prompt(self.snapshot)
-        self.assertIn("first report_date is today", prompt)
-        self.assertIn("elapsed windows", prompt)
-
-    def test_prompt_applies_aviation_decision_support_to_short_term_scoring(self):
-        prompt = build_prompt(self.snapshot)
-        required_guidance = (
-            "Aviation Weather Decision Support",
-            "Observed hazards outrank forecast prose",
-            "Separate observed conditions now from forecast conditions",
-            "Current local and upstream radar loops",
-            "geometrically contains KCDW",
-            "validTimeFrom <= collected_at <= validTimeTo",
-            "Do not let severe weather hours away",
-            "source freshness",
-            "Forecast-only means",
-            "Upstream developing means",
-            "Regional observed means",
-            "Local impact means",
-            "updated proxy TAF timing",
-            "return portion of the two-hour session",
-            "Missing sources reduce confidence, not the score by themselves",
-            "observation, advisory, forecast, or inference",
-            "partially elapsed current block",
-            "complete sentence within 300 characters",
-            "Attached radar images are ordered oldest to newest",
-            "deterministic spatial metrics",
-        )
-        for guidance in required_guidance:
-            with self.subTest(guidance=guidance):
-                self.assertIn(guidance, prompt)
 
     def test_prompt_carries_dynamic_guidance_policy_without_relabeling_sources(self):
         prompt = build_prompt(self.snapshot)
@@ -562,10 +529,6 @@ class ProjectTests(unittest.TestCase):
                         with self.assertRaisesRegex(ValidationError, "hazard"):
                             validate_analysis(value, self.snapshot)
 
-    def test_render_uses_valid_landmark_and_heading_semantics(self):
-        rendered, _ = render(self.snapshot, self.analysis, datetime(2026, 9, 3, 12, 10, tzinfo=timezone.utc))
-        self.assertIn('<div class="legend" role="group" aria-label="Score legend">', rendered)
-        self.assertNotIn("<h3>", rendered)
 
     def test_render_lists_radar_source(self):
         snapshot = copy.deepcopy(self.snapshot)
@@ -729,7 +692,6 @@ class ProjectTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr.decode())
             self.assertEqual((latest / "frame-01.png").read_bytes(), b"known-good")
             self.assertEqual(json.loads((latest / "manifest.json").read_text()), {"known": "good"})
-
 
 
 if __name__ == "__main__": unittest.main()

@@ -32,7 +32,7 @@ def operational_briefing(snapshot: dict, now: datetime) -> dict:
         rain_value = f'{rain_total:.2f} mm mean total'
         wind_value = f'{wind_peak:.1f} kt peak hourly mean'
         rain_detail = f'WN3 window sum of means. Highest hourly p90: {rain_tail:.2f} mm; not a total-rain percentile.'
-        wind_detail = f'WN3 highest hourly p90: {wind_tail:.1f} kt. Gusts and direction unavailable; no crosswind assessment.'
+        wind_detail = f'WN3 highest hourly p90: {wind_tail:.1f} kt. Gusts unavailable; no gust-crosswind assessment. Direction from mean components appears in the model scorecard.'
         rain_watch = (diagnostic['precipitation_mean'] == 'planning trigger reached' or
                       diagnostic['precipitation_signal'] != 'percentile range below trigger')
         wind_watch = (diagnostic['wind_mean'] == 'planning trigger reached' or

@@ -500,13 +500,12 @@ def collect_event(client, event: Event, now: datetime | None = None, *, allow_em
         models.update(map(collect_one, MODELS))
     if not allow_empty and not any(model["ok"] for model in models.values()):
         raise RuntimeError("no ensemble model was usable for the event")
-    try:
-        comparator = {"ok": True, "data": collect_weathernext_comparator(client, event, now, (start, end))}
-    except Exception as exc:
-        comparator = {"ok": False, "error": f"{type(exc).__name__}: {exc}"[:300]}
+    # WN3 supplies primary hourly statistics. WN2 is retained only as an
+    # independent native-member diagnostic; legacy comparator readers remain.
+    comparator = {"ok": False, "retired": True, "error": "Replaced by WeatherNext 3"}
     try:
         from .weathernext3 import event_valid_times
-        envelope = collect_weather_next3(now, event_valid_times(event))
+        envelope = collect_weather_next3(now, event_valid_times(event, now))
         validate_weather_next3(envelope, now)
         wn3 = {"ok": bool(envelope["status"]["available"]), "data": envelope, "error": None}
         if not wn3["ok"]:

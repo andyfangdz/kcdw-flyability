@@ -52,12 +52,12 @@ def _point(raw, sample, rain_times, now):
         raise ValueError('source URL')
     binding = raw['run_binding']
     if key == 'wn3':
-        # Preserve already archived Weather Lab points, while all new points
-        # are sourced from the official immutable statistics store.
+        # Preserve Weather Lab and GCS archives alongside new BigQuery points.
         legacy = source.netloc == 'deepmind.google.com' and source.path == '/science/weatherlab/'
         official = (source.netloc == 'storage.googleapis.com' and
                     source.path == '/weathernext3_statistics_spatial/weathernext_3_0_0_statistics/zarr/')
-        if binding != 'response-bound' or not (legacy or official):
+        bigquery = (source.netloc == 'developers.google.com' and source.path == '/weathernext/guides/bigquery' and not source.query)
+        if binding != 'response-bound' or not (legacy or official or bigquery):
             raise ValueError('WN3 binding')
     elif binding == 'archive-request-bound':
         # Only this archive/model path has been verified. Conventional member

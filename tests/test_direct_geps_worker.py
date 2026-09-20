@@ -1,7 +1,6 @@
 """Offline GEPS contracts; optional actual saved GRIB integration fixtures."""
 import copy
 from datetime import datetime, timedelta, timezone
-import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
@@ -109,15 +108,5 @@ class GepsContracts(unittest.TestCase):
         with patch.object(w,'fetch',return_value=catalog):self.assertTrue(w.probe(INIT,210))
         with patch.object(w,'fetch',return_value=catalog.replace(b'2026091712',b'2026091700')):self.assertFalse(w.probe(INIT,210))
 
-    @unittest.skipUnless(importlib.util.find_spec('eccodes') and Path('/tmp/noaa-fullrange-research/geps-measurements.json').exists(),'native saved fixtures unavailable')
-    def test_saved_actual_grouped_gribs(self):
-        for field,stem in [('r850','RH_ISBL_0850'),('tp','APCP_SFC_0')]:
-            raw=Path('/tmp/noaa-fullrange-research',f'CMC_geps-raw_{stem}_latlon0p5x0p5_2026091712_P210_allmbrs.grib2').read_bytes()
-            pts=w.decode_group(raw,INIT,210,field,w.stamp(NOW),w.stamp(NOW))
-            self.assertEqual(len(pts),21)
-            p=packet();p['points']=pts;w.validate_packet(p,NOW)
-            self.assertEqual(pts[-1]['range'][1],len(raw)-1)
-            self.assertEqual(pts[0]['identity']['jScansPositively'],1)
-            if field=='tp':self.assertAlmostEqual(pts[0]['value'],28.2)
 
 if __name__=='__main__':unittest.main()

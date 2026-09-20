@@ -70,6 +70,11 @@ def collect_model_matrix(client, snapshot, cache_path, now):
     return collect(client, snapshot, now, cache_path)
 
 
+def collect_wn3_100m_wind(snapshot, now):
+    from .wn3_surface_context import collect_wind as collect
+    return collect(snapshot, now)
+
+
 def collect_wn2_members(client, snapshot, now):
     from .event_wn2_members import collect_members as collect
     return collect(client, snapshot, now)
@@ -161,7 +166,8 @@ def update(var: Path, cloud_config: Path | None, now: datetime | None = None, ev
                 ("event_afds", lambda: collect_afds(HttpClient(timeout=10, retries=1), snapshot, now)),
                 ("cloud_ceiling", lambda: collect_ceiling(snapshot, var / "events" / event.slug / "native-ceiling-cache", now)),
                 ("cloud_layer_signals", lambda: collect_layer_signals(HttpClient(timeout=15, retries=0, direct_native=True), snapshot, now)),
-                ("weathernext2_members", lambda: collect_wn2_members(HttpClient(timeout=15, retries=1, direct_native=True), snapshot, now)),
+                ("wn3_100m_wind", lambda: collect_wn3_100m_wind(snapshot, now)),
+                ("weathernext2_members", lambda: collect_wn2_members(None, snapshot, now)),
                 ("model_matrix", lambda: collect_model_matrix(HttpClient(timeout=12, retries=0, direct_native=True), snapshot, var / "events" / event.slug / "model-matrix-cache.json", now)),
             ):
                 try:
@@ -187,6 +193,12 @@ def update(var: Path, cloud_config: Path | None, now: datetime | None = None, ev
             except Exception:
                 snapshot["event_changes"] = None
                 record(f"event={event.slug} event_changes=unavailable")
+            from .wn3_cloud_analysis import collect_previous as collect_previous_clouds
+            try:
+                snapshot['wn3_cloud_previous'] = collect_previous_clouds(snapshot, var / 'events' / event.slug / 'runs', now, backfill=live_clock)
+            except Exception:
+                snapshot['wn3_cloud_previous'] = None
+                record(f'event={event.slug} wn3_cloud_previous=unavailable')
             snapshot["ensemble_run_history"] = load_run_history(var / "events" / event.slug / "backfill.json", snapshot["event"], now)
             try:
                 work_dir = var / "events" / event.slug / "narratives" / run_id

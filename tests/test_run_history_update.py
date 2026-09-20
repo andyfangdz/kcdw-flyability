@@ -41,6 +41,7 @@ def wn3(run):
     return dict(source=SOURCE,run_time=iso_z(run),sample_time=iso_z(sample),
                 rain_times=[iso_z(value) for value in rain_times],
                 grid_point=dict(latitude=40.9,longitude=-74.3),fields=fields,
+                query=dict(weather_fixture()['forecast']['query'], retrieved_at=iso_z(CHECK)),
                 retrieved_at=iso_z(CHECK))
 
 

@@ -1,28 +1,21 @@
-"""Official WeatherNext 3 statistics-Zarr adapter for KCDW.
-
-The upstream Zarr chunks are complete Zstd-compressed global planes. They are
-not seekable, so collection downloads whole immutable objects over the GCS
-gRPC API and caches them by generation and checksum. Only event-relevant valid
-hours are selected; missing surrounding hours remain explicit gaps.
-"""
+"""Official WeatherNext 3 BigQuery point forecasts for KCDW."""
 from __future__ import annotations
 
 import math
-import os
 import re
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any, Iterable
 from zoneinfo import ZoneInfo
 
-from .weathernext3_zarr import GrpcStore, KCDW, WeatherNext3Zarr
+from .weathernext3_zarr import KCDW
+from .weathernext3_bigquery import BigQueryStore, validate_provenance
 
 
 EASTERN = ZoneInfo("America/New_York")
 STATISTICS = ("mean", "p10", "p90")
-SOURCE = "WeatherNext 3 official statistics Zarr via GCS gRPC"
+SOURCE = "WeatherNext 3 official statistics via BigQuery"
+LEGACY_SOURCE = "WeatherNext 3 official statistics Zarr via GCS gRPC"
 
 
 @dataclass(frozen=True)
@@ -58,6 +51,11 @@ FIELD_SPECS = {
     "high_cloud_cover": FieldSpec("high_cloud_cover", "(0 - 1)", "%", 0, 100, factor=100),
     "total_cloud_cover": FieldSpec("total_cloud_cover", "(0 - 1)", "%", 0, 100, factor=100),
 }
+# Optional diagnostics use separate cache entries without changing archived
+# primary forecast envelopes or making their fields mandatory.
+OPTIONAL_FIELD_SPECS = {
+    "wind_speed_100m": FieldSpec("wind_speed_100m", "m s**-1", "m/s", 0, 160),
+}
 SPECS = {name: (spec.unit, spec.low, spec.high) for name, spec in FIELD_SPECS.items()}
 
 
@@ -88,11 +86,12 @@ def _validate(data: dict[str, Any], now: datetime) -> None:
     status, forecast = data["status"], data["forecast"]
     _require(type(status) is dict and type(forecast) is dict)
     _require(status.get("available") is True and status.get("freshness") == "fresh" and status.get("error_code") is None)
-    _require(status.get("authentication") == "gcs_authenticated_read_succeeded")
-    _require(status.get("transport") == "GCS gRPC whole-object reads")
+    legacy = forecast.get("source") == LEGACY_SOURCE
+    _require(status.get("authentication") == ("gcs_authenticated_read_succeeded" if legacy else "bigquery_authenticated_query_succeeded"))
+    _require(status.get("transport") == ("GCS gRPC whole-object reads" if legacy else "BigQuery REST"))
     _require(status.get("station") == "KCDW" and status.get("model_id") == 12 and status.get("model") == "WeatherNext 3")
     _require(_number(status.get("latitude"), KCDW[0], KCDW[0]) and _number(status.get("longitude"), KCDW[1], KCDW[1]))
-    _require(forecast.get("model_id") == 12 and forecast.get("model") == "WeatherNext 3" and forecast.get("source") == SOURCE)
+    _require(forecast.get("model_id") == 12 and forecast.get("model") == "WeatherNext 3" and forecast.get("source") in (SOURCE, LEGACY_SOURCE))
     actual = _time(forecast["response_init_utc"])
     requested = _time(status["requested_init_utc"])
     fetched = _time(status["fetched_at"])
@@ -127,12 +126,18 @@ def _validate(data: dict[str, Any], now: datetime) -> None:
             _require(type(values) is list and len(values) == len(parsed) and
                      all(_number(value, spec.low, spec.high) for value in values))
         _require(all(low <= high for low, high in zip(field["p10"], field["p90"])))
-    transfer = forecast.get("transfer")
-    _require(type(transfer) is dict and set(transfer) == {
-        "objects", "network_objects", "cache_objects", "object_bytes", "network_bytes"})
-    _require(all(type(transfer[key]) is int and transfer[key] >= 0 for key in transfer))
-    _require(transfer["objects"] == len(FIELD_SPECS) * len(STATISTICS) * len(parsed))
-    _require(transfer["network_objects"] + transfer["cache_objects"] == transfer["objects"])
+    if legacy:
+        _require("query" not in forecast)
+        transfer = forecast.get("transfer")
+        _require(type(transfer) is dict and set(transfer) == {
+            "objects", "network_objects", "cache_objects", "object_bytes", "network_bytes"})
+        _require(all(type(transfer[key]) is int and transfer[key] >= 0 for key in transfer))
+        _require(transfer["objects"] == len(FIELD_SPECS) * len(STATISTICS) * len(parsed))
+        _require(transfer["network_objects"] + transfer["cache_objects"] == transfer["objects"])
+    else:
+        _require("transfer" not in forecast)
+        validate_provenance(forecast.get("query"))
+        _require(actual <= _time(forecast["query"]["retrieved_at"]) <= fetched + timedelta(minutes=5))
 
 
 def validate_weather_next3(data: dict, now: datetime) -> None:
@@ -143,20 +148,30 @@ def validate_weather_next3(data: dict, now: datetime) -> None:
         raise ValueError("weathernext3_validation_error") from None
 
 
-def event_valid_times(event: Any) -> list[datetime]:
-    """Instant samples from opening through closing (closing covers rain)."""
+def event_valid_times(event: Any, now: datetime | None = None) -> list[datetime]:
+    """Opening through closing plus three hours for the scorecard outlook."""
     start = datetime.combine(event.day, datetime.min.time(), EASTERN) + timedelta(hours=event.start_hour)
-    return [start + timedelta(hours=hour) for hour in range(event.end_hour - event.start_hour + 1)]
+    selected = {start.astimezone(timezone.utc) + timedelta(hours=hour)
+                for hour in range(event.end_hour - event.start_hour + 4)}
+    if now is not None:
+        first = now.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+        end = datetime.combine(now.astimezone(EASTERN).date() + timedelta(days=7),
+                               datetime.min.time(), EASTERN).astimezone(timezone.utc)
+        selected.update(first + timedelta(hours=h) for h in range(int((end-first).total_seconds()/3600) + 1))
+    return sorted(selected)
 
 
 def relevant_valid_times(now: datetime, init: datetime) -> list[datetime]:
-    """Select configured upcoming event hours that fall inside this run."""
+    """Full seven-calendar-day hourly guidance plus upcoming event windows."""
     from .events import upcoming_events
-    selected: set[datetime] = set()
+    day = now.astimezone(EASTERN).date()
+    start = datetime.combine(day, datetime.min.time(), EASTERN).astimezone(timezone.utc)
+    end = datetime.combine(day + timedelta(days=7), datetime.min.time(), EASTERN).astimezone(timezone.utc)
+    selected = {start + timedelta(hours=h) for h in range(int((end-start).total_seconds()/3600) + 1)}
     for event in upcoming_events(now, horizon_days=16):
         selected.update(value.astimezone(timezone.utc) for value in event_valid_times(event))
     lower, upper = init + timedelta(hours=1), init + timedelta(hours=360)
-    selected = {value for value in selected if max(lower, now.astimezone(timezone.utc)) <= value <= upper}
+    selected = {value for value in selected if lower <= value <= upper}
     if not selected:
         next_hour = now.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
         selected.add(max(lower, next_hour))
@@ -178,94 +193,42 @@ def _normalize_times(values: Iterable[datetime], init: datetime) -> list[datetim
 
 
 def collect_weather_next3(now: datetime, valid_times: Iterable[datetime] | None = None,
-                          *, store: GrpcStore | None = None,
-                          source: WeatherNext3Zarr | None = None) -> dict:
-    """Read every aviation-relevant surface field for selected valid hours."""
+                          *, store: BigQueryStore | None = None) -> dict:
+    """Read a complete cached BigQuery run, selecting report hours locally."""
     if not isinstance(now, datetime) or now.tzinfo is None or now.utcoffset() is None:
         raise ValueError("weathernext3_request_error")
     now = now.astimezone(timezone.utc)
     try:
-        workers = max(1, min(8, int(os.environ.get("WN3_ZARR_WORKERS", "4"))))
-        if source is None:
-            store = store or GrpcStore(cache_dir=Path("var/wn3-zarr"))
-            for candidate in WeatherNext3Zarr.candidates(store, now):
-                candidate_times = _normalize_times(
-                    valid_times or relevant_valid_times(now, candidate.init), candidate.init)
-                candidate_jobs = [
-                    (name, spec, statistic, valid)
-                    for valid in candidate_times
-                    for name, spec in FIELD_SPECS.items()
-                    for statistic in STATISTICS
-                ]
-                try:
-                    with ThreadPoolExecutor(max_workers=workers) as pool:
-                        list(pool.map(
-                            lambda job: candidate.point_info(
-                                f"{job[1].array}_{job[2]}", _iso(job[3])),
-                            candidate_jobs,
-                        ))
-                except Exception as error:
-                    if store.is_not_found(error):
-                        continue
-                    raise
-                source = candidate
-                times = candidate_times
-                jobs = candidate_jobs
-                break
-            else:
-                raise ValueError("no complete recent WeatherNext 3 Zarr run is available")
-        else:
-            times = _normalize_times(valid_times or relevant_valid_times(now, source.init), source.init)
-            jobs = [(name, spec, statistic, valid)
-                    for valid in times
-                    for name, spec in FIELD_SPECS.items()
-                    for statistic in STATISTICS]
+        store = store or BigQueryStore()
         requested = now.replace(hour=now.hour // 6 * 6, minute=0, second=0, microsecond=0)
-
-        def read(job):
-            name, spec, statistic, valid = job
-            result = source.point(f"{spec.array}_{statistic}", _iso(valid))
-            if result["unit"] != spec.source_unit:
-                raise ValueError("WeatherNext 3 source unit mismatch")
-            value = spec.convert(result["value"])
-            if not _number(value, spec.low, spec.high):
-                raise ValueError("WeatherNext 3 value outside physical bounds")
-            return name, statistic, valid, value, result
-
-        with ThreadPoolExecutor(max_workers=workers) as pool:
-            rows = list(pool.map(read, jobs))
+        # Permission, billing, malformed rows and incomplete runs fail closed.
+        # Only an empty, not-yet-published run permits trying an older cycle.
+        for actual in store.candidates(now)[:2]:
+            try:
+                result = store.fetch(_iso(actual))
+                break
+            except LookupError:
+                continue
+        else:
+            raise ValueError("no recent WeatherNext 3 BigQuery run")
+        times = _normalize_times(valid_times if valid_times is not None else relevant_valid_times(now, actual), actual)
+        rows = {_time(row["valid_time"]): row for row in result["rows"]}
+        selected = [rows[t] for t in times]
         fields = {
             name: {"unit": spec.unit, "source_unit": spec.source_unit,
                    "source_array": spec.array, "step_type": spec.step_type,
-                   **{statistic: [] for statistic in STATISTICS}}
+                   **{stat: [spec.convert(row[f"{spec.array}_{stat}"]) for row in selected]
+                      for stat in STATISTICS}}
             for name, spec in FIELD_SPECS.items()
         }
-        by_key = {(name, statistic, valid): value for name, statistic, valid, value, _ in rows}
-        for name in fields:
-            for statistic in STATISTICS:
-                fields[name][statistic] = [by_key[name, statistic, valid] for valid in times]
-        points = {(result["grid_point"]["latitude"], result["grid_point"]["longitude"])
-                  for *_, result in rows}
-        if len(points) != 1:
-            raise ValueError("WeatherNext 3 grid point changed within one collection")
-        latitude, longitude = next(iter(points))
-        transfers = [result["transfer"] for *_, result in rows]
-        cache_objects = sum(item["cache_hit"] is True for item in transfers)
-        transfer = {
-            "objects": len(transfers),
-            "network_objects": len(transfers) - cache_objects,
-            "cache_objects": cache_objects,
-            "object_bytes": sum(item["object_bytes"] for item in transfers),
-            "network_bytes": sum(item["bytes_read"] for item in transfers if not item["cache_hit"]),
-        }
-        actual = source.init
+        latitude, longitude = selected[0]['latitude'], selected[0]['longitude']
         envelope = {
             "explicit_last_good": False,
             "status": {
                 "state": "degraded" if actual != requested else "ready",
                 "available": True, "freshness": "fresh", "error_code": None,
-                "authentication": "gcs_authenticated_read_succeeded",
-                "transport": "GCS gRPC whole-object reads", "station": "KCDW",
+                "authentication": "bigquery_authenticated_query_succeeded",
+                "transport": "BigQuery REST", "station": "KCDW",
                 "model": "WeatherNext 3", "model_id": 12,
                 "latitude": KCDW[0], "longitude": KCDW[1],
                 "actual_run_utc": _iso(actual), "requested_init_utc": _iso(requested),
@@ -278,7 +241,7 @@ def collect_weather_next3(now: datetime, valid_times: Iterable[datetime] | None 
                 "grid_point": {"latitude": latitude, "longitude": longitude},
                 "requested_init_utc": _iso(requested), "response_init_utc": _iso(actual),
                 "valid_time_utc": [_iso(value) for value in times],
-                "fields": fields, "transfer": transfer,
+                "fields": fields, "query": result['provenance'],
             },
         }
         validate_weather_next3(envelope, now)
@@ -289,6 +252,39 @@ def collect_weather_next3(now: datetime, valid_times: Iterable[datetime] | None 
         raise ValueError("weathernext3_request_error") from None
     except Exception:
         raise ValueError("weathernext3_request_error") from None
+
+
+def wind_direction(u: float, v: float) -> float | None:
+    """Meteorological direction FROM mean components; calm has no direction.
+
+    Marginal component percentiles cannot produce direction percentiles.
+    """
+    return None if math.hypot(u, v) < 1e-6 else math.degrees(math.atan2(-u, -v)) % 360
+
+
+def mean_hourly(data: dict, now: datetime) -> dict:
+    """Validated common field names/units for mean guidance and scorecards."""
+    validate_weather_next3(data, now)
+    forecast = data['forecast']
+    fields = forecast['fields']
+    mapping = {
+        'temperature_2m': ('temperature_2m', 1),
+        'dew_point_2m': ('dewpoint_temperature_2m', 1),
+        'precipitation': ('precipitation_1h', 1),
+        'wind_speed_10m': ('wind_speed_10m', 3600/1852),
+        'pressure_msl': ('sea_level_pressure', .01),
+        'cloud_cover_low': ('low_cloud_cover', 1),
+        'cloud_cover_mid': ('medium_cloud_cover', 1),
+        'cloud_cover_high': ('high_cloud_cover', 1),
+        'cloud_cover': ('total_cloud_cover', 1),
+    }
+    hourly = {'time': list(forecast['valid_time_utc'])}
+    hourly.update({key: [v * factor for v in fields[name]['mean']]
+                   for key, (name, factor) in mapping.items()})
+    hourly['wind_direction_10m'] = [wind_direction(u, v) for u, v in zip(
+        fields['u_component_of_wind_10m']['mean'], fields['v_component_of_wind_10m']['mean'])]
+    hourly['wind_gusts_10m'] = [None] * len(hourly['time'])
+    return dict(forecast['grid_point'], utc_offset_seconds=0, hourly=hourly)
 
 
 def summarize_weather_next3(data: dict, now: datetime) -> dict:
@@ -334,12 +330,15 @@ def summarize_weather_next3(data: dict, now: datetime) -> dict:
         "source": forecast["source"], "actual_run_utc": status["actual_run_utc"],
         "requested_init_utc": status["requested_init_utc"], "fetched_at": status["fetched_at"],
         "fallback": status["fallback"], "timezone": "America/New_York",
-        "planning_window_local": "08:00–20:00; sparse event-relevant samples only",
-        "available_fields": list(FIELD_SPECS),
+        "planning_window_local": "08:00–20:00; hourly coverage reported per day",
+        "available_fields": [*FIELD_SPECS, "wind_direction_10m"],
+        "wind_direction": {"unit": "degrees true", "statistic": "direction of ensemble-mean components",
+                           "time": forecast["valid_time_utc"],
+                           "values": mean_hourly(data, now)["hourly"]["wind_direction_10m"]},
         "missing_fields": ["gust", "ceiling", "visibility", "convection"],
         "semantics": {
             "use": "Experimental planning guidance; not official aviation weather or a VFR determination.",
-            "sampling": "Only configured event-relevant hours are read. Missing hours are gaps, never interpolation or benign conditions.",
+            "sampling": "The rolling week and configured event windows are read hourly. Missing hours are gaps, never interpolation or benign conditions.",
             "quantiles": "p10/p90 are hourly marginal ensemble quantiles, not bounds on the mean or daily confidence intervals.",
             "precipitation": "The three precipitation fields are distinct official products; one-hour means may be summed only over explicitly covered intervals.",
             "cloud": "Cloud-layer fraction is not cloud-base height or ceiling probability.",

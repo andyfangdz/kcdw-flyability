@@ -132,6 +132,7 @@ class TrendTests(unittest.TestCase):
                           (wn['forecast'], ('requested_init_utc','response_init_utc'))]:
             for key in keys: obj[key] = iso_z(parse_time(obj[key])+timedelta(hours=6))
         wn['forecast']['valid_time_utc'] = [iso_z(parse_time(t)+timedelta(hours=6)) for t in wn['forecast']['valid_time_utc']]
+        wn['forecast']['query']['retrieved_at'] = wn['status']['fetched_at']
         out = build_trends(current, self.root, NOW)
         self.assertEqual(len(out['models']['wn3']['points']), 2)
 

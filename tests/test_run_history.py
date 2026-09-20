@@ -116,6 +116,8 @@ class RunHistoryTests(unittest.TestCase):
                  patch.object(event_update,'collect_wind',return_value=None), \
                  patch.object(event_update,'collect_native_wind',return_value=None), \
                  patch.object(event_update,'build_wind_trends',return_value=None), \
+                 patch.object(event_update, 'collect_wn2_members', return_value=None), \
+                 patch.object(event_update, 'collect_model_matrix', return_value=None), \
                  patch.object(event_update, 'collect_afds', return_value=None), \
                  patch.object(event_update, 'collect_ceiling', return_value=None), \
                  patch.object(event_update, 'collect_layer_signals', return_value=None), \

@@ -4,8 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
-from kcdw import event_renderer, event_update
+from kcdw import event_renderer
 from kcdw.event_narrative_evidence import build_event_evidence
 import test_event_comparison as comparison
 from test_events import EVENT, NOW
@@ -101,28 +100,3 @@ class TimingTests(unittest.TestCase):
             bad=copy.deepcopy(TIMING);bad['date']='2026-09-25'
             p.write_text(json.dumps({'timings':{EVENT.slug:bad}}))
             self.assertIsNone(load_event_timing(EVENT,p))
-
-    def test_update_archives_timing_before_narration(self):
-        s=comparison.ComparisonTests().snapshot()
-        observed=[]
-        def narrative(snapshot,*_):
-            observed.append((copy.deepcopy(snapshot.get('event_timing')),snapshot.get('initialization_provenance_version')))
-            return None
-        with tempfile.TemporaryDirectory() as tmp, \
-             patch.object(event_update,'upcoming_events',return_value=[EVENT]), \
-             patch.object(event_update,'collect_event',return_value=s), \
-             patch.object(event_update,'collect_wind',return_value=None), \
-             patch.object(event_update,'collect_native_wind',return_value=None), \
-             patch.object(event_update,'build_wind_trends',return_value=None), \
-             patch.object(event_update, 'collect_afds', return_value=None), \
-             patch.object(event_update,'collect_ceiling',return_value=None), \
-             patch.object(event_update,'collect_layer_signals',return_value=None), \
-             patch.object(event_update,'load_event_timing',return_value=TIMING,create=True) as load, \
-             patch.object(event_update,'generate_event_narrative',side_effect=narrative), \
-             patch.object(event_update,'render',return_value=('<html>timing</html>',{})):
-            self.assertEqual(event_update.update(Path(tmp),None,NOW),0)
-            load.assert_called_once_with(EVENT,None)
-            self.assertEqual(observed,[(TIMING,1)])
-            saved=json.loads((Path(tmp)/'events'/EVENT.slug/'current/snapshot.json').read_text())
-            self.assertEqual(saved['event_timing'],TIMING)
-            self.assertEqual(saved.get('initialization_provenance_version'),1)

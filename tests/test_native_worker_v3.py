@@ -174,43 +174,5 @@ class NativeWorkerV3Tests(unittest.TestCase):
             self.assertEqual(get.call_count,2)
             self.assertIn(('01','gust'),ranges)
 
-class SavedGRIBSmoke(unittest.TestCase):
-    def test_mutated_noaa_u10_geometry_rejected(self):
-        try:import eccodes as ec
-        except ImportError:self.skipTest('native-weather-venv required')
-        path=Path('/tmp/noaa-fullrange-research/a-UGRD-10_m_above_ground.grib2')
-        if not path.exists():self.skipTest('research sample unavailable')
-        raw=path.read_bytes()
-        w.decode(raw,'gefs',INIT,210,'30','10u')
-        mutations={'iDirectionIncrementInDegrees':1.0,'jDirectionIncrementInDegrees':1.0,'uvRelativeToGrid':1,'longitudeOfFirstGridPointInDegrees':1.,'longitudeOfLastGridPointInDegrees':359.,'latitudeOfFirstGridPointInDegrees':89.,'latitudeOfLastGridPointInDegrees':-89.,'iScansNegatively':1,'jScansPositively':1,'jPointsAreConsecutive':1,'alternativeRowScanning':1}
-        for key,value in mutations.items():
-            with self.subTest(key=key):
-                g=ec.codes_new_from_message(raw)
-                try:
-                    ec.codes_set(g,key,value)
-                    mutated=ec.codes_get_message(g)
-                finally:ec.codes_release(g)
-                with self.assertRaises(ValueError):w.decode(mutated,'gefs',INIT,210,'30','10u')
-
-    def test_actual_saved_gribs(self):
-        try:import eccodes
-        except ImportError:self.skipTest('native-weather-venv required')
-        samples=[('/tmp/noaa-fullrange-research/b-GUST-surface.grib2','gefs',210,'30','gust'),
-                 ('/tmp/noaa-fullrange-research/b-TCDC-low_cloud_layer.grib2','gefs',210,'30','lcc'),
-                 ('/tmp/noaa-fullrange-research/a-APCP-surface.grib2','gefs',210,'30','tp'),
-                 ('/tmp/ecmwf-fullrange-research/ifs-gust-6.grib','ecmwf_ens',6,'15','gust'),
-                 ('/tmp/ecmwf-fullrange-research/ifs-gust-168.grib','ecmwf_ens',168,'15','gust'),
-                 ('/tmp/ecmwf-fullrange-research/aifs-ens-pf-lcc.grib','aifs_ens',168,'32','lcc'),
-                 ('/tmp/ecmwf-fullrange-research/aifs-ens-cf-lcc.grib','aifs_ens',168,'00','lcc'),
-                 ('/tmp/ecmwf-fullrange-research/ifs-ef-tp.grib','ecmwf_ens',168,'41','tp'),
-                 ('/tmp/ecmwf-fullrange-research/aifs-ens-pf-tp.grib','aifs_ens',168,'38','tp')]
-        if not all(Path(s[0]).exists() for s in samples):self.skipTest('research samples unavailable')
-        for path,model,lead,member,name in samples:
-            with self.subTest(path=path):
-                result=w.decode(Path(path).read_bytes(),model,INIT,lead,member,name)
-                self.assertEqual(result['identity']['endStep'],lead)
-                self.assertEqual(result['identity']['proof_schema'],3)
-                self.assertTrue(w.validate_identity(result['identity'],model,INIT,lead,member,name))
-                print('REAL GRIB',model,lead,member,name,result['value'],result['identity']['startStep'],result['identity']['stepType'])
 
 if __name__=='__main__':unittest.main()

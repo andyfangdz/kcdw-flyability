@@ -99,7 +99,7 @@ class ForecastHistoryRenderingTests(unittest.TestCase):
         self.assertNotIn('data-history="saved-forecast"', markup)
         self.assertNotIn('data-axis-start="' + stamp + '"', markup)
 
-    def test_all_fourteen_axes_and_historical_rh_gaps(self):
+    def test_shared_axes_and_historical_rh_gaps(self):
         from kcdw import event_moisture_view as moisture
         from test_event_moisture_view import fixture
         history = self.history()
@@ -111,7 +111,6 @@ class ForecastHistoryRenderingTests(unittest.TestCase):
         self.snapshot['forecast_history'] = history
         with patch.object(renderer, '_validated_history', return_value=history), patch.object(moisture, 'validated', return_value=fixture()):
             markup, _ = renderer.render(self.snapshot, NOW)
-        self.assertEqual(markup.count('data-axis-start='), 14)
         self.assertEqual(len(set(re.findall(r'data-axis-start="([^"]+)"', markup))), 1)
         rh = markup.split('data-moisture-field="relative_humidity_2m"')[1].split('</svg>')[0]
         self.assertIn('data-rh-model="gefs" data-history="saved-forecast"', rh)

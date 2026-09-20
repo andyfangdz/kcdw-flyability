@@ -4,14 +4,22 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
+Environment=CLAUDE_BIN=/home/andy/.local/bin/claude
+Environment=PATH=/home/andy/projects/kcdw-flyability/var/runtime-venv/bin:/home/andy/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=GOOGLE_APPLICATION_CREDENTIALS=/home/andy/.config/kcdw-flyability/google-adc.json
+Environment=WN2_BIGQUERY_PROJECT=aviation-486817
+Environment=WN2_BIGQUERY_MAX_BYTES_BILLED=2199023255552
+Environment=WN3_BIGQUERY_PROJECT=aviation-486817
+Environment=WN3_BIGQUERY_MAX_BYTES_BILLED=8796093022208
+Environment=CLAUDE_CONFIG_DIR=/home/andy/.config/kcdw-flyability/claude
+UMask=0077
 Type=oneshot
-WorkingDirectory=/home/ubuntu/projects/kcdw-flyability
-Environment=HOME=/home/ubuntu
-Environment=PATH=/home/ubuntu/.local/bin:/home/ubuntu/.hermes/node/bin:/usr/local/bin:/usr/bin:/bin
-ExecStart=/usr/bin/flock -n var/events-update.lock /usr/bin/python3 -m kcdw.event_update --var var
-TimeoutStartSec=15min
+WorkingDirectory=/home/andy/projects/kcdw-flyability
+Environment=HOME=/home/andy
+ExecStart=/usr/bin/flock -n var/events-update.lock /home/andy/projects/kcdw-flyability/var/runtime-venv/bin/python -m kcdw.event_update --var var
+TimeoutStartSec=2h
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/home/ubuntu/projects/kcdw-flyability/var /home/ubuntu/.claude /home/ubuntu/.claude.json
+ReadWritePaths=/home/andy/projects/kcdw-flyability/var /home/andy/.config/kcdw-flyability/claude

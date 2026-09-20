@@ -76,7 +76,8 @@ def _row(row, collected):
     current, previous = row['current'], row.get('previous')
     v = current['values']
     age = int((collected - parse_time(current['run'])).total_seconds() // 3600)
-    gust = '' if v['gust_kt'] is None else f' G{v["gust_kt"]:.0f}'
+    gust = '<small>Gust unavailable</small>' if v['gust_kt'] is None else f' G{v["gust_kt"]:.0f}'
+    direction = 'Variable' if v['wind_dir_deg'] is None else f"{v['wind_dir_deg']:03d}°"
     was = ''
     if previous:
         p = previous['values']
@@ -86,7 +87,7 @@ def _row(row, collected):
             f'<td>{escape(_run(current["run"]))}<small>{age} h old</small></td>'
             f'<td>{v["low_cloud_pct"]}%<small>then {v["later_low_cloud_pct"]}%</small></td>'
             f'<td>{_feet(v["base_ft"])}<small>then {_feet(v["later_base_ft"])}</small></td>'
-            f'<td>{v["wind_dir_deg"]:03d}° {v["wind_kt"]:.0f} kt{gust}</td>'
+            f'<td>{direction} {v["wind_kt"]:.0f} kt{gust}</td>'
             f'<td>{v["rain_mm"]:g} mm</td>'
             f'<td><span class="matrix-change" data-change="{escape(row["change"])}">{CHANGES[row["change"]]}</span>{was}</td>'
             f'<td><span class="matrix-read">{escape(READS[v["read"]][0])}</span></td></tr>')
@@ -112,13 +113,13 @@ def render_matrix(snapshot, now):
                 f'<p class="eyebrow">Model scorecard · {escape(packet["window"]["kind"])} {escape(window)}</p>'
                 f'<h2 id="model-matrix-title">{escape(headline(rows))}</h2>'
                 f'<p class="matrix-summary">{escape(summary(rows))}</p>'
-                f'<div class="table-wrap"><table><caption>Latest run of each deterministic model for {escape(window)}; '
+                f'<div class="table-wrap"><table><caption>Latest run of each model; WN3 ensemble mean, others deterministic for {escape(window)}; '
                 f'“then” is {end:%H:%M}–{escape(later)}. Estimated base is not a ceiling.</caption>'
                 '<thead><tr><th scope="col">Model</th><th scope="col">Run</th><th scope="col">Low cloud</th>'
                 '<th scope="col">Est. base</th><th scope="col">Wind</th><th scope="col">Rain</th>'
                 '<th scope="col">Vs previous run</th><th scope="col">Screen</th></tr></thead>'
                 f'<tbody>{body}</tbody></table></div>'
-                f'<details><summary>Scorecard method, thresholds &amp; limits</summary><p>Each row is bound to the model run requested from '
+                f'<details><summary>Scorecard method, thresholds &amp; limits</summary><p>WN3 is preferred model guidance and uses its native response-bound ensemble mean; direction is derived from mean u/v components, not a direction percentile. WN3 has no published gust field. Other rows are bound to the model run requested from '
                 f'Open-Meteo’s single-runs API (CC BY 4.0); supplemental guidance, not an official aviation product. Low cloud is the mean of '
                 f'hourly low-cloud cover; wind is the vector-mean direction and mean speed with the highest hourly gust; rain sums the hours ending '
                 f'inside the window. Estimated base is the lowest hourly 2 m temperature–dew-point spread × 410 ft/°C: a convective-mixing estimate '

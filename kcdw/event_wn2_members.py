@@ -1,5 +1,8 @@
 """WeatherNext 2 member screens for the expected flight window.
 
+Production uses run-bound BigQuery packets (version 2). The legacy collector and
+version 1 validator below remain for archived Open-Meteo packets only.
+
 Open-Meteo serves all 64 WeatherNext 2 members; the legacy comparator keeps only
 their mean and standard deviation. This packet reduces the members to counts and
 quantiles at the model's native six-hour valid times that bracket the flight,
@@ -79,7 +82,7 @@ def _values(columns: dict[int, list], index: int, name: str) -> list[float]:
     return values
 
 
-def collect_members(client, snapshot: dict, now: datetime) -> dict | None:
+def collect_legacy_members(client, snapshot: dict, now: datetime) -> dict | None:
     start, end, kind = flight_window(snapshot)
     if now.astimezone(UTC) >= end:
         return None
@@ -138,6 +141,8 @@ def validate_members(packet, snapshot: dict) -> dict:
     def require(condition):
         if not condition:
             raise ValueError('invalid WeatherNext 2 member packet')
+    if isinstance(packet, dict) and packet.get('version') == 2:
+        return validate_bigquery_members(packet, snapshot)
     require(isinstance(packet, dict) and packet.get('version') == VERSION and packet.get('model_id') == MODEL_ID)
     require(packet.get('members') == MEMBERS and packet.get('snapshot_collected_at') == snapshot['collected_at'])
     require(packet.get('thresholds') == THRESHOLDS and packet.get('run_binding') == 'latest-advertised; not response-bound')
@@ -163,4 +168,94 @@ def validate_members(packet, snapshot: dict) -> dict:
     require(number(packet['rain'].get('p90_mm')) and 0 <= packet['rain']['p90_mm'] <= 500)
     grid = packet.get('grid_point')
     require(isinstance(grid, dict) and number(grid.get('latitude')) and number(grid.get('longitude')))
+    return packet
+
+
+BQ_THRESHOLDS = {k: v for k, v in THRESHOLDS.items() if k != 'cloudy_pct'}
+
+
+def collect_members(client, snapshot: dict, now: datetime, *, store=None) -> dict | None:
+    """Collect native, run-bound members; WN3 supplies primary cloud guidance."""
+    from .weathernext2_bigquery import BigQueryStore, SOURCE_URL, validate_rows
+    start, end, kind = flight_window(snapshot)
+    if now.astimezone(UTC) >= end:
+        return None
+    times = sample_times(start, end)
+    lat, lon = snapshot['airport']['latitude'], snapshot['airport']['longitude']
+    store = store or BigQueryStore()
+    runs = store.candidates(now, lat, lon)
+    if not runs:
+        raise ValueError('no fresh WN2 run available')
+    init = runs[0]
+    if not timedelta(0) <= now-init <= timedelta(hours=24):
+        raise ValueError('stale or future WN2 run')
+    data = store.fetch(init, times, lat, lon)
+    validate_rows(data['rows'], init, times, lat, lon)
+    samples, rain_totals = [], {str(m): 0.0 for m in range(MEMBERS)}
+    for row in data['rows']:
+        members = row['members']
+        wind = lambda m, height: math.hypot(m['u'+height], m['v'+height]) * 1.9438444924406
+        # Meteorological direction is the direction the wind comes FROM.
+        directions = [(math.degrees(math.atan2(-m['u10'], -m['v10'])) % 360)
+                      for m in members if math.hypot(m['u10'], m['v10']) > 0]
+        samples.append({'at': iso_z(parse_time(row['valid_time'])),
+                        'wind_10m_kt': _fan([wind(m, '10') for m in members]),
+                        'wind_100m_kt': _fan([wind(m, '100') for m in members]),
+                        'pressure_hpa': _fan([m['pressure']/100 for m in members]),
+                        'sector': {'count': sum(BQ_THRESHOLDS['sector_from_deg'] <= d <= BQ_THRESHOLDS['sector_to_deg'] for d in directions), 'n': MEMBERS}})
+        # Each value is the preceding six hours. Include only intervals that
+        # overlap the flight, and label the complete enclosing interval.
+        at = parse_time(row['valid_time'])
+        if at > start and at-NATIVE_STEP < end:
+            for m in members:
+                # Small negative neural precipitation predictions are clipped
+                # to zero; raw values are bounded and retained in the cache.
+                rain_totals[m['member']] += max(0.0, m['rain']) * 1000
+    totals = list(rain_totals.values())
+    packet = {'version': 2, 'model_id': MODEL_ID, 'members': MEMBERS,
+              'snapshot_collected_at': snapshot['collected_at'], 'fetched_at': iso_z(now),
+              'init_time': iso_z(init), 'run_binding': 'BigQuery init_time',
+              'window': {'start': iso_z(start), 'end': iso_z(end), 'kind': kind},
+              'thresholds': dict(BQ_THRESHOLDS), 'grid_point': {'latitude': data['rows'][0]['latitude'], 'longitude': data['rows'][0]['longitude']},
+              'samples': samples, 'rain': {'count': sum(v >= BQ_THRESHOLDS['rain_mm'] for v in totals), 'n': MEMBERS,
+                                         'p90_mm': _quantile(totals, 90), 'start': iso_z(times[0]), 'end': iso_z(times[-1])},
+              'source_url': SOURCE_URL, 'license': 'CC BY 4.0', 'bigquery': data['provenance']}
+    return validate_bigquery_members(packet, snapshot)
+
+
+def validate_bigquery_members(packet, snapshot):
+    from .weathernext2_bigquery import SOURCE_URL, grid, validate_provenance
+    def require(condition):
+        if not condition:
+            raise ValueError('invalid run-bound WN2 member packet')
+    start, end, kind = flight_window(snapshot)
+    times = sample_times(start, end)
+    require(packet.get('version') == 2 and packet.get('model_id') == MODEL_ID and packet.get('members') == MEMBERS)
+    require(packet.get('snapshot_collected_at') == snapshot['collected_at'])
+    require(packet.get('window') == {'start': iso_z(start), 'end': iso_z(end), 'kind': kind})
+    require(packet.get('thresholds') == BQ_THRESHOLDS and packet.get('run_binding') == 'BigQuery init_time')
+    require(packet.get('source_url') == SOURCE_URL and packet.get('license') == 'CC BY 4.0')
+    init, fetched = parse_time(packet['init_time']), parse_time(packet['fetched_at'])
+    require(timedelta(0) <= fetched-init <= timedelta(hours=24) and abs(fetched-parse_time(snapshot['collected_at'])) <= timedelta(minutes=20))
+    require(init.hour % 6 == 0 and init.minute == init.second == init.microsecond == 0)
+    require(all(6 <= (t-init).total_seconds()/3600 <= 360 and (t-init).total_seconds() % 21600 == 0 for t in times))
+    lat, lon = grid(snapshot['airport']['latitude'], snapshot['airport']['longitude'])
+    require(packet.get('grid_point') == {'latitude': lat, 'longitude': lon})
+    validate_provenance(packet['bigquery'])
+    samples = packet['samples']
+    require([s['at'] for s in samples] == [iso_z(t) for t in times])
+    number = lambda v: type(v) in (int, float) and math.isfinite(v)
+    def count(c):
+        require(type(c.get('count')) is int and type(c.get('n')) is int and c['n'] == MEMBERS and 0 <= c['count'] <= MEMBERS)
+    for sample in samples:
+        require('cloudy' not in sample and 'low_cloud_pct' not in sample)
+        for name, low, high in (('wind_10m_kt', 0, 300), ('wind_100m_kt', 0, 300), ('pressure_hpa', 750, 1150)):
+            fan = sample[name]
+            require(type(fan.get('n')) is int and fan['n'] == MEMBERS)
+            require(all(number(fan.get(q)) for q in ('p10', 'p50', 'p90')) and low <= fan['p10'] <= fan['p50'] <= fan['p90'] <= high)
+        count(sample['sector'])
+    rain = packet['rain']
+    count(rain)
+    require(rain.get('start') == iso_z(times[0]) and rain.get('end') == iso_z(times[-1]))
+    require(number(rain.get('p90_mm')) and 0 <= rain['p90_mm'] <= 500*(len(times)-1))
     return packet

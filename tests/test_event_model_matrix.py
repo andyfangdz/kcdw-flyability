@@ -184,10 +184,10 @@ class ModelMatrixTests(unittest.TestCase):
         for mutate in (lambda p: p.update(version=2),
                        lambda p: p.update(snapshot_collected_at='2026-09-18T20:30:00Z'),
                        lambda p: p['thresholds'].update(base_ft=1000),
-                       lambda p: p['models'][0]['current']['values'].update(read='rain'),
-                       lambda p: p['models'][0]['current']['values'].update(low_cloud_pct=140),
-                       lambda p: p['models'][0].update(change='worse'),
-                       lambda p: p['models'][0]['current'].update(run='2026-09-19T12:00:00Z'),
+                       lambda p: p['models'][1]['current']['values'].update(read='rain'),
+                       lambda p: p['models'][1]['current']['values'].update(low_cloud_pct=140),
+                       lambda p: p['models'][1].update(change='worse'),
+                       lambda p: p['models'][1]['current'].update(run='2026-09-19T12:00:00Z'),
                        lambda p: p['models'].reverse()):
             bad = copy.deepcopy(packet)
             mutate(bad)
@@ -218,6 +218,82 @@ class ModelMatrixTests(unittest.TestCase):
         self.assertIn('Estimates, not ceilings', card['detail'])
         self.assertIsNone(ceiling_card(SNAPSHOT))
 
+class NativeWN3MatrixTests(unittest.TestCase):
+    def snapshot(self):
+        from test_weathernext3 import fixture, RUN
+        data = fixture()
+        shift = timedelta(days=6)
+        for key in ('actual_run_utc', 'requested_init_utc', 'attempted_init_utc', 'fetched_at'):
+            data['status'][key] = matrix.iso_z(matrix.parse_time(data['status'][key]) + shift)
+        for key in ('requested_init_utc', 'response_init_utc'):
+            data['forecast'][key] = matrix.iso_z(matrix.parse_time(data['forecast'][key]) + shift)
+        data['forecast']['valid_time_utc'] = [matrix.iso_z(matrix.parse_time(t)+shift) for t in data['forecast']['valid_time_utc']]
+        data['forecast']['query']['retrieved_at'] = data['status']['fetched_at']
+        return dict(SNAPSHOT, weathernext3={'ok': True, 'data': data})
 
-if __name__ == '__main__':
+    def test_native_peer_preferred_with_direction_and_unknown_gust(self):
+        snapshot = self.snapshot()
+        packet = matrix.collect_matrix(client(), snapshot, NOW)
+        matrix.validate_matrix(packet, snapshot)
+        row = packet['models'][0]
+        self.assertEqual(row['key'], 'wn3')
+        self.assertTrue(row['ok'])
+        self.assertEqual(row['current']['values']['wind_dir_deg'], 214)
+        self.assertIsNone(row['current']['values']['gust_kt'])
+        markup = render_matrix(dict(snapshot, model_matrix=packet), NOW)
+        self.assertIn('WN3 · preferred', markup)
+        self.assertIn('Gust unavailable', markup)
+        self.assertIn('5 models split', markup)
+        bad = copy.deepcopy(packet)
+        bad['models'][0]['current']['values']['wind_kt'] = 20
+        with self.assertRaises(ValueError):
+            matrix.validate_matrix(bad, snapshot)
+
+    def test_stale_and_incomplete_native_sources_do_not_count(self):
+        for kind in ('stale', 'incomplete', 'unavailable'):
+            snapshot = self.snapshot()
+            if kind == 'stale':
+                snapshot['weathernext3']['data']['status']['actual_run_utc'] = '2026-09-16T12:00:00Z'
+            elif kind == 'incomplete':
+                snapshot['weathernext3']['data']['forecast']['fields'].pop('temperature_2m')
+            else:
+                snapshot['weathernext3']['ok'] = False
+            packet = matrix.collect_matrix(client(), snapshot, NOW)
+            self.assertFalse(packet['models'][0]['ok'])
+            matrix.validate_matrix(packet, snapshot)
+
+    def test_calm_direction_is_unknown_without_dropping_model(self):
+        snapshot = self.snapshot()
+        fields = snapshot['weathernext3']['data']['forecast']['fields']
+        for name in ('u_component_of_wind_10m', 'v_component_of_wind_10m'):
+            fields[name]['mean'] = [0] * 360
+        packet = matrix.collect_matrix(client(), snapshot, NOW)
+        matrix.validate_matrix(packet, snapshot)
+        self.assertTrue(packet['models'][0]['ok'])
+        self.assertIsNone(packet['models'][0]['current']['values']['wind_dir_deg'])
+        self.assertIn('Variable', render_matrix(dict(snapshot, model_matrix=packet), NOW))
+
+    def test_distinct_native_runs_drive_history_not_repeated_refreshes(self):
+        import tempfile
+        from pathlib import Path
+        snapshot = self.snapshot()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'matrix.json'
+            first = matrix.collect_matrix(client(), snapshot, NOW, path)
+            repeated = matrix.collect_matrix(client(), snapshot, NOW, path)
+            self.assertIsNone(repeated['models'][0]['previous'])
+            data = snapshot['weathernext3']['data']
+            for key in ('actual_run_utc', 'attempted_init_utc', 'requested_init_utc', 'fetched_at'):
+                data['status'][key] = '2026-09-18T18:00:00Z'
+            data['forecast']['query']['retrieved_at'] = data['status']['fetched_at']
+            for key in ('response_init_utc', 'requested_init_utc'):
+                data['forecast'][key] = '2026-09-18T18:00:00Z'
+            data['forecast']['valid_time_utc'] = [matrix.iso_z(matrix.parse_time(t)+timedelta(hours=6)) for t in data['forecast']['valid_time_utc']]
+            newer = matrix.collect_matrix(client(), snapshot, NOW, path)
+            matrix.validate_matrix(newer, snapshot)
+            self.assertEqual(newer['models'][0]['previous'], first['models'][0]['current'])
+            self.assertEqual(newer['models'][0]['change'], 'steady')
+
+
+if __name__ == "__main__":
     unittest.main()

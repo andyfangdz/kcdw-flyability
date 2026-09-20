@@ -189,36 +189,6 @@ class EventChangeTests(unittest.TestCase):
         self.assertEqual(result['previous_collected_at'], iso_z(OLD))
         self.assertIn('ifs', result['moisture'])
 
-    def test_actual_saved_baseline_when_available(self):
-        runs = Path(__file__).resolve().parents[1]/'var/events/commercial-checkride/runs'
-        previous = runs/'20260915T025019Z.267029/snapshot.json'
-        current = runs/'20260915T112809Z.625333/snapshot.json'
-        if not previous.is_file() or not current.is_file():
-            self.skipTest('optional real local archives unavailable')
-        old = json.loads(previous.read_text()); live = json.loads(current.read_text())
-        self.save(old, previous.parent.name)
-        now = datetime.fromisoformat(live['collected_at'].replace('Z', '+00:00'))
-        result = build_event_changes(live, self.root, now)
-        self.assertIsNotNone(result)
-        self.assertEqual(result['previous_collected_at'], old['collected_at'])
-        gfs = result['guidance']['gfs']
-        self.assertEqual([gfs[s]['low_cloud']['noon']['value'] for s in ('previous','current')], [100, 0])
-        rh = result['moisture']['gfs']
-        self.assertEqual([rh[s]['samples']['noon']['surface'] for s in ('previous','current')], [96, 51])
-        wn3 = result['guidance']['wn3']
-        self.assertAlmostEqual(wn3['previous']['rain_window']['mean'], 1.75, places=2)
-        self.assertAlmostEqual(wn3['current']['rain_window']['mean'], 2.676, places=3)
-        # Bind exact unrounded totals to the saved raw hourly endpoints, too.
-        from kcdw.ensemble_trends import _event, _time
-        _, _, rain_times = _event(live['event'])
-        for side, source in (('previous', old), ('current', live)):
-            forecast = source['weathernext3']['data']['forecast']
-            axis = [_time(t) for t in forecast['valid_time_utc']]
-            expected = sum(forecast['fields']['precipitation_1h']['mean'][axis.index(t)] for t in rain_times)
-            self.assertEqual(wn3[side]['rain_window']['mean'], expected)
-        self.assertIsNotNone(validate_event_changes(result, live, now))
-        self.assertLessEqual(len(json.dumps(result).encode()), 16384)
-
 
 if __name__ == '__main__':
     unittest.main()

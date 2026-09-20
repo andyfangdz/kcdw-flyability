@@ -39,7 +39,7 @@ class FakeClient:
 
 class Wn2MemberTests(unittest.TestCase):
     def packet(self, **kwargs):
-        return wn2.collect_members(FakeClient(response(**kwargs)), SNAP, NOW)
+        return wn2.collect_legacy_members(FakeClient(response(**kwargs)), SNAP, NOW)
 
     def test_samples_are_native_steps_bracketing_the_flight(self):
         start, end = datetime(2026, 9, 24, 14, tzinfo=UTC), datetime(2026, 9, 24, 16, tzinfo=UTC)
@@ -48,7 +48,7 @@ class Wn2MemberTests(unittest.TestCase):
 
     def test_collect_reduces_members_to_counts_and_quantiles(self):
         fake = FakeClient(response())
-        packet = wn2.collect_members(fake, SNAP, NOW)
+        packet = wn2.collect_legacy_members(fake, SNAP, NOW)
         wn2.validate_members(packet, SNAP)
         self.assertIn('models=google_weathernext2_ensemble', fake.urls[0])
         self.assertIn('start_hour=2026-09-24T12%3A00', fake.urls[0])
@@ -65,18 +65,18 @@ class Wn2MemberTests(unittest.TestCase):
     def test_collect_fails_closed_on_bad_contracts(self):
         for payload in (response(members=65), response(drop=20), dict(response(), utc_offset_seconds=-14400), dict(response(), latitude=45.0)):
             with self.assertRaises(ValueError):
-                wn2.collect_members(FakeClient(payload), SNAP, NOW)
+                wn2.collect_legacy_members(FakeClient(payload), SNAP, NOW)
         bad = response()
         bad['hourly_units']['wind_speed_10m_member03'] = 'km/h'
         with self.assertRaises(ValueError):
-            wn2.collect_members(FakeClient(bad), SNAP, NOW)
+            wn2.collect_legacy_members(FakeClient(bad), SNAP, NOW)
         shifted = response()
         shifted['hourly']['time'] = [t + 3600 for t in shifted['hourly']['time']]
         with self.assertRaises(ValueError):
-            wn2.collect_members(FakeClient(shifted), SNAP, NOW)
+            wn2.collect_legacy_members(FakeClient(shifted), SNAP, NOW)
         with self.assertRaises(ValueError):
-            wn2.collect_members(FakeClient(response(), init=NOW + timedelta(hours=6)), SNAP, NOW)
-        self.assertIsNone(wn2.collect_members(FakeClient(response()), SNAP, datetime(2026, 9, 24, 17, tzinfo=UTC)))
+            wn2.collect_legacy_members(FakeClient(response(), init=NOW + timedelta(hours=6)), SNAP, NOW)
+        self.assertIsNone(wn2.collect_legacy_members(FakeClient(response()), SNAP, datetime(2026, 9, 24, 17, tzinfo=UTC)))
         self.assertEqual(self.packet(drop=10)['samples'][0]['cloudy']['n'], 54)
 
     def test_validation_rejects_tampering(self):

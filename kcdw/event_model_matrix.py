@@ -1,4 +1,4 @@
-"""Run-pinned deterministic model matrix for the expected flight window.
+"""Run-pinned model matrix for the expected flight window.
 
 One row per global model from Open-Meteo's single-runs API, so every value is
 bound to the explicit ``run`` requested; no rolling response is relabeled. Each
@@ -23,6 +23,7 @@ from .common import UTC, atomic_write, iso_z, parse_time
 from .events import TZ, Event
 
 VERSION = 1
+WN3_SPEC = ('wn3', 'WN3 · preferred', 12)
 API = 'https://single-runs-api.open-meteo.com/v1/forecast'
 MODELS = (
     ('ifs', 'ECMWF IFS', 'ecmwf_ifs'),
@@ -102,7 +103,7 @@ def tone(values: dict) -> str:
     return 'marginal' if result == 'good' and gust is not None and gust >= THRESHOLDS['gust_kt'] else result
 
 
-def summarize(raw: dict, start: datetime, end: datetime) -> dict | None:
+def summarize(raw: dict, start: datetime, end: datetime, *, allow_unknown_direction=False) -> dict | None:
     """Window statistics from one run-pinned response, or None when the run does not cover the window."""
     hourly = raw.get('hourly') if isinstance(raw, dict) else None
     if not isinstance(hourly, dict) or not isinstance(hourly.get('time'), list):
@@ -128,15 +129,15 @@ def summarize(raw: dict, start: datetime, end: datetime) -> dict | None:
             return [None] * len(moments)
         return [_number(column[axis[t]]) for t in moments]
 
-    if any(v is None for key in REQUIRED for v in series(key, instants)):
+    if any(v is None for key in REQUIRED if not (allow_unknown_direction and key == 'wind_direction_10m') for v in series(key, instants)):
         return None
     if any(v is None for key in ('cloud_cover_low', 'temperature_2m', 'dew_point_2m') for v in series(key, later)):
         return None
     base = lambda moments: min(max(0.0, t - d) * FEET_PER_DEGREE
                                for t, d in zip(series('temperature_2m', moments), series('dew_point_2m', moments)))
     speeds, directions = series('wind_speed_10m', instants), series('wind_direction_10m', instants)
-    east = sum(s * math.sin(math.radians(d)) for s, d in zip(speeds, directions))
-    north = sum(s * math.cos(math.radians(d)) for s, d in zip(speeds, directions))
+    east = sum(s * math.sin(math.radians(d)) for s, d in zip(speeds, directions) if d is not None)
+    north = sum(s * math.cos(math.radians(d)) for s, d in zip(speeds, directions) if d is not None)
     gusts = [v for v in series('wind_gusts_10m', instants) if v is not None]
     values = {
         'low_cloud_pct': round(_mean(series('cloud_cover_low', instants))),
@@ -144,7 +145,7 @@ def summarize(raw: dict, start: datetime, end: datetime) -> dict | None:
         'base_ft': int(round(base(instants), -2)),
         'later_low_cloud_pct': round(_mean(series('cloud_cover_low', later))),
         'later_base_ft': int(round(base(later), -2)),
-        'wind_dir_deg': int(round(math.degrees(math.atan2(east, north)) % 360)) % 360,
+        'wind_dir_deg': None if allow_unknown_direction and (None in directions or math.hypot(east, north) < 1e-6) else int(round(math.degrees(math.atan2(east, north)) % 360)) % 360,
         'wind_kt': round(_mean(speeds), 1),
         'gust_kt': round(max(gusts), 1) if len(gusts) == len(instants) else None,
         'rain_mm': round(sum(series('precipitation', instants[1:])), 2),
@@ -232,6 +233,36 @@ def collect_model(client, spec, runs, days, start, end, latitude, longitude, dea
     return row
 
 
+def collect_wn3(snapshot, now, start, end, cached):
+    """Reuse the validated native run; retain distinct covering runs for changes."""
+    from .weathernext3 import mean_hourly
+    row = dict(zip(('key', 'label', 'model_id'), WN3_SPEC), ok=False)
+    row['error'] = 'WN3 unavailable or incomplete for the window'
+    try:
+        source = snapshot['weathernext3']
+        if source.get('ok') is not True:
+            return row
+        data = source['data']
+        packet = summarize(mean_hourly(data, now), start, end, allow_unknown_direction=True)
+        if packet is None:
+            return row
+        run = data['forecast']['response_init_utc']
+        current = dict(packet, run=run, source_url='https://developers.google.com/weathernext/guides/models')
+        previous = sorted((v for stamp, v in cached.items() if v and
+                           now - timedelta(hours=54) <= parse_time(stamp) < parse_time(run)),
+                          key=lambda v: v['run'], reverse=True)
+        cached[run] = current
+        for stamp in list(cached):
+            if parse_time(stamp) < now - timedelta(hours=54):
+                del cached[stamp]
+        row.update(ok=True, current=current, previous=previous[0] if previous else None)
+        row['change'] = change(current, row['previous'])
+        row.pop('error')
+    except (ValueError, KeyError, TypeError, AttributeError):
+        pass
+    return row
+
+
 def collect_matrix(client, snapshot: dict, now: datetime, cache_path=None, sleep=time.sleep) -> dict | None:
     start, end, kind = flight_window(snapshot)
     now = now.astimezone(UTC)
@@ -252,6 +283,7 @@ def collect_matrix(client, snapshot: dict, now: datetime, cache_path=None, sleep
             rows = [attempt(spec) if row['retry'] else row for spec, row in zip(MODELS, rows)]
     for row in rows:
         del row['retry']
+    rows.insert(0, collect_wn3(snapshot, now, start, end, cache['entries'].setdefault('wn3', {})))
     if cache_path is not None:
         atomic_write(cache_path, json.dumps(cache, allow_nan=False, separators=(',', ':')) + '\n')
     if not any(row['ok'] for row in rows):
@@ -260,7 +292,7 @@ def collect_matrix(client, snapshot: dict, now: datetime, cache_path=None, sleep
             'snapshot_collected_at': snapshot['collected_at'],
             'event': {k: snapshot['event'][k] for k in ('slug', 'date', 'window')},
             'window': window, 'thresholds': dict(THRESHOLDS), 'models': rows,
-            'source': 'Open-Meteo single-runs API; each row bound to its requested run', 'license': 'CC BY 4.0'}
+            'source': 'WN3 native response-bound ensemble means; Open-Meteo single-runs deterministic guidance', 'license': 'Open-Meteo: CC BY 4.0; WN3: Google experimental forecast terms'}
 
 
 def validate_matrix(packet, snapshot: dict) -> dict:
@@ -276,12 +308,16 @@ def validate_matrix(packet, snapshot: dict) -> dict:
                                      'later_end': iso_z(end + timedelta(hours=LATER_HOURS)), 'kind': kind})
     require(packet.get('thresholds') == THRESHOLDS)
     rows = packet.get('models')
-    require(isinstance(rows, list) and [r.get('key') if isinstance(r, dict) else None for r in rows] == [m[0] for m in MODELS])
+    specs = (WN3_SPEC, *MODELS) if isinstance(rows, list) and rows and isinstance(rows[0], dict) and rows[0].get('key') == 'wn3' else MODELS
+    require(isinstance(rows, list) and [r.get('key') if isinstance(r, dict) else None for r in rows] == [m[0] for m in specs])
     collected = parse_time(packet['collected_at'])
-    for row, (key, label, model_id) in zip(rows, MODELS):
+    for row, (key, label, model_id) in zip(rows, specs):
         require(row.get('label') == label and row.get('model_id') == model_id and isinstance(row.get('ok'), bool))
         if not row['ok']:
             continue
+        if key == 'wn3':
+            expected = collect_wn3(snapshot, collected, start, end, {})
+            require(expected['ok'] and row.get('current') == expected['current'])
         runs = [row.get('current'), row.get('previous')]
         require(isinstance(runs[0], dict) and (runs[1] is None or isinstance(runs[1], dict)))
         for item in filter(None, runs):
@@ -291,7 +327,7 @@ def validate_matrix(packet, snapshot: dict) -> dict:
             require(isinstance(values, dict))
             for name, low, high, optional in (('low_cloud_pct', 0, 100, False), ('later_low_cloud_pct', 0, 100, False),
                                               ('mid_cloud_pct', 0, 100, True), ('base_ft', 0, 40000, False),
-                                              ('later_base_ft', 0, 40000, False), ('wind_dir_deg', 0, 359, False),
+                                              ('later_base_ft', 0, 40000, False), ('wind_dir_deg', 0, 359, key == 'wn3'),
                                               ('wind_kt', 0, 150, False), ('gust_kt', 0, 200, True), ('rain_mm', 0, 500, False),
                                               ('rh925_pct', 0, 120, True), ('mslp_hpa', 850, 1100, True)):
                 value = values.get(name)

@@ -98,12 +98,3 @@ class GfsComparisonTests(unittest.TestCase):
                 self.assertEqual(collect.call_args.args[1:3], (max(start, utc_day), end))
                 self.assertEqual(result['range']['start'], event_ensemble.iso_z(start))
                 self.assertTrue(result['gfs']['ok'])
-
-    def test_collector_wires_independent_gfs_without_ensemble_count_change(self):
-        expected = {'ok': False, 'data': None, 'error': 'GFS offline'}
-        with patch.object(event_ensemble, 'collect_gfs', return_value=expected, create=True) as collect:
-            snapshot = event_ensemble.collect_event(FakeClient(), EVENT, NOW)
-        self.assertEqual(snapshot['gfs'], expected)
-        self.assertEqual(len(snapshot['models']), len(event_ensemble.MODELS))
-        collect.assert_called_once()
-        self.assertEqual(collect.call_args.args[1:3], event_ensemble.event_range(EVENT, NOW))

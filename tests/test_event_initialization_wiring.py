@@ -2,7 +2,6 @@
 import copy
 import unittest
 from unittest.mock import patch
-from kcdw import event_renderer
 from kcdw.event_narrative_evidence import build_event_evidence
 import test_event_comparison as comparison
 from test_events import NOW
@@ -27,13 +26,3 @@ class InitializationWiringTests(unittest.TestCase):
             evidence=build_event_evidence(comparison.ComparisonTests().snapshot(),NOW)
         self.assertNotIn('model_initializations',evidence)
         collect.assert_not_called()
-
-    def test_renderer_includes_visible_section_and_navigation_without_readiness_change(self):
-        s=comparison.ComparisonTests().snapshot()
-        _,before=event_renderer.render(s,NOW)
-        fragment='<section id="model-initializations"><h2>Model initialization times</h2><p>Likely source: unverified</p></section>'
-        with patch('kcdw.event_renderer.render_initializations',return_value=fragment,create=True):
-            page,after=event_renderer.render(s,NOW)
-        self.assertIn(fragment,page)
-        self.assertIn('href="#model-initializations"',page)
-        self.assertEqual(before,after)

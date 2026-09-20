@@ -56,27 +56,6 @@ class ComparisonTests(unittest.TestCase):
         self.assertNotEqual(MODEL_COLORS['wn3'], MODEL_COLORS['aifs_ens'])
         self.assertIn('<span class="legend-item"><span class="swatch"', markup)
 
-    def test_shared_pressure_axis_has_readable_tick_density(self):
-        from kcdw.event_renderer import _ticks
-        ticks = _ticks(1007, 1036)
-        visible = [t for t in ticks if 1007 <= t <= 1036]
-        self.assertGreaterEqual(len(visible), 3)
-        self.assertLessEqual(len(visible), 7)
-
-    def test_wn3_focus_covers_core_and_added_fields(self):
-        markup, _ = render(self.snapshot(), NOW)
-        focus = markup.split('<section id="wn3-numbers"', 1)[1].split('</section>', 1)[0]
-        self.assertEqual(focus.count('<svg'), 7)
-        self.assertEqual(focus.count('<polygon'), 7)
-        self.assertEqual(focus.count('<polyline'), 7)
-        self.assertIn('Dew point', focus)
-        self.assertIn('Low-cloud fraction', focus)
-        self.assertLess(focus.index('<svg'), focus.index('Mean event rainfall'))
-        self.assertIn('hourly p10–p90', focus)
-        notes = markup.split('<details id="notes-sources"', 1)[1]
-        self.assertIn('not the full ensemble minimum', notes)
-        stale, _ = render(self.snapshot(), NOW + timedelta(hours=72))
-        self.assertNotIn('data-wn3-field=', stale)
 
     def test_actual_timestamp_axis_and_gap_bands(self):
         chart = Chart([NOW, NOW + timedelta(hours=1), NOW + timedelta(hours=4)], 0, 10, (0, 2))

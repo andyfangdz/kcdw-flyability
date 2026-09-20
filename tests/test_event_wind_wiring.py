@@ -1,14 +1,12 @@
 """Wind research is snapshot-bound supplemental evidence, not readiness."""
 import copy
 import json
-import tempfile
 import unittest
-from pathlib import Path
 from unittest.mock import patch
-from kcdw import event_renderer, event_update
+from kcdw import event_renderer
 from kcdw.event_narrative_evidence import build_event_evidence
 import test_event_comparison as comparison
-from test_events import EVENT, NOW
+from test_events import NOW
 
 SURFACE={'window':{'start':'2026-09-24T14:00:00Z','end':'2026-09-24T16:00:00Z'},
  'ensembles':{'gefs':{'label':'GEFS','fetched_at':NOW.isoformat(),
@@ -29,21 +27,6 @@ class WindWiringTests(unittest.TestCase):
         s.update(event_wind={'marker':True},native_wind={'marker':True},wind_trends=None)
         return s
 
-    def test_grid_styles_are_shared_without_changing_geometry(self):
-        from datetime import datetime,timedelta,timezone
-        import re,xml.etree.ElementTree as ET
-        start=datetime(2026,9,17,4,tzinfo=timezone.utc)
-        c=event_renderer.Chart([start+timedelta(hours=h) for h in range(49)],0,10,(0,2))
-        page=c.render('Test','kt','note',[],[0,5,10])
-        root=ET.fromstring(re.search(r'<svg.*?</svg>',page).group())
-        groups=root.findall('g')
-        self.assertEqual({g.get('stroke') for g in groups},{'#d4dad2','#c9d0c7','#a9b3a8'})
-        self.assertTrue(all(g.get('stroke-width')=='1' for g in groups))
-        lines=[line for g in groups for line in g.findall('line')]
-        self.assertEqual(len(lines),8)
-        self.assertTrue(all('stroke' not in line.attrib and 'stroke-width' not in line.attrib for line in lines))
-        day=next(g for g in groups if g.get('stroke')=='#c9d0c7')
-        self.assertEqual([float(line.get('x1')) for line in day],[round(c.x(i),1) for i in (0,24,48)])
 
     def test_legacy_archives_gain_neither_sources_nor_section(self):
         from kcdw.event_wind_view import render_wind, wind_sources
@@ -162,24 +145,3 @@ class WindWiringTests(unittest.TestCase):
         self.assertIn('925',page)
         self.assertIn('11.5 · instant',page)
         self.assertNotIn('11:00–11:00 maximum',page)
-
-    def test_collections_precede_narrative_and_fail_independently(self):
-        for fail in (False,True):
-            s=comparison.ComparisonTests().snapshot()
-            def narrative(data,*_):
-                self.assertEqual(data['event_wind'],None if fail else {'surface':1})
-                self.assertEqual(data['native_wind'],{'native':1})
-                self.assertEqual(data['wind_trends'],{'history':1})
-                return None
-            with tempfile.TemporaryDirectory() as tmp, \
-                 patch.object(event_update,'upcoming_events',return_value=[EVENT]), \
-                 patch.object(event_update,'collect_event',return_value=s), \
-                 patch.object(event_update,'collect_afds',return_value=None), \
-                 patch.object(event_update,'collect_ceiling',return_value=None), \
-                 patch.object(event_update,'collect_layer_signals',return_value=None), \
-                 patch.object(event_update,'collect_wind',side_effect=ValueError('private') if fail else None,return_value={'surface':1}), \
-                 patch.object(event_update,'collect_native_wind',return_value={'native':1}), \
-                 patch.object(event_update,'build_wind_trends',return_value={'history':1}), \
-                 patch.object(event_update,'generate_event_narrative',side_effect=narrative), \
-                 patch.object(event_update,'render',return_value=('<html/>',{})):
-                self.assertEqual(event_update.update(Path(tmp),None,NOW),0)

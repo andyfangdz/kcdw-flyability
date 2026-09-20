@@ -9,12 +9,12 @@ The first three days show two-hour planning categories between 08:00 and 20:00 A
 ## Architecture
 
 1. `kcdw.collector` fetches each source independently with an explicit User-Agent, 15-second timeout, two limited retries, response-size limits, timestamps, and bounded retained fields. It also downloads the six latest NOAA/NWS MRMS quality-controlled base-reflectivity frames for a fixed eastern-US bounding box, rejects a loop whose newest frame is over 30 minutes old, decodes each bounded PNG with Pillow, and records frame validity/ingest times, KCDW's image pixel, nearest displayed-echo geometry, and 25/50 NM local-echo flags. `kcdw.ensemble_guidance` independently fetches 192 hours of version-pinned WeatherNext 2 and ECMWF AIFS-ENS means and standard-deviation spreads, validates exact fields/units/hour axes, and records the models' advertised initialization and availability metadata. Source failures are recorded separately in the snapshot. Publication requires usable forecast coverage through the next two hours and fresh aviation/context evidence. Empty successful responses and metadata alone cannot satisfy readiness.
-2. `kcdw.prompt` serializes that deterministic snapshot with stable key ordering, a 500 KB hard limit, and a rubric that treats the snapshot as a starting evidence packet and all fetched text as untrusted data rather than instructions. The agent chooses when live web research is useful to fill gaps, resolve conflicts, or check freshness; there is no fixed research checklist. Supplemental products must be issued by the snapshot assessment time, and material additions are attributed with source, product time, and URL in the narrative or summary. It maps each radar attachment to timestamped metadata and requires loop-based local/regional/upstream interpretation without unsupported precision. Fresh WeatherNext 3 is the preferred *model* guidance after 48 hours for available fields, with AIFS-ENS as an independent comparator/fallback and WeatherNext 2 secondary; neither outranks official NWS forecasts, AFD reasoning, SPC outlooks, or the established short-term aviation evidence hierarchy.
+2. `kcdw.prompt` serializes that deterministic snapshot with stable key ordering, a 500 KB hard limit, and a rubric that treats the snapshot as a starting evidence packet and all fetched text as untrusted data rather than instructions. The agent chooses when live web research is useful to fill gaps, resolve conflicts, or check freshness; there is no fixed research checklist. Supplemental products must be issued by the snapshot assessment time, and material additions are attributed with source, product time, and URL in the narrative or summary. It maps each radar attachment to timestamped metadata and requires loop-based local/regional/upstream interpretation without unsupported precision. Fresh WeatherNext 3 is the preferred *model* guidance after 48 hours for available fields, with AIFS-ENS as an independent comparator/fallback and WN2 native member diagnostics on the event page; neither outranks official NWS forecasts, AFD reasoning, SPC outlooks, or the established short-term aviation evidence hierarchy.
 3. `scripts/update_report.sh` takes a nonblocking `flock`, binds each radar attachment to exact consecutive snapshot metadata, decodes every size-capped PNG before use, records the CLI version, and invokes Claude Code non-interactively through `kcdw.claude_agent` (`claude --print --model claude-fable-5-1 --effort high --json-schema ... --restricted --strict-mcp-config --tools Read,WebSearch,WebFetch`), listing the ordered radar PNGs for the Read tool. Files without matching metadata, missing/extra filenames, symlinks, malformed images, and loops outside the two-to-six-frame contract fail closed before the agent runs. OAuth comes from the service user's existing CLI login; no API key is read or stored.
 4. `kcdw.validation` applies semantic checks beyond JSON Schema: exact dates/windows, no duplicates, 5-point scoring, length bounds, timestamps tied to the snapshot, and ordered/fresh radar metadata.
 5. `kcdw.renderer` HTML-escapes every model/source string. The updater stages the entire run, then atomically switches the current-run pointer only after the whole analysis succeeds. A failed collection, agent call, or validation leaves the last known-good report untouched.
 
-Data comes from the NOAA/NWS MRMS time-enabled base-reflectivity ImageServer; NWS points endpoint and its hourly/text/grid links; NWS OKX, PHI, BGM, ALY, BOX, and CTP AFD product listings/details; AWC three-hour METAR history, valid proxy TAFs, and airsigmet feed; NWS point alerts; SPC convective outlooks; Open-Meteo best-match extended guidance; and version-pinned WeatherNext 2 and AIFS-ENS ensemble-mean feeds via Open-Meteo. The six-frame radar loop covers longitude -82 to -73 and latitude 38 to 43, so it includes KCDW plus plausible upstream Pennsylvania/Ohio convection. KCDW has no routine TAF, so KTEB and KEWR are clearly treated as local proxies. Every Open-Meteo product is labeled supplemental model guidance, not official aviation guidance.
+Data comes from the NOAA/NWS MRMS time-enabled base-reflectivity ImageServer; NWS points endpoint and its hourly/text/grid links; NWS OKX, PHI, BGM, ALY, BOX, and CTP AFD product listings/details; AWC three-hour METAR history, valid proxy TAFs, and airsigmet feed; NWS point alerts; SPC convective outlooks; Open-Meteo best-match extended guidance; and AIFS-ENS ensemble-mean feeds via Open-Meteo. WeatherNext 3 point statistics and WeatherNext 2 native member diagnostics use BigQuery. The six-frame radar loop covers longitude -82 to -73 and latitude 38 to 43, so it includes KCDW plus plausible upstream Pennsylvania/Ohio convection. KCDW has no routine TAF, so KTEB and KEWR are clearly treated as local proxies. Every Open-Meteo product is labeled supplemental model guidance, not official aviation guidance.
 
 ## NBM station guidance
 
@@ -26,11 +26,13 @@ The agent weighs NBM guidance alongside observations, proxy TAFs, and AFD reason
 
 ## WeatherNext 3 integration
 
-`kcdw.weathernext3` reads the official WeatherNext 3 statistics Zarr store directly through the GCS gRPC API. It selects only configured event hours, but for those hours reads every aviation-relevant published surface field: temperature, dew point, three distinct one-hour precipitation products, sea-level pressure, 10 m wind speed and U/V components, and low/mid/high/total cloud fraction, each as mean/p10/p90. The upstream Zstd chunks are unsharded global planes, so they are read as whole generation-bound objects and cached locally by checksum under `var/wn3-zarr`; the oldest immutable objects are pruned when the cache exceeds 24 GiB (`WN3_ZARR_CACHE_MAX_BYTES` overrides the bound). Gaps outside selected hours stay gaps. Ceiling, visibility, gust and convection are not present in this statistics set. Validation runs at collection and before publication.
+`kcdw.weathernext3` reads the official WeatherNext 3 surface-statistics BigQuery view. It discovers published six-hourly runs using initialization and geographic filters, validates all 360 forecast hours, and selects the rolling week and configured event hours (plus three following hours) locally. The 13 aviation-relevant fields retain mean/p10/p90: temperature, dew point, three distinct hourly precipitation products, sea-level pressure, 10 m wind speed and U/V, and low/mid/high/total cloud fraction. Complete point runs are cached under `var/wn3-bigquery` with original job/retrieval provenance, process locks, atomic writes, and a 128-entry bound; recent runs refresh after six hours. Both reports reuse that cache. No production WN3 collection downloads global GCS planes. Archived Zarr envelopes remain valid with their original source metadata. Gaps outside selected hours stay gaps; ceiling, visibility, gust and convection remain unavailable. Collection and pre-publication validation still fail closed.
 
-Fresh WN3 leads the model interpretation beyond 48 hours; AIFS-ENS is the independent comparator/fallback, followed by WeatherNext 2. A failed/stale source is unavailable, not favorable weather; it cannot satisfy the short-term publication quorum. WN3 supplies cloud fraction and U/V wind components, but not ceiling, visibility, gust or convection. Its percentiles are not standard deviations or flyability probabilities, and summed hourly percentiles are not event-total percentiles. Other sources still supply essential aviation context.
+BigQuery uses the existing allowlisted ADC and `aviation-486817` billing project (`WN3_BIGQUERY_PROJECT` override). `WN3_BIGQUERY_TABLE` selects the official or linked `weathernext_3_0_0_0p1deg` view; `WN3_BIGQUERY_CACHE_DIR` changes the cache path. Forecast jobs have an 8 TiB estimated-byte admission cap (`WN3_BIGQUERY_MAX_BYTES_BILLED`), while run discovery is capped at 32 GiB or the lower configured cap. These are maximum billing bounds, not expected usage: the uncached 39-column/168-hour benchmark billed 136 MiB and took 3.78 seconds. BigQuery's conservative clustered-table estimates required a much larger cap than actual scans. Monitor actual billed bytes and use project quotas for aggregate cost control; the default full-query cap permits up to $50 at $6.25/TiB before credits. See [benchmark and migration notes](deploy/WN3-BIGQUERY.md). Permission, billing, malformed, partial and stale data failures are unavailable; only an absent run permits trying one older published cycle.
 
-The owner-facing forecast intentionally includes numerical WN3 guidance: rolling analysis receives sparse event-hour mean/p10/p90 summaries, while the checkride page combines models on shared per-variable charts, alongside dedicated WN3 mean/p10–p90 charts and an expandable event-window numerical summary. Ensemble bands are visible by default; model and band toggles remain available. Comparison axes use the same timestamps and units; WN3 mean/p10–p90, conventional ensemble median/p10–p90 and WN2 mean/±1 SD remain explicitly distinct. Hourly precipitation amounts use member-derived fans, not rain-member fractions or cumulative percentile sums; older archives without those fans omit the unavailable series. Qualitative-only filtering is not enabled. Forecast arrays and credentials are not exposed through a new raw-data API. The existing report URL is publicly reachable (not access-controlled); access settings are unchanged. Google attribution, experimental-use notice and source terms remain linked.
+Fresh WN3 leads the model interpretation beyond 48 hours; AIFS-ENS is the independent comparator/fallback, with WN2 retained only for independent native member diagnostics. A failed/stale source is unavailable, not favorable weather; it cannot satisfy the short-term publication quorum. WN3 supplies cloud fraction and U/V wind components, but not ceiling, visibility, gust or convection. Its percentiles are not standard deviations or flyability probabilities, and summed hourly percentiles are not event-total percentiles. Other sources still supply essential aviation context.
+
+The owner-facing forecast intentionally includes numerical WN3 guidance: rolling analysis receives full-week hourly mean/p10/p90 summaries, while the checkride page combines models on shared per-variable charts, alongside dedicated WN3 mean/p10–p90 charts and an expandable event-window numerical summary. Ensemble bands are visible by default; model and band toggles remain available. Comparison axes use the same timestamps and units; WN3 mean/p10–p90, conventional ensemble median/p10–p90 and WN2 mean/±1 SD remain explicitly distinct. Hourly precipitation amounts use member-derived fans, not rain-member fractions or cumulative percentile sums; older archives without those fans omit the unavailable series. Qualitative-only filtering is not enabled. Forecast arrays and credentials are not exposed through a new raw-data API. The existing report URL is publicly reachable (not access-controlled); access settings are unchanged. Google attribution, experimental-use notice and source terms remain linked.
 
 ## Weekly model ranges and official outlooks
 
@@ -168,7 +170,7 @@ and GEPS chart/RH adapters read only verified complete native run caches, with
 Open-Meteo/eligible whole-packet retention as fallback. Ordinary clients default
 to `direct_ensembles=False`, independently of `direct_native`, so supplemental
 paired-member runway-wind collection retains its separately labeled source.
-The legacy WeatherNext 2 comparator remains on Open-Meteo. A native chart does
+The live WeatherNext 2 mean/spread comparator is retired in favor of WN3; archive readers retain its original identity. A native chart does
 not relabel other source packets.
 
 Native data carries its actual supplying initialization, provider, grid and
@@ -270,14 +272,20 @@ recomputed screens and changes); an absent or invalid packet renders nothing and
 
 ### WeatherNext 2 member screens
 
-Below the scorecard, `kcdw.event_wn2_members` reduces all 64 WeatherNext 2 members (Open-Meteo `google_weathernext2_ensemble`) to
-member counts and median/10th–90th-percentile values at the model's native six-hour valid times bracketing the expected flight:
-members with at least 75% low cloud, members with wind from 020–070°, 10 m and 100 m wind, sea-level pressure, and members with at
-least 1 mm of rain inside the flight window. Only these reductions are persisted. WeatherNext 2 has no gust field, so 100 m wind is
-shown as context and never labeled a gust. The rolling response is not run-bound; the advertised initialization is labeled as
-advertised. At least 48 valid members are required, the packet is revalidated before rendering, and an absent or invalid packet
-renders nothing. The legacy mean/standard-deviation comparator is still collected because the hourly charts and saved forecast
-history use that shape.
+The expandable WN2 check uses all 64 members from the official BigQuery table
+`871883017250.WeatherNext2.weathernext_2_0_0`, bound to its actual `init_time`.
+It shows native six-hour wind-direction counts, 10 m/100 m wind and pressure
+quantiles, and rain counts over the complete six-hour intervals enclosing the
+flight. Those rain totals are not estimates for the shorter flight window.
+The table has no cloud-cover field; primary cloud guidance comes from WN3.
+Small negative neural rain predictions are clipped to zero after raw bounds
+validation. All 64 distinct member IDs, exact times, grid and physical ranges
+are required. Invalid packets render nothing. Raw query results and job usage
+are retained in a bounded, locked local cache; rendered packets retain provenance.
+
+The daily WN2 mean/spread feed and event hourly comparator are retired in favor
+of WN3. Legacy collectors/validators remain for tests and archived reports;
+old WN2 data is never relabeled WN3. See [WN2 BigQuery](deploy/WN2-BIGQUERY.md).
 
 ## Event NWS forecaster readings
 
@@ -320,11 +328,11 @@ The trend view retains up to eight distinct updates per model over 72 hours. Rep
 
 `var/events/<slug>/backfill.json` holds initialization-indexed cycles, loaded by `kcdw.run_history` on each event refresh and persisted as `snapshot.ensemble_run_history`. Initialization-time charts lead the Trends section; earlier page-fetch history remains in a collapsed disclosure. The original backfill is retained and extended automatically with WN3 and operational GFS runs. Every record keeps its real retrieval time; older report snapshots are never rewritten.
 
-`kcdw-flyability-run-history.timer` runs `python3 -m kcdw.history_update --var var` hourly at minute 10 UTC (up to one minute jitter). It checks six-hour initialization cycles after an initial five-hour availability delay, retries gaps, and bounds each catch-up batch to eight missing cycles per model. WN3 uses validated immutable feed-cache records first, then the existing point RPC. GFS uses the run-selected archive API. Up to 64 cycles per model cover the event horizon without the old 16-run rolling cutoff. Weather-only originals remain in `backfill-sources/`; per-cycle failures/check status are in `run-history-status.json`.
+`kcdw-flyability-run-history.timer` runs `python3 -m kcdw.history_update --var var` hourly at minute 10 UTC (up to one minute jitter). It checks six-hour initialization cycles after an initial five-hour availability delay, retries gaps, and bounds each catch-up batch to eight missing cycles per model. WN3 uses validated archived records first, then initialization-bound BigQuery queries with a local complete-run cache. GFS uses the run-selected archive API. Up to 64 cycles per model cover the event horizon without the old 16-run rolling cutoff. Weather-only originals remain in `backfill-sources/`; per-cycle failures/check status are in `run-history-status.json`.
 
 The hourly job shares `var/events-update.lock` with the hourly forecast/narrative updater. Only changed history (or a previously failed publication) triggers an additional fresh forecast collection and publication; unchanged history checks do not recollect all models. Successful publication is acknowledged in `var/events/run-history-publication.json`; errors remain retryable. Both models' run histories remain independent of the aviation-readiness quorum. Install the matching service/timer from `deploy/systemd/` and enable the timer with `systemctl --user enable --now kcdw-flyability-run-history.timer`.
 
-WN3 cycles use the existing bounded point RPC with requested/returned initialization equality. Operational GFS cycles use Open-Meteo's documented `single-runs-api.open-meteo.com/v1/forecast`, exact `models=gfs_global`, and `run=`. Request the full `forecast_days=16` horizon and select target hours locally: the live archive endpoint rejects `start_date`. Preserve response/request provenance under `backfill-sources/`, validate units/grid/time axes, reject invalid-run/model controls, and label GFS initialization as archive-request-bound rather than response-echoed. Compare pressure gaps only at identical initialization and valid times. Do not interpret unavailable conventional ensemble archives, HTTP-200 streaming error bodies, or `past_days` stitched forecasts as historical member runs.
+WN3 cycles use bounded BigQuery queries with requested/returned initialization equality and preserve table, job, usage and retrieval provenance. Operational GFS cycles use Open-Meteo's documented `single-runs-api.open-meteo.com/v1/forecast`, exact `models=gfs_global`, and `run=`. Request the full `forecast_days=16` horizon and select target hours locally: the live archive endpoint rejects `start_date`. Preserve response/request provenance under `backfill-sources/`, validate units/grid/time axes, reject invalid-run/model controls, and label GFS initialization as archive-request-bound rather than response-echoed. Compare pressure gaps only at identical initialization and valid times. Do not interpret unavailable conventional ensemble archives, HTTP-200 streaming error bodies, or `past_days` stitched forecasts as historical member runs.
 
 ## Atlantic cyclone map
 
@@ -342,16 +350,16 @@ Comparison charts remain visible and ordered rain, wind, low cloud, pressure, te
 
 ## Long-range ensemble policy
 
-- **WeatherNext 2:** `google_weathernext2_ensemble_mean`, 64 members, 0.25° grid, native 6-hour steps, 15-day horizon. Google produces four cycles daily, but Open-Meteo currently processes the 00 and 12 UTC cycles. It is secondary/legacy guidance, not an independent vote from the Google model family.
+- **WeatherNext 2:** BigQuery native diagnostics, 64 members, 0.25° grid, six-hour steps, 15-day horizon, four cycles daily. Independent member diagnostics only; primary Google guidance comes from WN3. The former Open-Meteo mean/spread feed is archive-only.
 - **ECMWF AIFS-ENS:** `ecmwf_aifs025_ensemble_mean`, 51 members, 0.25° dissemination grid, native 6-hour steps, 15-day horizon, four cycles daily. It is the independent comparison and fallback model guidance.
 - The adapter retains ensemble **mean and spread together** for temperature, precipitation, low/mid/high cloud fraction, 10 m wind, mean sea-level pressure, and weather code. Open-Meteo interpolates native 6-hour values to hourly steps; this does not create real 2-hour timing skill. The feeds do not provide aerodrome ceiling, visibility, gust, lightning, or deterministic convective timing. Low-cloud fraction is not a ceiling.
 - Agreement can support confidence. Disagreement is disclosed and lowers confidence; the models are not blindly averaged. Missing model data lowers confidence but does not mechanically lower a flyability score.
 - The rolling point response does not carry an immutable run identifier. The snapshot therefore records the same API host's latest advertised initialization, modification, availability, and data-end metadata and states that binding limitation explicitly.
 - Both collection and pre-publication validation reject non-finite values and values outside deliberately broad corruption guards: temperature -120..80 °C; temperature spread 0..100 K; precipitation and its spread 0..50 inches per returned hour; cloud fraction and spread 0..100%; wind speed and spread 0..300 knots; wind direction 0..360°; mean sea-level pressure 750..1150 hPa; and pressure spread 0..150 hPa. Weather codes must be integers in Open-Meteo's supported WMO code set. These are input-integrity limits, not operational aviation thresholds.
 
-WeatherNext 3 is Google's August 2026 flagship 64-member system, with native hourly initialization, 0.1° gridded surface fields, selected 0.05° station outputs, 15-day synoptic runs, and 48-hour interim runs. Its direct real-time datasets require Google allowlist access and separate experimental-data terms; the configured Google identity can read the official statistics and full-ensemble GCS buckets. The official statistics store is now the production WN3 source through `kcdw/weathernext3.py`; the former loopback Weather Lab bridge is no longer used. No NWS/AWC/radar precedence rule changes.
+WeatherNext 3 is Google's August 2026 flagship 64-member system, with native hourly initialization, 0.1° gridded surface fields, selected 0.05° station outputs, 15-day synoptic runs, and 48-hour interim runs. Its direct real-time datasets require Google allowlist access and separate experimental-data terms; the configured Google identity can read the official statistics and full-ensemble GCS buckets. The official BigQuery statistics view is the production WN3 source through `kcdw/weathernext3.py`; the former loopback Weather Lab bridge is no longer used. No NWS/AWC/radar precedence rule changes.
 
-`scripts/wn3_zarr_point.py` is the low-level official-store probe. Install the main `requirements.txt`, then pass an explicit synoptic run, one or more valid hours, and exact statistics-array names. It uses generation-bound whole-object GCS gRPC reads and validates the consolidated Zarr schema, coordinates, codec pipeline, units, decoded size, and finite point value. The upstream arrays are unsharded single-frame Zstd global planes, so every selected point downloads its complete hourly statistics plane.
+`scripts/wn3_bigquery_point.py` is the optional dry-run/point-query probe; `scripts/wn3_bigquery_pruning.py` compares no-charge scan estimates. `scripts/wn3_zarr_point.py` remains a research/parity probe, not a production collector. Install the main `requirements.txt`, then pass an explicit synoptic run, one or more valid hours, and exact statistics-array names. It uses generation-bound whole-object GCS gRPC reads and validates the consolidated Zarr schema, coordinates, codec pipeline, units, decoded size, and finite point value. The upstream arrays are unsharded single-frame Zstd global planes, so every selected point downloads its complete hourly statistics plane.
 
 Open-Meteo API data are used under CC BY 4.0 and are attributed in the rendered report. The free endpoint is appropriate for this private non-commercial site; commercial use requires Open-Meteo's customer service/API key.
 
@@ -365,7 +373,16 @@ make update               # live collection + required Claude analysis + publish
 make serve                # 127.0.0.1:${PORT:-8794}
 ```
 
-Runtime is Python 3 with Pillow, the GCS gRPC client, and Zstandard (`python3 -m pip install -r requirements.txt`) plus ordinary host tools used by the shell wrapper (`bash`, `flock`, `timeout`, and the `claude` CLI). `kcdw.claude_agent` pins `claude-fable-5-1` at `--effort high`, uses the `claude` CLI on PATH (override with `CLAUDE_BIN`), and rejects a response that the pinned model did not serve. Flags were verified against Claude Code 2.1.276. Archived logs keep their historical `codex.log` filename. The Open-Meteo adapters need no Google/ECMWF credential. The WN3 adapter uses Application Default Credentials when configured and otherwise obtains refreshable short-lived access tokens from the local `gcloud` identity; that identity must be allowlisted for the official statistics bucket. No token material enters the weather snapshot or public report. `public/index.html` and `public/health.json` are checked-in offline examples and are replaced in production only by a successful update.
+Tests focus on weather calculations, source validation, missing/stale data,
+archive integrity, and publication behavior. Event update orchestration is
+covered in `tests/test_event_update.py`, with external collectors stubbed in
+one place. Keep new tests focused on a distinct failure or behavior; avoid
+exact prose, colors, chart counts, and dependencies on local research archives.
+Use module imports when reusing test helpers so unittest does not discover an
+imported `TestCase` a second time. To run one area while iterating:
+`python3 -m unittest discover -s tests -p 'test_event_update.py'`.
+
+Runtime is Python 3 with Pillow, google-auth and requests for BigQuery (plus the GCS gRPC client and Zstandard for parity probes) (`python3 -m pip install -r requirements.txt`) plus ordinary host tools used by the shell wrapper (`bash`, `flock`, `timeout`, and the `claude` CLI). `kcdw.claude_agent` pins `claude-fable-5-1` at `--effort high`, uses the `claude` CLI on PATH (override with `CLAUDE_BIN`), and rejects a response that the pinned model did not serve. Flags were verified against Claude Code 2.1.276. Archived logs keep their historical `codex.log` filename. The Open-Meteo adapters need no Google/ECMWF credential. The WN3 adapter uses refreshable Application Default Credentials with the cloud-platform scope; that identity needs WeatherNext BigQuery read access and permission to submit query jobs in the billing project. The homeserver runtime wrapper and service units select the existing allowlisted ADC. No token material enters the weather snapshot or public report. `public/index.html` and `public/health.json` are checked-in offline examples and are replaced in production only by a successful update.
 
 ## Cloudflare hosting
 
@@ -417,7 +434,7 @@ Prompt preparation compresses repeated grid intervals, decodes version-matched N
 
 [Commercial checkride · September 24, 2026](https://kcdw-flyability.andyfang.workers.dev/events/commercial-checkride) · [Event history](https://kcdw-flyability.andyfang.workers.dev/events/commercial-checkride/history)
 
-`events.json` defines dated pages. The checkride's **08:00–17:00 Eastern window is forecast context**, separate from the confirmed 08:00 appointment and expected 10:00–12:00 EDT flight. The independent deterministic `kcdw.event_update` pipeline collects GEFS (31), ECMWF ENS (51), AIFS-ENS (51), and GEPS (21) individual-member distributions plus WeatherNext 2 **mean and standard-deviation** guidance and the private WeatherNext 3 **mean/p10/p90** source. Fresh WN3 is preferred beyond 48 hours, with AIFS-ENS the independent comparator/fallback. WN2 is never treated as individual members or converted to percentile/exceedance probabilities. Each source can fail independently.
+`events.json` defines dated pages. The checkride's **08:00–17:00 Eastern window is forecast context**, separate from the confirmed 08:00 appointment and expected 10:00–12:00 EDT flight. The independent deterministic `kcdw.event_update` pipeline collects GEFS (31), ECMWF ENS (51), AIFS-ENS (51), and GEPS (21) individual-member distributions plus WeatherNext 3 **mean/p10/p90** statistics and separate run-bound WeatherNext 2 member wind/rain diagnostics from BigQuery. Fresh WN3 is preferred beyond 48 hours, with AIFS-ENS the independent comparator/fallback. WN2 native diagnostics use all 64 individual members; archived mean/spread packets are never converted to member counts or percentiles. Each source can fail independently.
 
 The display covers two days before through one day after the event (September 22–25 Eastern). Explicit UTC `start_hour`/`end_hour` requests and exact returned-axis validation avoid the UTC-date/EDT-midnight mismatch. The nine-hour precipitation total sums preceding-hour intervals ending 09:00–17:00 Eastern, excluding the interval ending 08:00. Conventional-member window statistics use those same nine endpoints, not continuous extrema. WN3 instantaneous wind, temperature and pressure instead use 08:00–16:00 samples (start inclusive/end exclusive); WN3 rainfall uses 09:00–17:00 interval endpoints. Input validation checks finite nearby grid coordinates, exact contiguous hours, units, physical corruption bounds, exact member IDs, duplicate IDs, missing series and per-hour sample counts. Persisted normalized data are revalidated before rendering and uploading.
 
@@ -452,3 +469,34 @@ The visible highlights emphasize relevant categories and horizon gaps; full narr
 The report and history share the Field Notes design: a seven-day overview, direct links to each day, concise planning picks, two-hour cards, and always-visible hazard/daylight details. Styles live in `kcdw/report.css`; the renderer embeds them into each archived report, while the Worker imports them for history. Subset WOFF2 Barlow Condensed and IBM Plex Sans fonts are bundled in `kcdw/assets/fonts.css` with their OFL licenses, so viewing does not require third-party font requests. Historical reports retain their original presentation.
 
 Health checks read the small R2 publication pointer, which includes the assessment timestamp and freshness threshold, instead of downloading the complete report. Older pointers continue to work through a compatibility fallback. Generated narratives target 180–240 characters to leave room below the enforced 360-character limit.
+
+WN3 collection covers seven Eastern calendar dates plus configured event windows and three following hours. Its scorecard row uses native ensemble means and derives meteorological wind direction from mean u/v components. Gusts are explicitly unavailable in the published WN3 schema; sustained-wind percentiles are not gust estimates. WN3 remains the preferred available model beyond 48 hours, with AIFS-ENS fallback. Full-week collection downloads whole global chunks (39 per hour), so a cold cache entails substantially more transfer than event-only collection.
+
+### WN3 cloud timing and changes
+
+The event low-cloud analysis includes WN3 low, middle, high and total cloud
+coverage at every hour during the expected flight and three hours either side.
+It shows hourly mean/p10/p90 and before/during/after mean coverage. These are
+marginal hourly distributions, not ceiling heights, clearance probabilities,
+whole-window quantile bands or the same members tracked through time. Cloud
+layers overlap and are never summed.
+
+A same-window, same-grid comparison shows changes in mean coverage versus the
+latest usable distinct earlier WN3 run. Reads are bounded to 64 recent archives
+and 32 MiB; missing earlier guidance can be backfilled from the previous six-hour
+BigQuery run using the shared cache. Invalid/incomplete comparisons display as
+unavailable. The same validated cloud diagnostics feed the event narrative.
+
+WN3 surface moisture and elevated-wind context add derived 2 m RH and 100 m
+mean/p10/p90 wind alongside 10 m mean wind for the same cloud-analysis hours.
+RH is calculated over liquid water from ensemble-mean temperature/dew point
+using the NWS exponential saturation-vapor-pressure approximation, within
+−45..60°C, capped at 100%. It is not ensemble-mean RH or an RH percentile.
+WN3 925/850 hPa RH remains unavailable through BigQuery; no GCS collection is
+introduced. Existing other-model pressure-level RH remains separate.
+
+The 100 m statistics are an optional, separately cached BigQuery query bound to
+the primary WN3 run and grid. They describe elevated-wind/mix-down context,
+not gust forecasts, gust percentiles or gust upper bounds. Stability and mixing
+are not inferred from a single wind level. A missing wind packet leaves derived
+surface RH available. The event narrative receives the same explicit limits.
