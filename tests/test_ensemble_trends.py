@@ -128,7 +128,7 @@ class TrendTests(unittest.TestCase):
         d = snapshot(NOW-timedelta(hours=1)); self.archive(d)
         current = snapshot(); wn = current['weathernext3']['data']
         from kcdw.common import parse_time
-        for obj, keys in [(wn['status'], ('actual_run_utc','requested_init_utc','attempted_init_utc','last_good_requested_init_utc','fetched_at')),
+        for obj, keys in [(wn['status'], ('actual_run_utc','requested_init_utc','attempted_init_utc','fetched_at')),
                           (wn['forecast'], ('requested_init_utc','response_init_utc'))]:
             for key in keys: obj[key] = iso_z(parse_time(obj[key])+timedelta(hours=6))
         wn['forecast']['valid_time_utc'] = [iso_z(parse_time(t)+timedelta(hours=6)) for t in wn['forecast']['valid_time_utc']]

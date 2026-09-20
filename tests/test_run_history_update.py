@@ -27,15 +27,21 @@ def gfs(run):
 
 
 def wn3(run):
-    f = weather_fixture()['forecast']
-    f.update(requested_init_utc=iso_z(run), response_init_utc=iso_z(run),
-             valid_time_utc=[iso_z(run+timedelta(hours=i)) for i in range(1,361)])
-    context = dict(latitude=40.8752, longitude=-74.2814, model_id=12, init_seconds=int(run.timestamp()), fields=[1,5,2,3])
-    ids = {1:'temperature_2m', 5:'precipitation_1h', 2:'sea_level_pressure', 3:'wind_speed_10m'}
-    raw = [[context['init_seconds']], [[int(run.timestamp())+i*3600] for i in range(1,361)],
-           [[k,f['fields'][v]['mean']] for k,v in ids.items()],
-           [[k,q,f['fields'][v][f'p{q}']] for k,v in ids.items() for q in (10,90)]]
-    return dict(context=context, raw=raw, forecast=f, retrieved_at=iso_z(CHECK))
+    from kcdw.weathernext3 import FIELD_SPECS, SOURCE
+    f = weather_fixture()['forecast']['fields']
+    _,sample,rain_times=_event(EVENT)
+    fields={}
+    for name in ('sea_level_pressure','wind_speed_10m'):
+        spec=FIELD_SPECS[name]
+        fields[name]=dict(unit=spec.unit,source_array=spec.array,
+                          **{stat:f[name][stat][0] for stat in ('mean','p10','p90')})
+    spec=FIELD_SPECS['precipitation_1h']
+    fields['precipitation_1h']=dict(unit=spec.unit,source_array=spec.array,
+                                    mean=[f['precipitation_1h']['mean'][0]]*len(rain_times))
+    return dict(source=SOURCE,run_time=iso_z(run),sample_time=iso_z(sample),
+                rain_times=[iso_z(value) for value in rain_times],
+                grid_point=dict(latitude=40.9,longitude=-74.3),fields=fields,
+                retrieved_at=iso_z(CHECK))
 
 
 def batch(runs):
@@ -125,10 +131,11 @@ class RunHistoryUpdateTests(unittest.TestCase):
                 self.assertEqual(len(result['points']),16)
 
     def test_wn3_wrong_response_run_or_fixed_target_is_rejected(self):
-        for field,value in [('response_init_utc','2000-01-01T00:00:00Z'),('latitude',0),('model_id',2),('valid_time_utc',[])]:
+        for field,value in [('run_time','2000-01-01T00:00:00Z'),('grid_point',{'latitude':0,'longitude':0}),
+                            ('source','https://wrong.example/'),('rain_times',[])]:
             def bad(runs):
                 records=[wn3(r) for r in runs]
-                for r in records:r['forecast'][field]=value
+                for r in records:r[field]=value
                 return {'records':records}
             result=self.refresh(wn3_fetcher=bad,gfs_fetcher=lambda r:None)
             self.assertEqual(len(result['points']),16)
@@ -165,19 +172,6 @@ class RunHistoryUpdateTests(unittest.TestCase):
         self.refresh(gfs_fetcher=fail,wn3_fetcher=lambda r:{'records':[]})
         self.assertTrue(all(CHECK-timedelta(hours=48)<=r<=CHECK-timedelta(hours=5) for r in seen))
         self.assertLessEqual(len(seen),8)
-
-    def test_wn3_helper_absolute_path_json_stdin_and_no_stderr(self):
-        from kcdw.run_history_update import fetch_wn3_runs
-        from types import SimpleNamespace
-        run=NOW.replace(hour=12)
-        with patch('kcdw.run_history_update.subprocess.run',return_value=SimpleNamespace(returncode=0,stdout='{"records":[],"errors":[]}')) as child:
-            self.assertEqual(fetch_wn3_runs([run]),{'records':[],'errors':[]})
-        args,kwargs=child.call_args
-        self.assertEqual(args[0][0],'node')
-        self.assertTrue(Path(args[0][1]).is_absolute())
-        self.assertEqual(Path(args[0][1]).name,'recover-runs.mjs')
-        self.assertEqual(json.loads(kwargs['input']),{'runs':[run.isoformat(timespec='milliseconds').replace('+00:00','Z')]})
-        self.assertEqual(kwargs['timeout'],135)
 
     def test_gfs_grid_change_cannot_discard_acquired_seed(self):
         def shifted(run):

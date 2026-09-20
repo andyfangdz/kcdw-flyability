@@ -44,7 +44,7 @@ class WeeklyTests(unittest.TestCase):
         data = synthetic_wn3()
         data['forecast']['valid_time_utc'] = [datetime.fromisoformat(t.replace('Z', '+00:00')).isoformat(timespec='milliseconds').replace('+00:00', 'Z') for t in data['forecast']['valid_time_utc']]
         page = weekly.render_weekly({'sources': {'weather_next3': {'ok': True, 'fetched_at': iso_z(NOW), 'data': data}}}, NOW)
-        self.assertEqual(page.count('data-model="wn3"'), 4)
+        self.assertEqual(page.count('data-model="wn3"'), 5)
 
     def test_stale_and_malformed_wn3_fail_closed(self):
         source = {'ok': True, 'fetched_at': iso_z(NOW), 'data': synthetic_wn3()}

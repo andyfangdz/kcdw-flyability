@@ -20,7 +20,7 @@ from .tropical_guidance import validate_wn3_cyclones
 
 MAX_BYTES = 60_000
 MODEL_URL = 'https://open-meteo.com/en/docs/ensemble-api'
-WEATHERLAB_URL = 'https://deepmind.google.com/science/weatherlab/'
+WEATHERLAB_URL = 'https://storage.googleapis.com/weathernext3_statistics_spatial/weathernext_3_0_0_statistics/zarr/'
 SOURCES = {s.key: (s.name, MODEL_URL) for s in MODELS} | {
     'wn3_point': ('WeatherNext 3 point guidance', WEATHERLAB_URL),
     'gfs': ('GFS operational (deterministic)', 'https://open-meteo.com/en/docs/gfs-api'),
@@ -76,9 +76,13 @@ def _current(snapshot, key, now, sample, rain_times):
     f, h = d.get('forecast', {}), d.get('hourly', {})
     if key == 'wn3':
         f = d['forecast']; times = [_time(t) for t in f['valid_time_utc']]
-        fields = [('pressure', 'sea_level_pressure', .01), ('wind', 'wind_speed_10m', 3600/1852)]
+        fields = [('pressure', 'sea_level_pressure', .01), ('wind', 'wind_speed_10m', 3600/1852),
+                  ('low_cloud', 'low_cloud_cover', 1), ('dewpoint', 'dewpoint_temperature_2m', 1)]
         result['event_samples'] = [dict(at=iso_z(t), **{name: {p: round(f['fields'][field][p][times.index(t)]*scale, 4) for p in ('mean', 'p10', 'p90')} for name, field, scale in fields}) for t in instant_times]
-        result['missing_fields'] = ['low_cloud', 'ceiling', 'visibility', 'wind_direction', 'gust', 'convection']
+        result['low_cloud'] = {'unit': '%', 'meaning': 'Low-cloud fraction, not ceiling height.',
+            'samples': [{'at': iso_z(t), **{p: f['fields']['low_cloud_cover'][p][times.index(t)] for p in ('mean', 'p10', 'p90')}}
+                        for t in instant_times]}
+        result['missing_fields'] = ['ceiling', 'visibility', 'wind_direction_distribution', 'gust', 'convection']
         result['rain_note'] = 'Sum of hourly means; hourly marginal quantiles cannot form a window-total band.'
     else:
         h = d['hourly']; times = [_time(t) for t in h['time']]

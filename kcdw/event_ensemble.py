@@ -406,10 +406,10 @@ def validate_snapshot(snapshot: dict) -> None:
                 raise ValueError("comparator values mismatch")
 
 
-def collect_weather_next3(now):
+def collect_weather_next3(now, valid_times=None):
     # Lazy imports keep independently available ensembles working during adapter outages.
     from .weathernext3 import collect_weather_next3 as collect
-    return collect(now)
+    return collect(now, valid_times)
 
 
 def validate_weather_next3(envelope, now):
@@ -443,7 +443,9 @@ def weathernext3_diagnostic(snapshot: dict, now: datetime) -> dict:
             return {"available": False, "reason": "incomplete event window"}
         indices = [times.index(t) for t in expected]
         wind_indices = [times.index(t) for t in wind_expected]
-        rain, wind = forecast["fields"]["precipitation_1h"], forecast["fields"]["wind_speed_10m"]
+        rain = forecast["fields"]["precipitation_1h"]
+        wind = forecast["fields"]["wind_speed_10m"]
+        cloud = forecast["fields"]["low_cloud_cover"]
         def reached(value, threshold):
             return "planning trigger reached" if value >= threshold else "below planning trigger"
         def signal(field, threshold, sample_indices, scale: float = 1):
@@ -452,18 +454,24 @@ def weathernext3_diagnostic(snapshot: dict, now: datetime) -> dict:
             if any(field["p90"][i]*scale >= threshold for i in sample_indices):
                 return "upper percentile reaches trigger"
             return "percentile range below trigger"
-        rain_signal, wind_signal = signal(rain, RAIN_HOUR_MM, indices), signal(wind, WINDOW_WIND_KT, wind_indices, 3600/1852)
+        rain_signal = signal(rain, RAIN_HOUR_MM, indices)
+        wind_signal = signal(wind, WINDOW_WIND_KT, wind_indices, 3600/1852)
+        cloud_signal = signal(cloud, WINDOW_LOW_CLOUD_PCT, wind_indices)
         broad = (any(rain["p90"][i]-rain["p10"][i] >= RAIN_HOUR_MM for i in indices) or
-                 any((wind["p90"][i]-wind["p10"][i])*3600/1852 >= 5 for i in wind_indices))
+                 any((wind["p90"][i]-wind["p10"][i])*3600/1852 >= 5 for i in wind_indices) or
+                 any(cloud["p90"][i]-cloud["p10"][i] >= 30 for i in wind_indices))
         rain_mean = reached(sum(rain["mean"][i] for i in indices), WINDOW_RAIN_MM)
         wind_mean = reached(max(wind["mean"][i] for i in wind_indices)*3600/1852, WINDOW_WIND_KT)
+        cloud_mean = reached(max(cloud["mean"][i] for i in wind_indices), WINDOW_LOW_CLOUD_PCT)
         caution = (rain_mean == "planning trigger reached" or wind_mean == "planning trigger reached" or
-                   rain_signal != "percentile range below trigger" or wind_signal != "percentile range below trigger")
+                   cloud_mean == "planning trigger reached" or rain_signal != "percentile range below trigger" or
+                   wind_signal != "percentile range below trigger" or cloud_signal != "percentile range below trigger")
         return {"available": True, "precipitation_mean": rain_mean, "wind_mean": wind_mean,
-                "precipitation_signal": rain_signal, "wind_signal": wind_signal,
+                "low_cloud_mean": cloud_mean, "precipitation_signal": rain_signal,
+                "wind_signal": wind_signal, "low_cloud_signal": cloud_signal,
                 "uncertainty": "broad" if broad else "tight relative to planning thresholds",
-                "caution": "Keep a weather contingency for maneuvers and runway work; precipitation or wind triggers need follow-up." if caution else
-                           "No precipitation/wind trigger identified; do not infer checkride suitability. Verify maneuvers ceiling and runway conditions closer in.",
+                "caution": "Keep a weather contingency for maneuvers and runway work; precipitation, wind, or low-cloud triggers need follow-up." if caution else
+                           "No precipitation/wind/low-cloud trigger identified; do not infer checkride suitability. Verify maneuvers ceiling and runway conditions closer in.",
                 "run": iso_z(parse_time(forecast["response_init_utc"])),
                 "requested_run": iso_z(parse_time(envelope["status"].get("requested_init_utc", forecast["requested_init_utc"]))),
                 "fetched": iso_z(parse_time(envelope["status"].get("fetched_at", snapshot["collected_at"]))),
@@ -497,7 +505,8 @@ def collect_event(client, event: Event, now: datetime | None = None, *, allow_em
     except Exception as exc:
         comparator = {"ok": False, "error": f"{type(exc).__name__}: {exc}"[:300]}
     try:
-        envelope = collect_weather_next3(now)
+        from .weathernext3 import event_valid_times
+        envelope = collect_weather_next3(now, event_valid_times(event))
         validate_weather_next3(envelope, now)
         wn3 = {"ok": bool(envelope["status"]["available"]), "data": envelope, "error": None}
         if not wn3["ok"]:

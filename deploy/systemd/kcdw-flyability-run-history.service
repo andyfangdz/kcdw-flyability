@@ -1,6 +1,6 @@
 [Unit]
 Description=Append new KCDW event model cycles and publish changed history
-After=network-online.target weatherlab-feed.service
+After=network-online.target
 Wants=network-online.target
 
 [Service]

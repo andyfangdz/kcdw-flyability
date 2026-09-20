@@ -36,7 +36,7 @@ SHORTEN = {
     ' Not a weather clearance.': '',
     'Requested window covered by current outlook valid periods; this is not aviation readiness.': 'Current outlooks cover this window.',
     'Requested window not covered in full: gaps are unknown, not benign weather.': 'Outlook coverage is incomplete.',
-    'Missing WN3 cloud, ceiling, visibility and gust fields are not evidence of clear or calm conditions.': '',
+    'WN3 cloud fraction is not ceiling height, and WN3 lacks ceiling/visibility/gust fields; other sources remain essential.': '',
     'No cloud, ceiling, visibility or aviation suitability inference follows from these plots.': '',
 }
 

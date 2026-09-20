@@ -285,19 +285,14 @@ def tearDownModule():
 
 def synthetic_wn3():
     from kcdw.common import iso_z
-    init = NOW.replace(hour=12)
-    fields = {}
-    for name, unit, value in (("temperature_2m", "degC", 17.123456789), ("precipitation_1h", "mm", 0.123456789),
-                              ("sea_level_pressure", "Pa", 101234.56789), ("wind_speed_10m", "m/s", 4.123456789)):
-        fields[name] = {"unit": unit, "mean": [value]*360, "p10": [value*.99]*360, "p90": [value*1.01]*360}
-    return {"explicit_last_good": False, "status": {"available": True, "freshness": "fresh", "error_code": None, "authentication": "last_refresh_succeeded",
-        "station": "KCDW", "model_id": 12, "model": "WeatherNext 3", "latitude": 40.8752, "longitude": -74.2814,
-        "requested_init_utc": iso_z(init), "fetched_at": iso_z(NOW), "actual_run_utc": iso_z(init), "attempted_init_utc": iso_z(init),
-        "last_good_requested_init_utc": iso_z(init), "fallback": False, "state": "ready"}, "forecast": {
-        "source": "Weather Lab GetForecastStatistics",
-        "model": "WeatherNext 3", "model_id": 12, "latitude": 40.8752, "longitude": -74.2814,
-        "requested_init_utc": iso_z(init), "response_init_utc": iso_z(init),
-        "valid_time_utc": [iso_z(init+timedelta(hours=i+1)) for i in range(360)], "fields": fields}}
+    from test_weathernext3 import fixture
+    data = fixture()
+    data['status']['fetched_at'] = iso_z(NOW)
+    for name, value in (("temperature_2m", 17.123456789), ("precipitation_1h", 0.123456789),
+                        ("sea_level_pressure", 101234.56789), ("wind_speed_10m", 4.123456789)):
+        field = data['forecast']['fields'][name]
+        field.update(mean=[value]*360, p10=[value*.99]*360, p90=[value*1.01]*360)
+    return data
 
 
 class WeatherNext3EventTests(unittest.TestCase):
@@ -306,8 +301,9 @@ class WeatherNext3EventTests(unittest.TestCase):
         from kcdw.common import iso_z
         envelope = synthetic_wn3()
         status = envelope["status"]
-        status.update(requested_init_utc=iso_z(NOW.replace(hour=18)), last_good_requested_init_utc=iso_z(NOW.replace(hour=18)),
+        status.update(requested_init_utc=iso_z(NOW.replace(hour=18)),
                       fetched_at=iso_z(NOW-timedelta(minutes=10)), fallback=True, state="degraded")
+        envelope['forecast']['requested_init_utc'] = iso_z(NOW.replace(hour=18))
         with patch.object(event_ensemble, "collect_weather_next3", return_value=envelope):
             snapshot = collect_event(FakeClient(), EVENT, NOW)
         markup, health = render(snapshot, NOW)
@@ -365,7 +361,7 @@ class WeatherNext3EventTests(unittest.TestCase):
         self.assertIn("not an event probability", markup)
         for raw in ("17.123456789", "101234.56789", "4.123456789", "valid_time_utc", "precipitation_1h", '"fields"'):
             self.assertNotIn(raw, markup + json.dumps(health))
-        self.assertEqual(markup.count("<svg"), 10)
+        self.assertEqual(markup.count("<svg"), 13)
 
     def test_render_validation_failure_falls_back_not_benign(self):
         from unittest.mock import patch
@@ -405,8 +401,10 @@ class WeatherNext3EventTests(unittest.TestCase):
         self.assertEqual(markup.count('data-comparison-field='), 6)
         comparison = markup.split('id="multimodel-comparison"', 1)[1].split('</section>', 1)[0]
         dedicated = markup.split('id="wn3-numbers"', 1)[1].split('</section>', 1)[0]
-        self.assertEqual(comparison.count('<g data-model="wn3"'), 4)
-        self.assertEqual(dedicated.count('<g data-model="wn3"'), 4)
+        self.assertEqual(comparison.count('<g data-model="wn3"'), 5)
+        self.assertEqual(dedicated.count('<g data-model="wn3"'), 7)
+        self.assertIn('aria-label="WN3 / Dew point"', markup)
+        self.assertIn('aria-label="WN3 / Low-cloud fraction', markup)
         self.assertIn('aria-label="Temperature"', markup)
         self.assertIn('Mean event rainfall', markup)
         self.assertIn('Hourly p10–p90', markup)

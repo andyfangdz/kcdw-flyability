@@ -77,7 +77,7 @@ def source_rows(snapshot: dict) -> str:
             detail = f'Cycle {data.get("cycle_time", "unknown")}; fetched {source["fetched_at"]}'
         elif key == "weather_next3" and source["ok"]:
             data = (source.get("data") or {}).get("status", {})
-            detail = f'Actual run {data.get("actual_run_utc", "unknown")}; upstream fetched {data.get("fetched_at", "unknown")}; mean/p10/p90; fallback {bool(data.get("fallback"))}; no cloud/ceiling/visibility/gust fields'
+            detail = f'Actual run {data.get("actual_run_utc", "unknown")}; fetched {data.get("fetched_at", "unknown")}; official GCS Zarr mean/p10/p90; fallback {bool(data.get("fallback"))}; cloud available; no ceiling/visibility/gust fields'
         elif key in ("weather_next", "aifs_ens") and source["ok"]:
             data = source.get("data") or {}
             if isinstance(data, dict) and data.get("initialization_time"):
@@ -156,7 +156,7 @@ def render(snapshot: dict, analysis: dict, now: datetime | None = None, previous
     from .evidence import model_guidance_policy
     policy = model_guidance_policy(snapshot)
     preferred = policy["preferred_after_48h"] or "No validated long-range model available"
-    guidance_html = f'<section class="model-policy" aria-label="Model guidance preference"><p class="eyebrow">Beyond 48 hours / Model guidance</p><h2>{esc(preferred)}</h2><p>AIFS-ENS supplies the independent comparison and fallback; WeatherNext 2 remains secondary. Official NWS forecasts, AWC products and radar retain priority. Missing WN3 cloud, ceiling, visibility and gust fields are not evidence of clear or calm conditions.</p></section>'
+    guidance_html = f'<section class="model-policy" aria-label="Model guidance preference"><p class="eyebrow">Beyond 48 hours / Model guidance</p><h2>{esc(preferred)}</h2><p>AIFS-ENS supplies the independent comparison and fallback; WeatherNext 2 remains secondary. Official NWS forecasts, AWC products and radar retain priority. WN3 cloud fraction is not a ceiling; missing ceiling, visibility and gust fields are not evidence of favorable conditions.</p></section>'
     if snapshot["sources"].get("weather_next3", {}).get("ok"):
         guidance_html += '<p class="muted">Source: Google Weather Lab. © 2024-5 Google LLC, whose machine learning models were used to create the experimental data made available under the following <a href="https://storage.googleapis.com/weathernext-public/terms-of-use.pdf">licence terms</a>. This data is intended for experimental modelling only and is not intended, validated, or approved for real world use. Displayed assessments use WeatherNext 3 numerical guidance alongside independent models and official weather products.</p>'
     from .synoptic_context import render_context, report_window

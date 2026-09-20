@@ -187,7 +187,7 @@ def render_weekly(snapshot, now):
     for variable, short, title, unit, wn_field, factor in (
         ('precipitation', 'rain', 'Hourly precipitation', 'mm / preceding hour', 'precipitation_1h', 1),
         ('wind_speed_10m', 'wind', 'Sustained wind at 10 m', 'kt', 'wind_speed_10m', 3600/1852),
-        ('cloud_cover_low', 'cloud', 'Low-cloud fraction — not ceiling height', '%', None, 1),
+        ('cloud_cover_low', 'cloud', 'Low-cloud fraction — not ceiling height', '%', 'low_cloud_cover', 1),
         ('pressure_msl', 'pressure', 'Sea-level pressure', 'hPa', 'sea_level_pressure', .01),
         ('temperature_2m', 'temperature', 'Temperature', '°C', 'temperature_2m', 1),
         ('wind_gusts_10m', 'gust', 'Wind gusts', 'kt', None, 1),
@@ -204,8 +204,10 @@ def render_weekly(snapshot, now):
             series.append(('gfs', align(gfs['hourly']['time'], gfs['hourly'][variable]), [], [], 'Deterministic / no uncertainty band'))
         series = [s for s in series if any(v is not None for v in s[1])]
         note = 'Missing hours are gaps. '
-        if short in ('cloud', 'gust'):
-            note += 'WN3: no ' + ('cloud' if short == 'cloud' else 'gust') + ' field available. '
+        if short == 'cloud':
+            note += 'Low-cloud fraction is not ceiling height. '
+        if short == 'gust':
+            note += 'WN3: no gust field available. '
         if short == 'rain':
             note += 'Preceding-hour amounts, not cumulative rain or rain probability. '
         if not series:

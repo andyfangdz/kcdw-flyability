@@ -115,7 +115,7 @@ def model_guidance_policy(snapshot):
     if primary is None:
         primary = next((label for key, label in (("aifs_ens", "ECMWF AIFS-ENS"), ("weather_next", "WeatherNext 2")) if sources.get(key, {}).get("ok")), None)
     return {"preferred_after_48h": primary, "independent_comparator": "ECMWF AIFS-ENS" if sources.get("aifs_ens", {}).get("ok") else None,
-            "note": "Preference applies only beyond 48 hours and to available fields. NWS/AWC/radar retain authority. WN3 lacks cloud/ceiling/visibility/gust fields; other sources remain essential."}
+            "note": "Preference applies only beyond 48 hours and to available fields. NWS/AWC/radar retain authority. WN3 cloud fraction is not ceiling height, and WN3 lacks ceiling/visibility/gust fields; other sources remain essential."}
 
 
 def prepare(snapshot):

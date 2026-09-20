@@ -52,7 +52,12 @@ def _point(raw, sample, rain_times, now):
         raise ValueError('source URL')
     binding = raw['run_binding']
     if key == 'wn3':
-        if binding != 'response-bound' or source.netloc != 'deepmind.google.com' or source.path != '/science/weatherlab/':
+        # Preserve already archived Weather Lab points, while all new points
+        # are sourced from the official immutable statistics store.
+        legacy = source.netloc == 'deepmind.google.com' and source.path == '/science/weatherlab/'
+        official = (source.netloc == 'storage.googleapis.com' and
+                    source.path == '/weathernext3_statistics_spatial/weathernext_3_0_0_statistics/zarr/')
+        if binding != 'response-bound' or not (legacy or official):
             raise ValueError('WN3 binding')
     elif binding == 'archive-request-bound':
         # Only this archive/model path has been verified. Conventional member
@@ -130,7 +135,12 @@ def validate_run_history(data, event, now):
             records = sorted(models[key],key=lambda p:p['run_time'])
             if records:
                 grid = records[-1]['grid_point']
-                points.extend([p for p in records if p['grid_point']==grid][-MAX_POINTS:])
+                if key == 'wn3':
+                    compatible = [p for p in records if all(abs(p['grid_point'][axis]-grid[axis]) <= .1
+                                                             for axis in ('latitude','longitude'))]
+                else:
+                    compatible = [p for p in records if p['grid_point']==grid]
+                points.extend(compatible[-MAX_POINTS:])
         return dict(version=1,event=identity,airport=dict(AIRPORT),units=dict(UNITS),points=points,
                     notes=[str(n)[:600] for n in data.get('notes',[])[:8]] if isinstance(data.get('notes',[]),list) else [])
     except (ValueError,TypeError,KeyError,OverflowError,AttributeError):

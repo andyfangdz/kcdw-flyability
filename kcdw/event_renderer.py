@@ -317,7 +317,7 @@ def _comparison_charts(snapshot: dict, models: list[dict], times: list[datetime]
     for variable, short, title, unit, wn3_field, factor in (
         ("precipitation", "rain", "Hourly precipitation", "mm / preceding hour", "precipitation_1h", 1),
         ("wind_speed_10m", "wind", "Sustained wind at 10 m", "kt", "wind_speed_10m", 3600 / 1852),
-        ("cloud_cover_low", "cloud", "Low-cloud fraction — not ceiling height", "%", None, 1),
+        ("cloud_cover_low", "cloud", "Low-cloud fraction — not ceiling height", "%", "low_cloud_cover", 1),
         ("pressure_msl", "pressure", "Sea-level pressure", "hPa", "sea_level_pressure", .01),
         ("temperature_2m", "temperature", "Temperature", "°C", "temperature_2m", 1),
         ("wind_gusts_10m", "gust", "Wind gusts", "kt", None, 1),
@@ -352,7 +352,7 @@ def _comparison_charts(snapshot: dict, models: list[dict], times: list[datetime]
         if short == "rain":
             note += "Preceding-hour amounts, not cumulative rain or rain probability. "
         if short == "cloud":
-            note += "WN3: no cloud field available; low-cloud fraction is not ceiling height. "
+            note += "Low-cloud fraction is not ceiling height. "
         if short == "gust":
             note += "WN3: no gust field available. "
         if missing:
@@ -398,12 +398,14 @@ def _wn3_numbers(snapshot: dict, times: list[datetime], window: tuple[int, int],
     wind = max(fields["wind_speed_10m"]["mean"][i] for i in instant_indices) * 3600 / 1852
     temperature = [fields["temperature_2m"]["mean"][i] for i in instant_indices]
     pressure = min(fields["sea_level_pressure"]["mean"][i] for i in instant_indices) / 100
+    cloud = [fields["low_cloud_cover"]["mean"][i] for i in instant_indices]
     numbers = ('<details><summary>Forecast-context numerical summary</summary><div class="planning-signals">'
             f'<article><h3>Mean event rainfall</h3><p>{rain:.2f} mm</p><small>Sum of hourly ensemble means over the forecast context window.</small></article>'
             f'<article><h3>Peak hourly mean wind</h3><p>{wind:.1f} kt</p><small>Maximum of sampled hourly means, not the mean of member maxima.</small></article>'
             f'<article><h3>Mean temperature range</h3><p>{min(temperature):.1f}–{max(temperature):.1f} °C</p></article>'
+            f'<article><h3>Peak hourly mean low cloud</h3><p>{max(cloud):.0f}%</p><small>Fractional coverage, not ceiling height.</small></article>'
             f'<article><h3>Lowest hourly mean pressure</h3><p>{pressure:.1f} hPa</p></article></div>'
-            '<p>Hourly p10–p90 bands are marginal model percentiles, not event-total percentiles or flyability probabilities. The central line is the mean, not the median; a skewed mean can lie outside the band. Gold shading marks the forecast context window, not a confirmed flight duration. No cloud, ceiling, visibility or gust field is available in this WN3 feed.</p>')
+            '<p>Hourly p10–p90 bands are marginal model percentiles, not event-total percentiles or flyability probabilities. The central line is the mean, not the median; a skewed mean can lie outside the band. Gold shading marks the forecast context window, not a confirmed flight duration. Ceiling, visibility, gust and convection fields are not available in this WN3 surface set.</p>')
     body = ('<section id="wn3-numbers" class="wn3-focus"><p class="eyebrow">WeatherNext 3 / Ensemble charts</p>'
             '<h2>WN3 mean and ensemble range</h2><p>The magenta line is the ensemble mean; shading shows the hourly p10–p90 range, not the full ensemble minimum–maximum or event-total percentiles. Gold marks the forecast context window. WN3 also appears in the multimodel charts above. Swipe horizontally on small screens.</p>')
     positions = {t: i for i, t in enumerate(axis)}
@@ -414,6 +416,9 @@ def _wn3_numbers(snapshot: dict, times: list[datetime], window: tuple[int, int],
         ('wind_speed_10m', 'wind', 'Sustained wind', 'kt', 3600 / 1852),
         ('precipitation_1h', 'rain', 'Hourly precipitation', 'mm / preceding hour', 1),
         ('temperature_2m', 'temperature', 'Temperature', '°C', 1),
+        ('dewpoint_temperature_2m', 'dewpoint', 'Dew point', '°C', 1),
+        ('low_cloud_cover', 'cloud', 'Low-cloud fraction — not ceiling height', '%', 1),
+        ('total_cloud_cover', 'total-cloud', 'Total cloud fraction', '%', 1),
     ):
         mean, low, high = ([fields[field][stat][positions[t]] * factor if t in positions else None for t in times] for stat in ('mean', 'p10', 'p90'))
         history_field = {"sea_level_pressure": "pressure_msl", "precipitation_1h": "precipitation"}.get(field, field)
@@ -449,7 +454,8 @@ def _planning_panel(snapshot: dict, now: datetime) -> tuple[str, dict, str]:
     if diagnostic["available"]:
         body += (f'<p class="planning-caution">{esc(diagnostic["caution"])}</p><div class="planning-signals">'
                  f'<article><h3>Precipitation</h3><p>Model mean: {esc(diagnostic["precipitation_mean"])}.</p><p>Percentile signal: {esc(diagnostic["precipitation_signal"])}.</p></article>'
-                 f'<article><h3>Sustained wind</h3><p>Model mean: {esc(diagnostic["wind_mean"])}.</p><p>Percentile signal: {esc(diagnostic["wind_signal"])}.</p></article></div>'
+                 f'<article><h3>Sustained wind</h3><p>Model mean: {esc(diagnostic["wind_mean"])}.</p><p>Percentile signal: {esc(diagnostic["wind_signal"])}.</p></article>'
+                 f'<article><h3>Low-cloud fraction</h3><p>Model mean: {esc(diagnostic["low_cloud_mean"])}.</p><p>Percentile signal: {esc(diagnostic["low_cloud_signal"])}.</p></article></div>'
                  f'<p>Uncertainty: {esc(diagnostic["uncertainty"])}. Tight spread is not confidence in usable aviation conditions.</p>'
                  f'<p class="small">Google WeatherNext 3 actual response run: {esc(diagnostic["run"])}; requested run: {esc(diagnostic["requested_run"])}; fetched: {esc(diagnostic["fetched"])}; fallback: {esc(diagnostic["fallback"])}.</p>')
     else:
@@ -462,7 +468,7 @@ def _planning_panel(snapshot: dict, now: datetime) -> tuple[str, dict, str]:
         body += '<p>Independent ECMWF AIFS-ENS comparison: median member event rain ' + ('reaches' if rain else 'is below') + ' the rain trigger; median member peak wind ' + ('reaches' if wind else 'is below') + ' the wind trigger. Different statistics, not independent votes or a calibrated consensus.</p>'
     else:
         body += '<p>Independent ECMWF AIFS-ENS comparator unavailable; comparison uncertainty remains.</p>'
-    body += ('<details><summary>Transparent planning thresholds and limitations</summary><p>These are conservative screening triggers, not aircraft limits or regulatory minima. Model-mean precipitation uses the sum of hourly means: trigger ≥2 mm in the event window. Model-mean wind uses the maximum sampled hourly mean: trigger ≥15 kt. Percentile signals inspect each hourly p10/p90 against ≥0.2 mm preceding-hour precipitation or ≥15 kt wind; no hourly percentiles are summed. Broad uncertainty means at least one hourly p90–p10 gap ≥0.2 mm rain or ≥5 kt wind; otherwise tight relative to these thresholds.</p><p>Rain uses preceding-hour endpoints strictly after the window start through its end. Instantaneous wind uses samples from the opening hour up to but not including the closing hour. This diagnostic is not an event probability. It provides no conclusion on ceiling/visibility, convection, gusts, crosswind, runway state or safe completion of a commercial checkride. Retain scheduling flexibility and obtain an official briefing and current observations/TAFs closer to the event.</p></details>'
+    body += ('<details><summary>Transparent planning thresholds and limitations</summary><p>These are conservative screening triggers, not aircraft limits or regulatory minima. Model-mean precipitation uses the sum of hourly means: trigger ≥2 mm in the event window. Model-mean wind and low cloud use the maximum sampled hourly mean: triggers ≥15 kt and ≥60%. Percentile signals inspect each hourly p10/p90 against ≥0.2 mm preceding-hour precipitation, ≥15 kt wind, or ≥60% low cloud; no hourly percentiles are summed. Broad uncertainty means at least one hourly p90–p10 gap ≥0.2 mm rain, ≥5 kt wind, or ≥30 percentage points low cloud; otherwise tight relative to these thresholds.</p><p>Rain uses preceding-hour endpoints strictly after the window start through its end. Instantaneous wind and cloud use samples from the opening hour up to but not including the closing hour. Low-cloud fraction is not ceiling height. This diagnostic is not an event probability. It provides no conclusion on ceiling/visibility, convection, gusts, crosswind, runway state or safe completion of a commercial checkride. Retain scheduling flexibility and obtain an official briefing and current observations/TAFs closer to the event.</p></details>'
              '<p class="small">Google attribution: Google Weather Lab. © 2024-5 Google LLC, whose machine learning models were used to create the experimental data made available under the following licence terms. This data is intended for experimental modelling only and is not intended, validated, or approved for real world use. This independent planning diagnostic is not endorsed by Google; forecast data are provided as is, without warranties, and are not an official aviation briefing. <a href="https://storage.googleapis.com/weathernext-public/terms-of-use.pdf">WeatherNext data license and terms</a>. Numerical plots show model means and hourly marginal percentiles, not calibrated flyability probabilities.</p>')
     return '<details id="wn3-diagnostic" class="planning-diagnostic"><summary>Screening diagnostic · thresholds, provenance &amp; limitations</summary>' + body + '</details>', diagnostic, preferred
 

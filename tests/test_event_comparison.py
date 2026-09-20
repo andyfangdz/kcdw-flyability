@@ -46,12 +46,12 @@ class ComparisonTests(unittest.TestCase):
             for key in ('gefs', 'ecmwf_ens', 'aifs_ens', 'geps', 'wn3', 'wn2'):
                 self.assertIn('data-model="' + key + '"', svg)
         self.assertIn('data-model="wn3"', self.svg(markup, 'rain'))
-        self.assertNotIn('data-model="wn3"', self.svg(markup, 'cloud'))
-        self.assertIn('WN3: no cloud', markup)
+        self.assertIn('data-model="wn3"', self.svg(markup, 'cloud'))
+        self.assertNotIn('WN3: no cloud', markup)
         self.assertIn('Median (p50)', markup)
         self.assertIn('Mean ±1 SD', markup)
         self.assertIn('id="compare-bands" type="checkbox" checked', markup)
-        self.assertEqual(markup.count('data-wn3-field='), 4)
+        self.assertEqual(markup.count('data-wn3-field='), 7)
         self.assertNotIn('WeatherNext 2 / pressure', markup)
         self.assertNotEqual(MODEL_COLORS['wn3'], MODEL_COLORS['aifs_ens'])
         self.assertIn('<span class="legend-item"><span class="swatch"', markup)
@@ -63,12 +63,14 @@ class ComparisonTests(unittest.TestCase):
         self.assertGreaterEqual(len(visible), 3)
         self.assertLessEqual(len(visible), 7)
 
-    def test_wn3_focus_is_four_range_charts_not_just_cards(self):
+    def test_wn3_focus_covers_core_and_added_fields(self):
         markup, _ = render(self.snapshot(), NOW)
         focus = markup.split('<section id="wn3-numbers"', 1)[1].split('</section>', 1)[0]
-        self.assertEqual(focus.count('<svg'), 4)
-        self.assertEqual(focus.count('<polygon'), 4)
-        self.assertEqual(focus.count('<polyline'), 4)
+        self.assertEqual(focus.count('<svg'), 7)
+        self.assertEqual(focus.count('<polygon'), 7)
+        self.assertEqual(focus.count('<polyline'), 7)
+        self.assertIn('Dew point', focus)
+        self.assertIn('Low-cloud fraction', focus)
         self.assertLess(focus.index('<svg'), focus.index('Mean event rainfall'))
         self.assertIn('hourly p10–p90', focus)
         notes = markup.split('<details id="notes-sources"', 1)[1]

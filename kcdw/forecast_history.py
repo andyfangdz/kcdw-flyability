@@ -179,7 +179,8 @@ def _validated_sources(archive, collected):
                 hourly = {'time': forecast['valid_time_utc']}
                 for field, original, factor in (
                     ('precipitation', 'precipitation_1h', 1), ('wind_speed_10m', 'wind_speed_10m', 3600/1852),
-                    ('pressure_msl', 'sea_level_pressure', .01), ('temperature_2m', 'temperature_2m', 1)):
+                    ('pressure_msl', 'sea_level_pressure', .01), ('temperature_2m', 'temperature_2m', 1),
+                    ('dewpoint_2m', 'dewpoint_temperature_2m', 1), ('cloud_cover_low', 'low_cloud_cover', 1)):
                     fan = forecast['fields'].get(original)
                     if fan:
                         hourly[field] = {k: [v*factor if v is not None else None for v in fan[k]] for k in ('mean', 'p10', 'p90')}
