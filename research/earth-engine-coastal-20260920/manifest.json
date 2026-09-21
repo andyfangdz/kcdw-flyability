@@ -1,0 +1,464 @@
+{
+  "version": 1,
+  "event_slug": "commercial-checkride",
+  "event_date": "2026-09-24",
+  "prepared_at": "2026-09-21T03:18:52.338525+00:00",
+  "runs": [
+    "2026-09-19T12:00:00Z",
+    "2026-09-20T12:00:00Z"
+  ],
+  "times": [
+    "2026-09-23T12:00:00Z",
+    "2026-09-24T00:00:00Z",
+    "2026-09-24T12:00:00Z",
+    "2026-09-24T18:00:00Z",
+    "2026-09-25T00:00:00Z",
+    "2026-09-25T12:00:00Z"
+  ],
+  "models": [
+    {
+      "id": "wn3",
+      "name": "WeatherNext 3",
+      "statistic": "Ensemble mean",
+      "resolution": "0.1\u00b0",
+      "collection": "projects/gcp-public-data-weathernext/assets/weathernext_3_0_0_0p1deg",
+      "source_url": "https://developers.google.com/weathernext/guides/earth-engine"
+    },
+    {
+      "id": "wn2",
+      "name": "WeatherNext 2",
+      "statistic": "Ensemble mean",
+      "resolution": "0.25\u00b0",
+      "collection": "projects/gcp-public-data-weathernext/assets/weathernext_2_0_0_mean",
+      "source_url": "https://developers.google.com/earth-engine/datasets/catalog/projects_gcp-public-data-weathernext_assets_weathernext_2_0_0_mean"
+    },
+    {
+      "id": "ifs",
+      "name": "ECMWF IFS",
+      "statistic": "Deterministic",
+      "resolution": "0.25\u00b0",
+      "collection": "ECMWF/NRT_FORECAST/IFS/OPER",
+      "source_url": "https://developers.google.com/earth-engine/datasets/catalog/ECMWF_NRT_FORECAST_IFS_OPER"
+    }
+  ],
+  "palette": [
+    "ffffff",
+    "edf6fc",
+    "c8e9f7",
+    "8dc5eb",
+    "6789ce",
+    "916cbe",
+    "c57bb9",
+    "df579d",
+    "d7386d",
+    "e33b3f",
+    "ed7946",
+    "f5be62",
+    "d3a74b"
+  ],
+  "bounds": [
+    -85,
+    30,
+    -60,
+    48
+  ],
+  "renderer_version": 1,
+  "frames": [
+    {
+      "model": "ifs",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-23T12:00:00Z",
+      "lead": 96,
+      "source_id": "ECMWF/NRT_FORECAST/IFS/OPER/2026091912_0096h_fc",
+      "sha256": "d9ee9e4bb64cc13109912a638c4c654a93e71567703efe39462643d53ed0ff3e",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/d9ee9e4bb64cc13109912a638c4c654a93e71567703efe39462643d53ed0ff3e.png"
+    },
+    {
+      "model": "ifs",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-24T00:00:00Z",
+      "lead": 108,
+      "source_id": "ECMWF/NRT_FORECAST/IFS/OPER/2026091912_0108h_fc",
+      "sha256": "8ac003fa116221fe514d195dee25ac145e7a5a9cca76d5e7ba2b55cf19837230",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/8ac003fa116221fe514d195dee25ac145e7a5a9cca76d5e7ba2b55cf19837230.png"
+    },
+    {
+      "model": "ifs",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-24T12:00:00Z",
+      "lead": 120,
+      "source_id": "ECMWF/NRT_FORECAST/IFS/OPER/2026091912_0120h_fc",
+      "sha256": "bbef1391ac7beb3ba7be60b7577105e9c92d397e4cea3ec1d10a6c05cc8a09f1",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/bbef1391ac7beb3ba7be60b7577105e9c92d397e4cea3ec1d10a6c05cc8a09f1.png"
+    },
+    {
+      "model": "ifs",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-24T18:00:00Z",
+      "lead": 126,
+      "source_id": "ECMWF/NRT_FORECAST/IFS/OPER/2026091912_0126h_fc",
+      "sha256": "a2e7e10a260f9a5afd8ebec743d3b748592dcb21d0a26d37ed02936c115edd1a",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/a2e7e10a260f9a5afd8ebec743d3b748592dcb21d0a26d37ed02936c115edd1a.png"
+    },
+    {
+      "model": "ifs",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-25T00:00:00Z",
+      "lead": 132,
+      "source_id": "ECMWF/NRT_FORECAST/IFS/OPER/2026091912_0132h_fc",
+      "sha256": "8b588f4c04c49ef3ad4e90375e99a36b18b555faee7eb1256911d1d08aa53abb",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/8b588f4c04c49ef3ad4e90375e99a36b18b555faee7eb1256911d1d08aa53abb.png"
+    },
+    {
+      "model": "ifs",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-25T12:00:00Z",
+      "lead": 144,
+      "source_id": "ECMWF/NRT_FORECAST/IFS/OPER/2026091912_0144h_fc",
+      "sha256": "d1bfff8308b232dfa64cf59e695cd19405cc2d16e087ec89fcd37080693ea2b3",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/d1bfff8308b232dfa64cf59e695cd19405cc2d16e087ec89fcd37080693ea2b3.png"
+    },
+    {
+      "model": "ifs",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-23T12:00:00Z",
+      "lead": 72,
+      "source_id": "ECMWF/NRT_FORECAST/IFS/OPER/2026092012_0072h_fc",
+      "sha256": "93e5aa90a25e4a50a913dbf3660d9726744193eacd6a30651abcb6f18bae56da",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/93e5aa90a25e4a50a913dbf3660d9726744193eacd6a30651abcb6f18bae56da.png"
+    },
+    {
+      "model": "ifs",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-24T00:00:00Z",
+      "lead": 84,
+      "source_id": "ECMWF/NRT_FORECAST/IFS/OPER/2026092012_0084h_fc",
+      "sha256": "67af8488e9f17bd580fd1fbce721c66401c2005e38be4d8d574874f3bb52f263",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/67af8488e9f17bd580fd1fbce721c66401c2005e38be4d8d574874f3bb52f263.png"
+    },
+    {
+      "model": "ifs",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-24T12:00:00Z",
+      "lead": 96,
+      "source_id": "ECMWF/NRT_FORECAST/IFS/OPER/2026092012_0096h_fc",
+      "sha256": "ada04c8d32c1ac2c84af159f7ed580f7f8dc07559ab6654202b985402dcec242",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/ada04c8d32c1ac2c84af159f7ed580f7f8dc07559ab6654202b985402dcec242.png"
+    },
+    {
+      "model": "ifs",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-24T18:00:00Z",
+      "lead": 102,
+      "source_id": "ECMWF/NRT_FORECAST/IFS/OPER/2026092012_0102h_fc",
+      "sha256": "28622e8c3469b093b8107fd22dcc068087930edd6dcc7e65fc675d2c26b160b4",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/28622e8c3469b093b8107fd22dcc068087930edd6dcc7e65fc675d2c26b160b4.png"
+    },
+    {
+      "model": "ifs",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-25T00:00:00Z",
+      "lead": 108,
+      "source_id": "ECMWF/NRT_FORECAST/IFS/OPER/2026092012_0108h_fc",
+      "sha256": "285d7a86e55be38896dd5821282f119657504d7b08381b65dc8ccd7b6a186f43",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/285d7a86e55be38896dd5821282f119657504d7b08381b65dc8ccd7b6a186f43.png"
+    },
+    {
+      "model": "ifs",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-25T12:00:00Z",
+      "lead": 120,
+      "source_id": "ECMWF/NRT_FORECAST/IFS/OPER/2026092012_0120h_fc",
+      "sha256": "118ce8d2c8b25a13f7ac70653978e89d0fd1a1e95e0237040769b1fc4bf54cf7",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/118ce8d2c8b25a13f7ac70653978e89d0fd1a1e95e0237040769b1fc4bf54cf7.png"
+    },
+    {
+      "model": "wn2",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-23T12:00:00Z",
+      "lead": 96,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_2_0_0_mean/202609191200_202609231200",
+      "sha256": "e50a4166578b9dbc0f84944eeb02070c2128d10e2e2c2b6bdc2dfba910d49cd7",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/e50a4166578b9dbc0f84944eeb02070c2128d10e2e2c2b6bdc2dfba910d49cd7.png"
+    },
+    {
+      "model": "wn2",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-24T00:00:00Z",
+      "lead": 108,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_2_0_0_mean/202609191200_202609240000",
+      "sha256": "754deaf8be8a07353dde4a3520c4ba9bff1c2f5f1a3f6b66ea54e397f5c53328",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/754deaf8be8a07353dde4a3520c4ba9bff1c2f5f1a3f6b66ea54e397f5c53328.png"
+    },
+    {
+      "model": "wn2",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-24T12:00:00Z",
+      "lead": 120,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_2_0_0_mean/202609191200_202609241200",
+      "sha256": "0b27e481ce400e41337c6463d9e14ac52e0e4924443a25cda9eea8ad3383601f",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/0b27e481ce400e41337c6463d9e14ac52e0e4924443a25cda9eea8ad3383601f.png"
+    },
+    {
+      "model": "wn2",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-24T18:00:00Z",
+      "lead": 126,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_2_0_0_mean/202609191200_202609241800",
+      "sha256": "cfe206f9a28e74b531f2a7e09cedd640d246baa8f1bfb8746cc590fd5300d2a0",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/cfe206f9a28e74b531f2a7e09cedd640d246baa8f1bfb8746cc590fd5300d2a0.png"
+    },
+    {
+      "model": "wn2",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-25T00:00:00Z",
+      "lead": 132,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_2_0_0_mean/202609191200_202609250000",
+      "sha256": "523b977c124b444ec6ec65605e9f30e73dcb014968a833e0a5689adfb79fa748",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/523b977c124b444ec6ec65605e9f30e73dcb014968a833e0a5689adfb79fa748.png"
+    },
+    {
+      "model": "wn2",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-25T12:00:00Z",
+      "lead": 144,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_2_0_0_mean/202609191200_202609251200",
+      "sha256": "542e4a9d456f1ddb3fef6524664d49f85a41841dd8d7bae00e32db40adca2299",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/542e4a9d456f1ddb3fef6524664d49f85a41841dd8d7bae00e32db40adca2299.png"
+    },
+    {
+      "model": "wn2",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-23T12:00:00Z",
+      "lead": 72,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_2_0_0_mean/202609201200_202609231200",
+      "sha256": "692c49ee08ea791c2cebde61249550b5d870daf7e13eeed504effeb4aeed29db",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/692c49ee08ea791c2cebde61249550b5d870daf7e13eeed504effeb4aeed29db.png"
+    },
+    {
+      "model": "wn2",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-24T00:00:00Z",
+      "lead": 84,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_2_0_0_mean/202609201200_202609240000",
+      "sha256": "950237f575cb538276989e81918664a599a2bdd68a4e9303a52e8d3e34ea4bdb",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/950237f575cb538276989e81918664a599a2bdd68a4e9303a52e8d3e34ea4bdb.png"
+    },
+    {
+      "model": "wn2",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-24T12:00:00Z",
+      "lead": 96,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_2_0_0_mean/202609201200_202609241200",
+      "sha256": "28b024ed13b412b540a73b6b65fa640c98ac695ebcf7479f519dd50db5d597db",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/28b024ed13b412b540a73b6b65fa640c98ac695ebcf7479f519dd50db5d597db.png"
+    },
+    {
+      "model": "wn2",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-24T18:00:00Z",
+      "lead": 102,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_2_0_0_mean/202609201200_202609241800",
+      "sha256": "22dddba307d2bd0439d58d88ca8599006308234a69ff7ac326d4fb5775d0fae8",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/22dddba307d2bd0439d58d88ca8599006308234a69ff7ac326d4fb5775d0fae8.png"
+    },
+    {
+      "model": "wn2",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-25T00:00:00Z",
+      "lead": 108,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_2_0_0_mean/202609201200_202609250000",
+      "sha256": "937b6034a0a06a2767cd027327052bddae875346cfc229f1c92b140afe92f0e2",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/937b6034a0a06a2767cd027327052bddae875346cfc229f1c92b140afe92f0e2.png"
+    },
+    {
+      "model": "wn2",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-25T12:00:00Z",
+      "lead": 120,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_2_0_0_mean/202609201200_202609251200",
+      "sha256": "a61a024a5f3364d76a24719fb0c0cd52d3882ccd8e0ddaeeefa7c61868d97556",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/a61a024a5f3364d76a24719fb0c0cd52d3882ccd8e0ddaeeefa7c61868d97556.png"
+    },
+    {
+      "model": "wn3",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-23T12:00:00Z",
+      "lead": 96,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_3_0_0_0p1deg/202609191200_202609231200",
+      "sha256": "fff0792bb5973d7a1fd512cbcf2cfd3b6829c13950011c5ee00840596e30192a",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/fff0792bb5973d7a1fd512cbcf2cfd3b6829c13950011c5ee00840596e30192a.png"
+    },
+    {
+      "model": "wn3",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-24T00:00:00Z",
+      "lead": 108,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_3_0_0_0p1deg/202609191200_202609240000",
+      "sha256": "5401391fb1116fba0430ebddde4e914d4fd77ff5b38187e21143dd9813b67c83",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/5401391fb1116fba0430ebddde4e914d4fd77ff5b38187e21143dd9813b67c83.png"
+    },
+    {
+      "model": "wn3",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-24T12:00:00Z",
+      "lead": 120,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_3_0_0_0p1deg/202609191200_202609241200",
+      "sha256": "0490430d15d9f08d011dd7f88b2644e4d55fb4834f136b9daa7e27abed0365d0",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/0490430d15d9f08d011dd7f88b2644e4d55fb4834f136b9daa7e27abed0365d0.png"
+    },
+    {
+      "model": "wn3",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-24T18:00:00Z",
+      "lead": 126,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_3_0_0_0p1deg/202609191200_202609241800",
+      "sha256": "7f757fabaefa4b71d883775dfe48b9f248781ad8a26169ecf7f0122390ce7e66",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/7f757fabaefa4b71d883775dfe48b9f248781ad8a26169ecf7f0122390ce7e66.png"
+    },
+    {
+      "model": "wn3",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-25T00:00:00Z",
+      "lead": 132,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_3_0_0_0p1deg/202609191200_202609250000",
+      "sha256": "f8e7aa6bd7894867975e2c438d9e35e51f4627d21a013552c13ef433daf8f4c0",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/f8e7aa6bd7894867975e2c438d9e35e51f4627d21a013552c13ef433daf8f4c0.png"
+    },
+    {
+      "model": "wn3",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-25T12:00:00Z",
+      "lead": 144,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_3_0_0_0p1deg/202609191200_202609251200",
+      "sha256": "c04fb4c31d799910cbdf463ed9a15efd86a716f948b8f0b4eb2aa60b930859dc",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/c04fb4c31d799910cbdf463ed9a15efd86a716f948b8f0b4eb2aa60b930859dc.png"
+    },
+    {
+      "model": "wn3",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-23T12:00:00Z",
+      "lead": 72,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_3_0_0_0p1deg/202609201200_202609231200",
+      "sha256": "b2beb2fd832f9fe74e23353909fdf98b8cf27192d49c32c5a981e6c8d91115ad",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/b2beb2fd832f9fe74e23353909fdf98b8cf27192d49c32c5a981e6c8d91115ad.png"
+    },
+    {
+      "model": "wn3",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-24T00:00:00Z",
+      "lead": 84,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_3_0_0_0p1deg/202609201200_202609240000",
+      "sha256": "d0352630a95dcd5df8ff8662222cb615dec1e0ebe486554a4bc38cfe437fcc29",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/d0352630a95dcd5df8ff8662222cb615dec1e0ebe486554a4bc38cfe437fcc29.png"
+    },
+    {
+      "model": "wn3",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-24T12:00:00Z",
+      "lead": 96,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_3_0_0_0p1deg/202609201200_202609241200",
+      "sha256": "be2be15ae1eb0d5214f0dc7ba407ddb71c7d9cb42c9bf5a79cda12f5cfca0b34",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/be2be15ae1eb0d5214f0dc7ba407ddb71c7d9cb42c9bf5a79cda12f5cfca0b34.png"
+    },
+    {
+      "model": "wn3",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-24T18:00:00Z",
+      "lead": 102,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_3_0_0_0p1deg/202609201200_202609241800",
+      "sha256": "33da3f0a265e4118bd89efc7529979025cae674f9c317fb40127f667a3d8611d",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/33da3f0a265e4118bd89efc7529979025cae674f9c317fb40127f667a3d8611d.png"
+    },
+    {
+      "model": "wn3",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-25T00:00:00Z",
+      "lead": 108,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_3_0_0_0p1deg/202609201200_202609250000",
+      "sha256": "6c742c7154706dfdafd30a38f879577cbcdfa62937c5b0d48587659c8f5db8a0",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/6c742c7154706dfdafd30a38f879577cbcdfa62937c5b0d48587659c8f5db8a0.png"
+    },
+    {
+      "model": "wn3",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-25T12:00:00Z",
+      "lead": 120,
+      "source_id": "projects/gcp-public-data-weathernext/assets/weathernext_3_0_0_0p1deg/202609201200_202609251200",
+      "sha256": "d2ecce930fc81d6bc5ae3698ad9c09218ac570860e88381c2b3e5e2da0b8ce2c",
+      "width": 1800,
+      "height": 1725,
+      "url": "/events/commercial-checkride/maps/d2ecce930fc81d6bc5ae3698ad9c09218ac570860e88381c2b3e5e2da0b8ce2c.png"
+    }
+  ]
+}

@@ -160,7 +160,9 @@ def update(var: Path, cloud_config: Path | None, now: datetime | None = None, ev
             snapshot["initialization_provenance_version"] = 1
             snapshot["narrative_sampling_dictionary_version"] = 1
             snapshot["native_ensemble_evidence_version"] = 1
+            from .coastal_maps import load as load_coastal_maps
             for key, collect in (
+                ("coastal_maps", lambda: load_coastal_maps(var / "events" / event.slug / "coastal-maps.json", snapshot['event'])),
                 ("event_wind", lambda: collect_wind(HttpClient(timeout=15, retries=0, direct_native=True), snapshot, now)),
                 ("native_wind", lambda: collect_native_wind(snapshot, var / "events" / event.slug / "native-wind-cache", now)),
                 ("wind_trends", lambda: build_wind_trends(snapshot, var / "events" / event.slug / "runs", now)),

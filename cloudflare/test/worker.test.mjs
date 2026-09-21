@@ -1,6 +1,7 @@
 import { test, before, after } from 'node:test';
 import { readdirSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 
 let mf;
@@ -97,4 +98,47 @@ test('event pages publish, serve, archive, and appear in navigation', async () =
   const events=await (await request('/api/events')).json(); assert.equal(events.events[0].slug,'commercial-checkride');
   assert.match(await (await request('/events')).text(),/Commercial checkride/);
   assert.match(await (await request('/history')).text(),/href="\/events\/commercial-checkride"/);
+});
+
+test('map uploads enforce authentication, PNG bounds, checksums and immutable serving', async () => {
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6VLsAAAAASUVORK5CYII=', 'base64');
+  const hash = createHash('sha256').update(png).digest('hex');
+  const path = `/events/commercial-checkride/maps/${hash}.png`;
+  const headers = { Authorization: 'Bearer test-secret', 'Content-Type': 'image/png' };
+  const put = (body, route = '/api'+path, custom = headers) => request(route, { method: 'POST', headers: custom, body });
+  assert.equal((await put(png, '/api'+path, {})).status, 401);
+  assert.equal((await put('not a PNG')).status, 400);
+  assert.equal((await put(Buffer.alloc(4_000_001))).status, 400);
+  assert.equal((await put(png, '/api'+path.replace(hash,'0'.repeat(64)))).status, 400);
+  const oversized = Buffer.from(png); oversized.writeUInt32BE(10000, 16);
+  assert.equal((await put(oversized)).status, 400);
+  assert.equal((await request(path)).status, 404);
+  assert.deepEqual(await (await put(png)).json(), { stored: true, sha256: hash, width: 1, height: 1 });
+  assert.equal((await put(png)).status, 200);
+  const result = await request(path);
+  assert.deepEqual(Buffer.from(await result.arrayBuffer()), png);
+  assert.equal(result.headers.get('Content-Type'), 'image/png');
+  assert.match(result.headers.get('Cache-Control'), /immutable/);
+  const head = await request(path, { method:'HEAD' });
+  assert.equal(head.headers.get('Content-Length'), String(png.length));
+  assert.equal(await head.text(), '');
+  assert.equal((await request(path, { headers:{'If-None-Match':`"${hash}"`} })).status, 304);
+  assert.equal((await request(path.replace('commercial-checkride','another-event'))).status, 404);
+  const history = await (await request('/api/events/commercial-checkride/history')).json();
+  assert.equal(history.reports.length, 2);
+});
+
+test('map reads respect disabled public access', async () => {
+  const privateWorker = new Miniflare(convertV4MiniflareOptions({ workers: [{ name:'private',
+    modules:[{type:'ESModule',path:'dist/index.js'}, ...readdirSync('dist').filter(f=>f.endsWith('.css')).map(f=>({type:'Text',path:'dist/'+f}))],
+    compatibilityDate:'2026-09-08', compatibilityFlags:['nodejs_compat'], r2Buckets:['REPORTS'], bindings:{PUBLISH_TOKEN:'private-secret',READ_ACCESS:'private'} }] }));
+  try {
+    const path = '/events/commercial-checkride/maps/'+'a'.repeat(64)+'.png';
+    const bucket = await privateWorker.getR2Bucket('REPORTS');
+    await bucket.put(path.slice(1), 'png');
+    assert.equal((await privateWorker.dispatchFetch('https://weather.example'+path)).status, 403);
+    const authorized = await privateWorker.dispatchFetch('https://weather.example'+path, { headers:{Authorization:'Bearer private-secret'} });
+    assert.equal(authorized.status, 200);
+    assert.equal(authorized.headers.get('Cache-Control'), 'private, no-store');
+  } finally { await privateWorker.dispose(); }
 });

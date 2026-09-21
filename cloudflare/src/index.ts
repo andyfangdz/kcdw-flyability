@@ -1,6 +1,7 @@
 import reportStyles from '../../kcdw/report.css';
 import fontStyles from '../../kcdw/assets/fonts.css';
 import { timingSafeEqual } from 'node:crypto';
+import { uploadMap, readMap } from './event-maps';
 
 const MAX_REPORT_BYTES = 1_000_000;
 const ID = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z\.[A-Za-z0-9_-]{1,40}$/;
@@ -256,6 +257,12 @@ async function serveEvent(url: URL, env: Env, slug: string, sub: string | undefi
 }
 async function serve(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
+  const mapUpload = /^\/api\/events\/([a-z0-9][a-z0-9-]{0,39})\/maps\/([a-f0-9]{64})\.png$/.exec(url.pathname);
+  if (mapUpload) {
+    if (!authenticated(request, env)) return response('Unauthorized', 401);
+    if (request.method !== 'POST') return response('Method not allowed', 405);
+    return uploadMap(request, env.REPORTS, mapUpload[1], mapUpload[2]);
+  }
   const eventPublish = /^\/api\/events\/([^/]+)\/publish$/.exec(url.pathname);
   if (url.pathname === '/api/publish' || url.pathname === '/api/events/index' || eventPublish) {
     if (!authenticated(request, env)) return response('Unauthorized', 401);
@@ -266,6 +273,8 @@ async function serve(request: Request, env: Env): Promise<Response> {
   if (request.method !== 'GET' && request.method !== 'HEAD') return response('Method not allowed', 405);
   // Keep reads disabled until the intended publication access has been configured.
   if (String(env.READ_ACCESS) !== 'public' && !authenticated(request, env)) return response('Report access is not enabled', 403);
+  const mapRead = /^\/events\/([a-z0-9][a-z0-9-]{0,39})\/maps\/([a-f0-9]{64})\.png$/.exec(url.pathname);
+  if (mapRead) return readMap(request, env.REPORTS, mapRead[1], mapRead[2], String(env.READ_ACCESS) === 'public');
   if (url.pathname === '/history' || url.pathname === '/api/history') return history(url, env, mainScope);
   if (url.pathname === '/events') return eventsPage(env);
   if (url.pathname === '/api/events') return json(await eventIndex(env));

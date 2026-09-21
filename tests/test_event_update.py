@@ -32,7 +32,7 @@ SOURCES = {
 
 
 class EventUpdateTests(unittest.TestCase):
-    def run_update(self, failed=(), narrative_failure=False):
+    def run_update(self, failed=(), narrative_failure=False, maps=None):
         snapshot = comparison.ComparisonTests().snapshot()
         expected = {key: None if name in failed else {'source': key}
                     for name, key in SOURCES.items()}
@@ -44,6 +44,10 @@ class EventUpdateTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp, ExitStack() as stack:
             var = Path(tmp)
+            if maps:
+                path = var / 'events' / EVENT.slug / 'coastal-maps.json'
+                path.parent.mkdir(parents=True)
+                path.write_text(json.dumps(maps))
             stack.enter_context(patch.object(event_update, 'upcoming_events', return_value=[EVENT]))
             stack.enter_context(patch.object(event_update, 'load_event_timing', return_value=TIMING))
             collect = stack.enter_context(patch.object(event_update, 'collect_event', return_value=snapshot))
@@ -83,6 +87,7 @@ class EventUpdateTests(unittest.TestCase):
             self.assertEqual(saved['event_timing'], TIMING)
             self.assertEqual(saved['initialization_provenance_version'], 1)
             self.assertEqual(saved['collected_at'], snapshot['collected_at'])
+            self.assertEqual(saved['coastal_maps'], maps)
             self.assertIn('current charts', (archive / 'index.html').read_text())
             publish.assert_called_once()
             self.assertEqual(publish.call_args.args[1], archive)
@@ -90,6 +95,10 @@ class EventUpdateTests(unittest.TestCase):
 
     def test_current_evidence_reaches_narrative_archive_and_publisher(self):
         self.run_update()
+
+    def test_saved_map_comparison_survives_scheduled_refresh(self):
+        from test_coastal_maps import fixture, public_manifest
+        self.run_update(maps=public_manifest(fixture()))
 
     def test_source_failures_preserve_other_evidence_and_publication(self):
         # Alternate failures so every optional source fails once while others

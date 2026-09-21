@@ -571,6 +571,12 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
     from .event_wn2_members_view import render_wn2_members
     wn2_html = render_wn2_members(snapshot, now)
     navigation = (Path(__file__).parent / 'assets/forecast-navigation.js').read_text()
+    from .coastal_maps import render as render_coastal_maps
+    coastal_html = render_coastal_maps(snapshot.get('coastal_maps'), snapshot['event'])
+    coastal_link = '<a href="#coastal-low">Coastal low</a>' if coastal_html else ''
+    if coastal_html:
+        navigation += '\n' + (Path(__file__).parent / 'assets/coastal-maps.js').read_text()
+        css += (Path(__file__).parent / 'assets/coastal-maps.css').read_text()
     script_hash = base64.b64encode(hashlib.sha256(navigation.encode()).digest()).decode()
     source_introduction = ('Direct native sources are preferred; fallback packets are labeled separately. '
                           'NOAA/NCEP native data are public domain; ECMWF native data and Open-Meteo fallback data are CC BY 4.0. '
@@ -606,10 +612,11 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
 <header class="top"><div class="wrap"><a class="brand" href="/">KCDW / Field notes</a><nav class="top-links" aria-label="Main navigation"><a href="/">Current outlook</a><a href="{esc(event.path())}" aria-current="page">{esc(event.nav_label)}</a><a href="{esc(event.path())}/history">History ↗</a></nav></div></header>
 <main id="main" class="wrap">
 <header class="event-header"><div><p class="eyebrow">KCDW / Dated event briefing</p><h1>{esc(event.title)}</h1>{timing_header(snapshot, event)}</div><div class="event-meta"><p>{days} days out · {len(models)} of {len(MODELS)} systems</p><p class="freshness"><strong>{freshness}</strong><br><time datetime="{esc(snapshot['collected_at'])}">{esc(collected.astimezone(TZ).strftime('%b %-d, %H:%M %Z'))}</time> · {age // 3600}h {(age % 3600) // 60}m old at render</p></div></header>
-<nav class="section-nav" aria-label="Briefing sections"><a href="#briefing">Flight brief</a><a href="#low-cloud-analysis">Cloud &amp; ceiling</a>{wind_link}<a href="#model-guidance">Model comparison</a><a href="#regional-guidance">Regional context</a><a href="#notes-sources">Sources</a></nav>
+<nav class="section-nav" aria-label="Briefing sections"><a href="#briefing">Flight brief</a><a href="#low-cloud-analysis">Cloud &amp; ceiling</a>{wind_link}<a href="#model-guidance">Model comparison</a>{coastal_link}<a href="#regional-guidance">Regional context</a><a href="#notes-sources">Sources</a></nav>
 <section id="briefing" class="operational-briefing" data-tone="{esc(briefing['tone'])}" aria-label="Flight brief">{brief_html}</section>
 {cloud_html}{wind_html}
 <div id="model-guidance" class="evidence-group">{matrix_html}{comparison}{model_detail}</div>
+{coastal_html}
 <details id="regional-guidance" class="report-detail"><summary>Regional outlooks &amp; tropical context</summary>{context_html}</details>
 <section class="supporting-detail" aria-labelledby="detail-title"><h2 id="detail-title">Reference</h2>
 <details id="window-distributions"><summary>Forecast context / per-model distributions</summary><p>Median (10th–90th percentile), with complete-member counts. Rain sums preceding-hour intervals ending after the opening time through the closing time. Conventional wind/cloud/pressure use those same sampled endpoints, not continuous extrema. Missing low cloud is unavailable, never favorable.</p><div class="chart-scroll" tabindex="0" role="region" aria-label="Per-model event distributions"><table><thead><tr><th scope="col">Model</th><th scope="col">Rain total · mm</th><th scope="col">Peak sustained · kt</th><th scope="col">Mean low cloud · %</th><th scope="col">Lowest pressure · hPa</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div></details>

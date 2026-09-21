@@ -262,13 +262,17 @@ def chart_frame(weather,layout,map_extent,width,palette,run,valid,lead,font=None
     return canvas.byte()
 
 
-def compose(source,bands,native_transform,annotation_grid,annotation_extent,map_extent,width,view,boundaries,palette,run,valid,lead):
+def compose(source,bands,native_transform,annotation_grid,annotation_extent,map_extent,width,view,boundaries,palette,run,valid,lead,*,native_crs='EPSG:4326',map_grid=None):
     layout=chart_layout(map_extent,width)
+    if map_grid is not None:
+        # Keep annotation sizes fixed relative to the map, regardless of export pixels.
+        layout={**layout,'grid':map_grid,'map_width_pixels':width}
     grid=layout['grid'];proj=projection(grid);annproj=projection(annotation_grid)
     line_width=max(1,round(layout['map_width_pixels']/2000))
-    native=ee.Projection('EPSG:4326',native_transform)
+    native=ee.Projection(native_crs,native_transform)
     pressure=source.select(bands[0]).multiply(.01)
-    smooth=pressure.convolve(ee.Kernel.gaussian(radius=6,sigma=2,units='pixels',normalize=True)).reproject(native)
+    sigma=.2/abs(native_transform[0])
+    smooth=pressure.convolve(ee.Kernel.gaussian(radius=math.ceil(3*sigma),sigma=sigma,units='pixels',normalize=True)).reproject(native)
     wind=source.select(bands[1]).multiply(3600/1852).rename('wind_kt')
     u=source.select(bands[2]).multiply(3600/1852).rename('u_kt')
     v=source.select(bands[3]).multiply(3600/1852).rename('v_kt')
@@ -307,7 +311,7 @@ def compose(source,bands,native_transform,annotation_grid,annotation_extent,map_
         def center_value(f):
             return font.feature(ee.Number(f.get('pressure')).format('%.0f'),f.get('map_x'),ee.Number(f.get('map_y')).subtract(25*ps),11*ps,align='center')
         weather=weather.blend(paint(centers.map(center_symbol).merge(centers.map(center_value)),proj,color))
-    canvas=chart_frame(weather,layout,map_extent,width,palette,run,valid,lead,font)
+    canvas=weather if map_grid is not None else chart_frame(weather,layout,map_extent,width,palette,run,valid,lead,font)
     upright=ee.Number(labels.aggregate_min('angle')).gte(-math.pi/2).And(
         ee.Number(labels.aggregate_max('angle')).lte(math.pi/2))
     diagnostics=ee.Dictionary({'valid_weather':complete,'barb_count':glyphs.size(),'upright_pressure_labels':upright,

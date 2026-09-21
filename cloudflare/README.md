@@ -23,7 +23,14 @@ The host validates the full analysis before upload. The Worker checks the transp
 - `/reports/<run-id>/analysis.json`: historical analysis and change summary.
 - `/api/publish`: authenticated publisher endpoint.
 
-All routes use `Cache-Control: no-store` so latest pointers and freshness are never hidden by a stale HTTP cache. Report pages retain their in-browser freshness timer. `READ_ACCESS=disabled` restricts reads to the publisher credential until publication access is configured; `READ_ACCESS=public` permits public viewing.
+Report routes use `Cache-Control: no-store` so latest pointers and freshness are never hidden by a stale HTTP cache. Report pages retain their in-browser freshness timer. `READ_ACCESS=disabled` restricts reads to the publisher credential until publication access is configured; `READ_ACCESS=public` permits public viewing.
+
+Coastal-map assets use `POST /api/events/<slug>/maps/<sha256>.png` with the same
+publisher credential, and `GET/HEAD /events/<slug>/maps/<sha256>.png` with the same
+read-access policy. Uploads are bounded to 4 MB and validate PNG headers,
+dimensions and SHA-256 before an immutable conditional R2 write. Public PNGs
+use one-year immutable caching and ETags; restricted reads use private/no-store.
+Assets do not appear in report history. See [the comparison workflow](../deploy/EARTH-ENGINE-COASTAL-MAPS.md).
 
 ## Setup
 
