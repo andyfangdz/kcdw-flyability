@@ -34,7 +34,6 @@ COLLECTION = 'projects/gcp-public-data-weathernext/assets/weathernext_3_0_0_0p1d
 BANDS = ['mean_sea_level_pressure_mean', 'wind_speed_10m_mean',
          'u_component_of_wind_10m_mean', 'v_component_of_wind_10m_mean']
 NATIVE = [.1, 0, -180.05, 0, -.1, 90.05]
-KCDW = [-74.2814, 40.8752]
 KT = 3600/1852
 PALETTE = ['ffffff', 'edf6fc', 'c8e9f7', '8dc5eb', '6789ce', '916cbe',
            'c57bb9', 'df579d', 'd7386d', 'e33b3f', 'ed7946', 'f5be62', 'd3a74b']
@@ -300,7 +299,7 @@ def render_server(source, info, view, root, cartopy_dir, width):
         'pressure_levels_hpa':levels,'point_raw':point,'bigquery_parity':comparisons,
         'rendering':{'earth_engine':['wind shading','pressure smoothing and contours','map boundaries','wind barb rasterization','projection and rasterization'],
                      'local_geometry':['wind barb projection rotation and glyph geometry'],
-                     'local':['pressure labels','H/L labels','KCDW marker','titles and legend']},
+                     'local':['pressure labels','H/L labels','titles and legend']},
         'wind_barbs':{'count':len(barbs['symbols']),'sample_stride':barbs['sample_stride'],
                       'length_projected_m':barbs['length_projected_m'],
                       'rounding':'Nearest 5 kt; half increments upward',
@@ -360,10 +359,6 @@ def annotate(root,proof):
             ax.annotate(f'{pressure:.0f}',(x[j],y[i]),xytext=(0,-21),textcoords='offset points',ha='center',color=color,fontsize=11,zorder=7)
             clon,clat=geographic.transform(x[j],y[i]);centers.append({'symbol':symbol,'pressure_hpa':pressure,'longitude':clon,'latitude':clat})
             if len(placed)>=4:break
-    transformer=Transformer.from_crs('EPSG:4326','EPSG:5070',always_xy=True)
-    px,py=transformer.transform(*KCDW)
-    ax.plot(px,py,'o',markersize=5,markerfacecolor='#172b36',markeredgecolor='white',markeredgewidth=1.5,zorder=10)
-    ax.annotate('KCDW',(px,py),xytext=(7,6),textcoords='offset points',fontsize=10,weight='bold',color='#172b36',zorder=10)
     run=timestamp(proof['source']['properties']['start_time']);valid=timestamp(proof['source']['properties']['end_time'])
     fig.text(.032,.953,'10 m wind & sea-level pressure',fontsize=23,weight='bold',color='#182d35')
     fig.text(.968,.953,'WEATHERNEXT 3',fontsize=19,ha='right',weight='bold',color='#182d35')
@@ -385,6 +380,7 @@ def annotate(root,proof):
         proof['finished_image']={'width':finished.width,'height':finished.height,'dpi':dpi,
                                  'text_backgrounds':False,'text_halos':False}
     proof['pressure_centers']=centers
+    proof['rendering']['local']=['pressure labels','H/L labels','titles and legend']
     proof['files'][out.name]=digest(out)
     (root/'provenance.json').write_text(json.dumps(proof,indent=2))
     print(out,flush=True)

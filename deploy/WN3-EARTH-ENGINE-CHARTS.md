@@ -5,7 +5,7 @@
 Earth boundaries, and projection to EPSG:5070. Python prepares standard barb
 line and flag geometry from verified U/V samples; Earth Engine paints those
 geometries into the exported image. Local Matplotlib adds pressure labels,
-H/L labels, the KCDW marker, timestamps, and the color legend.
+H/L labels, timestamps, and the color legend.
 
 The continental and Northeast views show the same initialization and valid
 hour. These are fixed research charts, separate from scheduled reports.
