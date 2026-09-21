@@ -1,113 +1,150 @@
-# WeatherNext wind and pressure maps rendered by Earth Engine
+# WeatherNext charts rendered entirely by Earth Engine
 
-`scripts/wn3_earth_engine_chart.py` asks Earth Engine to render the map raster:
-10 m wind shading, wind barbs, smoothed sea-level pressure contours, Natural
-Earth boundaries, and projection to EPSG:5070. Python prepares standard barb
-line and flag geometry from verified U/V samples; Earth Engine paints those
-geometries into the exported image. Local Matplotlib adds pressure labels,
-H/L labels, timestamps, and the color legend.
+`scripts/wn3_earth_engine_chart.py` exports complete wind and pressure charts.
+Earth Engine samples the model fields, rotates wind vectors, constructs barb
+lines and flags, finds pressure centers, chooses pressure-label positions,
+and draws the weather layers, text, titles, and legend. The server-side
+expressions live in `scripts/wn3_earth_engine_layers.py`.
 
-The continental and Northeast views show the same initialization and valid
-hour. These are fixed research charts, separate from scheduled reports.
+Python submits the run/time, static layout, bundled font outlines, and Natural
+Earth boundaries. It downloads rendered RGB strips, joins them without
+resampling, and saves the PNG and provenance. The only other responses are
+source metadata and validation booleans/counts. No model-value grid or
+weather-derived geometry is downloaded, and no local weather analysis or
+Matplotlib annotation is required.
 
 ## Render
 
-Install `requirements-earth-engine-charts.txt` in a separate environment and
-use the project's existing Google credentials. The credential identity needs
-Earth Engine and WeatherNext access. Natural Earth 50m shapefiles are reused
-from `var/charts/cartopy-data/shapefiles/natural_earth/`; these are the same
-boundaries used by the existing Zarr chart. `--cartopy-dir` overrides that path.
+Install the separate Earth Engine requirements and use the project's Google
+credentials with WeatherNext and Earth Engine access:
 
 ```sh
 uv venv var/earth-engine-charts-venv
 uv pip install --python var/earth-engine-charts-venv/bin/python \
   -r requirements-earth-engine-charts.txt
-MPLCONFIGDIR=var/charts/.matplotlib scripts/with-runtime.sh \
+scripts/with-runtime.sh \
   var/earth-engine-charts-venv/bin/python scripts/wn3_earth_engine_chart.py \
   --run 2026-09-20T12:00:00Z \
   --valid 2026-09-24T15:00:00Z \
   --view both \
-  --output-dir var/charts/earth-engine-20260920T12Z-f099-retina
+  --output-dir var/charts/earth-engine-20260920T12Z-f099-server
 ```
 
-The initialization and valid time are explicit; unavailable source images fail.
-Each view saves the original `earth-engine-map.png`, a finished
-`wn3-earth-engine-wind-pressure.png`, an annotation grid, `barb-geometries.json`,
-and `provenance.json`.
-Matching cached files are checksum-checked and reused; the CLI still checks
-the source image metadata online. Use a new output directory for a new run,
-valid time, or changed rendering settings. Renderer version 3 rejects older
-caches, including the previous sparse-barb rendering.
+Natural Earth 50m shapefiles are reused from
+`var/charts/cartopy-data/shapefiles/natural_earth/`. The existing `--cartopy-dir`
+argument overrides this static boundary directory. Cartopy, SciPy, and
+Matplotlib are no longer runtime dependencies. No NumPy model arrays are
+downloaded or analyzed.
 
-The default Earth Engine map width is 4,000 pixels (2× the original). Final
-charts use 360 DPI and are 5,760 pixels wide, also 2× the original export.
-`--width 2000` produces the same layout at standard resolution; allowed widths
-are 800–4,000. The map is rendered at the requested resolution by Earth Engine,
-and local labels are exported at matching pixel density. Barb and boundary
-strokes and contour weight scale with resolution. Text has no white boxes or
-halos; pressure numbers sit just beside their contour lines. Large maps use
-aligned Earth Engine row strips (at most 8 million
-pixels per request) to stay within the request-size limit. Python joins their
-RGB pixels without resampling; `provenance.json` records each request's extent
-in rows, elapsed time, and byte count.
+The default `--width 4000` produces 5,760-pixel-wide finished charts at 2× the
+original pixel density. `--width 2000` produces a 2,880-pixel-wide chart;
+allowed settings are 800–4,000. Earth Engine renders the entire canvas,
+including the frame and text, at the final pixel resolution. Requests use
+aligned row strips of at most 4 million pixels to fit the API size limit,
+with a five-minute client timeout. No airport marker, white text boxes, or
+text halos are drawn.
 
-Barbs are sampled from a fixed 500-column annotation grid, every 12 cells for
-the continental view and every 15 cells for the Northeast. This gives roughly
-four times the previous density. Glyphs are also larger (1% of map width).
-Changing output resolution preserves their locations, winds, and apparent
-size rather than changing the underlying weather sampling.
+## Outputs and cache
 
-## Reading and verification
+Each view saves:
 
-- Wind shading: ensemble-mean scalar speed, m/s converted to knots, 0–60 kt.
-- Contours: ensemble-mean sea-level pressure, Pa converted to hPa, every 2 hPa.
+- `wn3-earth-engine-wind-pressure.png`: the finished chart.
+- `earth-engine-map.png`: identical server-rendered pixels, retained for
+  compatibility with the earlier workflow.
+- `earth-engine-expression.json`: the complete serialized EE expression,
+  including server-side model processing and annotation construction.
+- `provenance.json`: source identity, dimensions, server validation results,
+  strip timings, rendering ownership, and SHA-256 hashes.
+- `render-tiles/`: checked RGB strips, keyed by the complete expression and
+  output grid, so interrupted exports can resume without repeating finished work.
+
+Renderer version 5 rejects earlier hybrid-renderer caches. Use a fresh output
+directory for changed dates or settings. Matching caches are checksum-checked
+and reused; the CLI still validates source metadata online. This renderer
+produces no `annotation-fields.npz` or downloaded `barb-geometries.json`.
+
+## Data and symbols
+
+- Wind shading uses ensemble-mean scalar speed, converted from m/s to knots,
+  with a 0–60 kt palette.
+- Pressure uses ensemble-mean sea-level pressure, converted from Pa to hPa.
   Earth Engine applies a normalized Gaussian filter with sigma 2 native pixels
-  (0.2 degrees) and radius 6 pixels, followed by bilinear display interpolation.
-- Barbs: ensemble-mean U/V components, rotated into the map projection.
-  Their magnitude can be smaller than the mean scalar speed. The staff points
-  toward the wind's origin. A half feather denotes 5 kt, a full feather 10 kt,
-  and a filled flag 50 kt. Speeds are rounded to the nearest 5 kt, with halfway
-  values rounded upward. A circle denotes a vector magnitude that rounds to
-  zero, which may reflect cancellation between ensemble members. Glyphs use
-  Northern Hemisphere feather orientation for these map domains.
-- The source remains 0.1 degrees. Rendering resolution does not add forecast
-  detail. No gust forecast, ensemble spread, or flight probability is shown.
-- H/L annotations are extrema in the sampled ensemble-mean pressure field;
-  they are not member tracks or cyclone intensity guidance.
+  (0.2 degrees), then draws contours every 2 hPa.
+- Wind barbs use ensemble-mean U/V, which may have a smaller magnitude than
+  mean scalar speed. Earth Engine performs the same geographic-grid vector
+  rotation as the previous chart and points each staff upwind. The Northern
+  Hemisphere convention is used: 5 kt half feather, 10 kt full feather,
+  50 kt filled flag. Values round to the nearest 5 kt, halfway upward. A circle
+  means a magnitude that rounds to zero, including ensemble cancellation.
+- A fixed 500-column grid stays on the server for symbol and label placement.
+  Barbs occur every 12 cells in the continental view and 15 in the Northeast:
+  984 and 1,056 barbs. Pixel-center coordinates are converted to integer grid
+  indices before applying this spacing. Glyph length is 1% of map width.
+- Earth Engine chooses contour-label positions near isobars and rotates their
+  text along the local pressure gradient's perpendicular. Central differences
+  on the projected chart grid keep those angles aligned with the drawn lines.
+  H/L labels mark
+  sampled pressure extrema, separated by at least 800 km for the continental
+  view and 450 km for the Northeast, with at most four of each symbol.
+- The forecast remains on a 0.1-degree model grid. Display resolution adds no
+  forecast detail. These experimental charts do not show gusts, ensemble
+  spread, or flight probabilities.
 
-The September 20, 2026 12Z run, valid September 24 at 15Z (11 a.m. EDT),
-rendered successfully with Earth Engine painting 984 continental and 1,056
-Northeast wind barbs (previously 240 and 272). The Earth Engine rasters measure
-4,000 × 2,292 and 4,000 × 3,833 pixels; the finished charts measure
-5,760 × 4,164 and 5,760 × 6,383 pixels. Each map used two aligned requests.
-Rendering, downloading, and joining those strips took 65.05 seconds for the
-continental view and 60.58 seconds for the Northeast, producing map PNGs of
-3,352,755 and 3,374,959 bytes respectively. These are individual measurements,
-excluding annotation extraction and local framing, not latency guarantees or
-measurements of billed compute. Requests have a three-minute client timeout.
+## Verification
 
-All four raw KCDW values—pressure, scalar wind speed, U, and V—matched saved
-BigQuery values exactly. Checks also covered source run/lead/grid identity,
-complete finite annotation data, physical ranges, mean-vector magnitude,
-PNG dimensions and opacity, artifact hashes, and visual inspection of both
-finished charts. The annotation fields also matched the previous render within
-floating-point roundoff (maximum absolute difference 2.3e-13 hPa for pressure
-and 4.7e-14 kt for wind). A separate Earth Engine symbol strip previously
-verified 0, 5, 10, 15, 50, 65, and 100 kt symbols, including filled flags.
+The renderer verifies source run/time/native-grid identity and rejects missing
+or physically invalid weather samples. Server-side checks enforce complete
+sampling, the expected barb count, upright pressure labels, at least one
+pressure label, and mean U/V magnitude no greater than mean scalar speed. Only the check results return to
+Python. The downloader verifies strip dimensions, full opacity, and hashes.
 
-The wind-barb tests exercise standard speed symbols, filled-flag geometry,
-upwind direction, nearest-5-kt rounding, calm circles, projection rotation,
-vector magnitude rather than scalar mean, invalid values, and rejection of
-older renderer caches. A resolution-invariance test checks that standard and
-retina exports use identical barb locations and wind values; a strip-joining
-test checks projected row alignment and exact pixel preservation:
+Offline tests prevent weather-value reads while the full chart expression is
+built, enforce PNG-only downloads, exercise cache integrity, and verify lossless
+strip alignment, interrupted-export recovery, and retina layout:
 
 ```sh
 var/earth-engine-charts-venv/bin/python -m unittest discover -s tests \
   -p 'test_wn3_earth_engine_chart.py' -v
 ```
 
+Opt-in live tests exercise Earth Engine's actual wind-barb shapes, speed
+rounding, direction, grid alignment, and contour-label angles. A synthetic
+chart checks that the entire map, legend, and text survive composition. The
+weather check compares the September 20,
+2026 12Z run at September 24 15Z with the previously verified BigQuery values.
+Earth Engine returns comparison booleans, not the forecast values. The frame
+check downloads only a synthetic RGB chart:
+
+```sh
+WN3_EE_LIVE_TESTS=1 scripts/with-runtime.sh \
+  var/earth-engine-charts-venv/bin/python -m unittest discover -s tests \
+  -p 'test_wn3_earth_engine_live.py' -v
+```
+
+The September 20 12Z / F099 example was exported and visually checked with
+renderer version 5:
+
+| View | Finished pixels | Barbs | Export time |
+| --- | --- | --- | --- |
+| Continental | 5,760 × 4,164 | 984 | 293 seconds |
+| Northeast | 5,760 × 6,383 | 1,056 | 473 seconds |
+
+These are single observations with the two views exporting concurrently, after
+development requests may have warmed Earth Engine caches. No local strips were
+reused. Timings include rendering, transfer, and assembly, and exclude the
+earlier metadata and validation calls. They are not latency or billing guarantees.
+
+## Bundled text font
+
+`scripts/earth_engine_assets/font.json` contains static DejaVu Sans outlines, generated
+once by `scripts/build_earth_engine_font.py`. Earth Engine constructs and paints
+the labels from these outlines using server-side strings and coordinates.
+The generator requires the optional `requirements-charts.txt` environment;
+normal rendering does not. The bundled font's license is in
+`scripts/earth_engine_assets/LICENSE_DEJAVU`.
+
 Sources: [WeatherNext on Earth Engine](https://developers.google.com/weathernext/guides/earth-engine),
+[EE client and server operations](https://developers.google.com/earth-engine/guides/client_server),
 [Earth Engine pixel rendering](https://developers.google.com/earth-engine/apidocs/ee-data-computepixels),
 [NWS wind-barb conventions](https://www.weather.gov/hfo/windbarbinfo),
 [WeatherNext experimental data terms](https://storage.googleapis.com/weathernext-public/terms-of-use.pdf).

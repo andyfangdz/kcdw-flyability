@@ -52,8 +52,9 @@ chart can be rendered offline. Generated files remain under ignored `var/`.
 
 An [Earth Engine rendering alternative](WN3-EARTH-ENGINE-CHARTS.md) produces
 continental and Northeast views without downloading global Zarr planes.
-Earth Engine renders the weather raster, wind barbs, and boundaries; local
-tools prepare barb geometry and add labels and the legend.
+Earth Engine computes the barb geometry and pressure labels and renders the
+complete chart, including boundaries, titles, and legend. Python downloads
+finished image strips and joins them without sampling model-value grids.
 
 ## Reading the chart
 

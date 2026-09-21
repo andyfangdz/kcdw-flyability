@@ -1,117 +1,139 @@
 import importlib.util
+from datetime import datetime, timezone
 from io import BytesIO
 import json
-import math
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
 
 HAS_CHARTS = all(importlib.util.find_spec(name) is not None for name in (
-    'ee', 'numpy', 'matplotlib', 'cartopy', 'scipy', 'pyproj', 'shapely',
+    'ee', 'PIL', 'pyproj', 'shapely', 'shapefile',
 ))
 if HAS_CHARTS:
-    import numpy as np
+    import ee
+    from ee import apitestcase
     from PIL import Image
     from scripts import wn3_earth_engine_chart as chart
+    from scripts import wn3_earth_engine_layers as layers
 
 
 @unittest.skipUnless(HAS_CHARTS, 'Install requirements-earth-engine-charts.txt')
-class EarthEngineWindBarbTests(unittest.TestCase):
-    def test_standard_speed_symbols_and_filled_flags(self):
-        # NWS symbols: a half feather is 5 kt, full feather 10, pennant 50.
-        for speed, expected in [(0,(0,0,0)),(5,(0,0,1)),(10,(0,1,0)),
-                                (15,(0,1,1)),(50,(1,0,0)),(65,(1,1,1)),(100,(2,0,0))]:
-            with self.subTest(speed=speed):
-                glyph=chart.barb_geometry(100,200,0,-speed,10)
-                self.assertEqual((len(glyph['flags']),glyph['full_barbs'],glyph['half_barbs']),expected)
-                self.assertEqual(glyph['rounded_speed_kt'],speed)
-                if speed:
-                    self.assertEqual(len(glyph['lines']),1+expected[1]+expected[2])
-                for triangle in glyph['flags']:
-                    self.assertEqual(triangle[0],triangle[-1])
-                    self.assertEqual(len(triangle),4)
-                    self.assertEqual(len(set(map(tuple,triangle))),3)
+class EarthEngineChartTests(apitestcase.ApiTestCase if HAS_CHARTS else unittest.TestCase):
+    def test_complete_chart_builds_without_reading_weather_values(self):
+        grid,extent=chart.projected_grid(chart.VIEWS['northeast'],chart.ANNOTATION_WIDTH)
+        source=ee.Image.constant([103000,10,6,8]).rename(chart.BANDS)
+        with patch.object(ee.data,'computeValue',side_effect=AssertionError('Unexpected value download')), \
+             patch.object(ee.data,'computePixels',side_effect=AssertionError('Unexpected pixel download')):
+            raster,output,checks=layers.compose(source,chart.BANDS,chart.NATIVE,grid,extent,extent,
+                4000,'northeast',ee.FeatureCollection([]),chart.PALETTE,
+                datetime(2026,9,20,12,tzinfo=timezone.utc),datetime(2026,9,24,15,tzinfo=timezone.utc),99)
+            encoded=json.dumps(ee.serializer.encode(raster))
+            ee.serializer.encode(checks)
+        self.assertEqual(output['dimensions']['width'],5760)
+        for operation in ('Image.sample','Image.convolve','Image.focalMax','String.decodeJSON','Number.format','Image.paint'):
+            self.assertIn(operation,encoded)
+        self.assertLess(len(encoded),1_000_000)
 
-    def test_staff_points_to_wind_origin_and_feathers_face_clockwise(self):
-        for u,v,tip in [(10,0,(-20,0)),(-10,0,(20,0)),(0,10,(0,-20)),(0,-10,(0,20))]:
-            with self.subTest(u=u,v=v):
-                glyph=chart.barb_geometry(0,0,u,v,20)
-                np.testing.assert_allclose(glyph['lines'][0],[[0,0],tip],atol=1e-10)
-        north=chart.barb_geometry(0,0,0,-10,20)
-        self.assertGreater(north['lines'][1][1][0],0)
-        diagonal=chart.barb_geometry(0,0,3,4,20)
-        np.testing.assert_allclose(diagonal['lines'][0][-1],[-12,-16],atol=1e-10)
-
-    def test_rounding_and_zero_speed_do_not_invent_direction(self):
-        for speed in (0,2.49):
-            glyph=chart.barb_geometry(100,200,speed,0,10)
-            self.assertEqual(glyph['rounded_speed_kt'],0)
-            ring=np.asarray(glyph['lines'][0])
-            np.testing.assert_allclose(np.hypot(ring[:,0]-100,ring[:,1]-200),1.3)
-            np.testing.assert_array_equal(ring[0],ring[-1])
-        for speed,expected in [(2.5,5),(7.49,5),(7.5,10),(47.49,45),(47.5,50)]:
-            self.assertEqual(chart.barb_geometry(0,0,speed,0,10)['rounded_speed_kt'],expected)
-
-    def test_projected_barbs_use_vector_magnitude_not_scalar_mean(self):
-        grid,_=chart.projected_grid(chart.VIEWS['northeast'],800)
-        annotation,_=chart.projected_grid(chart.VIEWS['northeast'],200)
-        shape=(annotation['dimensions']['height'],annotation['dimensions']['width'])
-        fields={'u_kt':np.full(shape,3.),'v_kt':np.full(shape,4.),'wind_kt':np.full(shape,30.)}
-        result=chart.barb_features(fields,annotation,grid,'northeast')
-        self.assertGreater(len(result['symbols']),1)
-        for symbol in result['symbols']:
-            self.assertEqual(symbol['rounded_speed_kt'],5)
-            self.assertAlmostEqual(math.hypot(symbol['u_map_kt'],symbol['v_map_kt']),5)
-        for geometry,symbol in zip(result['lines'],result['symbols']):
-            shaft=np.asarray(geometry['geometry']['coordinates'][0])
-            direction=shaft[1]-shaft[0]
-            self.assertLess(np.dot(direction,[symbol['u_map_kt'],symbol['v_map_kt']]),0)
-            self.assertAlmostEqual(float(np.linalg.norm(direction)),result['length_projected_m'])
-
-    def test_invalid_values_and_legacy_cache_fail_before_rendering(self):
-        for u,v,length in [(float('nan'),0,10),(0,float('inf'),10),(201,0,10),(1,1,0)]:
-            with self.assertRaises(ValueError):
-                chart.barb_geometry(0,0,u,v,length)
-        with tempfile.TemporaryDirectory() as tmp:
-            root=Path(tmp)
-            (root/'provenance.json').write_text(json.dumps({'source':{'id':'old'}}))
-            with self.assertRaisesRegex(ValueError,'older renderer'):
-                chart.render_server(None,{'id':'old'},'continental',root,root,2000)
-            with self.assertRaisesRegex(ValueError,'older renderer'):
-                chart.annotate(root,{})
-
-    def test_retina_resolution_preserves_barb_locations_and_winds(self):
+    def test_retina_layout_preserves_extent_and_doubles_pixel_density(self):
         for view in chart.VIEWS:
-            with self.subTest(view=view):
-                annotation,_=chart.projected_grid(chart.VIEWS[view],chart.ANNOTATION_WIDTH)
-                shape=(annotation['dimensions']['height'],annotation['dimensions']['width'])
-                fields={'u_kt':np.full(shape,3.),'v_kt':np.full(shape,4.)}
-                standard,_=chart.projected_grid(chart.VIEWS[view],chart.BASE_MAP_WIDTH)
-                retina,_=chart.projected_grid(chart.VIEWS[view],chart.DEFAULT_MAP_WIDTH)
-                original=chart.barb_features(fields,annotation,standard,view)
-                high_res=chart.barb_features(fields,annotation,retina,view)
-                self.assertEqual(original,high_res)
-                self.assertGreater(len(high_res['symbols']),900)
+            _,extent=chart.projected_grid(chart.VIEWS[view],2000)
+            standard=layers.chart_layout(extent,2000)
+            retina=layers.chart_layout(extent,4000)
+            self.assertEqual(retina['grid']['dimensions']['width'],2*standard['grid']['dimensions']['width'])
+            self.assertLessEqual(abs(retina['grid']['dimensions']['height']-2*standard['grid']['dimensions']['height']),1)
+            self.assertAlmostEqual(retina['point_size'],standard['point_size'],delta=standard['point_size']*.001)
+            self.assertAlmostEqual(retina['grid']['affineTransform']['scaleX']*2,
+                                   standard['grid']['affineTransform']['scaleX'],delta=1)
 
     def test_render_strips_preserve_pixels_and_projected_alignment(self):
-        expected=np.arange(8*7*3,dtype=np.uint8).reshape(8,7,3)
+        expected=bytes(range(8*7*3))
+        source=Image.frombytes('RGB',(7,8),expected)
         grid={'dimensions':{'width':7,'height':8},'crsCode':'EPSG:5070',
               'affineTransform':{'scaleX':10,'scaleY':-10,'translateX':100,'translateY':200,
                                  'shearX':0,'shearY':0}}
         def compute(request):
+            self.assertEqual(request['fileFormat'],'PNG')
             tile=request['grid']
             self.assertEqual(tile['affineTransform']['translateX'],100)
-            self.assertEqual(tile['affineTransform']['scaleY'],-10)
             row=(200-tile['affineTransform']['translateY'])//10
             output=BytesIO()
-            Image.fromarray(expected[row:row+tile['dimensions']['height']]).save(output,format='PNG')
+            source.crop((0,row,7,row+tile['dimensions']['height'])).save(output,format='PNG')
             return output.getvalue()
-        with patch.object(chart.ee.data,'computePixels',side_effect=compute) as compute_pixels:
+        with patch.object(ee.data,'computePixels',side_effect=compute) as compute_pixels:
             png,requests=chart.render_png(None,grid,max_request_pixels=21)
-        np.testing.assert_array_equal(np.asarray(Image.open(BytesIO(png))),expected)
+        self.assertEqual(Image.open(BytesIO(png)).tobytes(),expected)
         self.assertEqual(compute_pixels.call_count,3)
         self.assertEqual([(r['row'],r['height']) for r in requests],[(0,3),(3,3),(6,2)])
+
+    def test_missing_pixels_fail_instead_of_becoming_white(self):
+        output=BytesIO()
+        Image.new('RGBA',(3,2),(0,0,0,0)).save(output,format='PNG')
+        grid={'dimensions':{'width':3,'height':2},'crsCode':'EPSG:5070',
+              'affineTransform':{'scaleX':10,'scaleY':-10,'translateX':0,'translateY':0}}
+        with patch.object(ee.data,'computePixels',return_value=output.getvalue()):
+            with self.assertRaisesRegex(ValueError,'Missing rendered image pixels'):
+                chart.render_png(None,grid)
+
+    def test_interrupted_export_resumes_and_verifies_cached_strips(self):
+        grid={'dimensions':{'width':3,'height':4},'crsCode':'EPSG:5070',
+              'affineTransform':{'scaleX':10,'scaleY':-10,'translateX':0,'translateY':0}}
+        first=BytesIO();Image.new('RGB',(3,2),'red').save(first,format='PNG')
+        second=BytesIO();Image.new('RGB',(3,2),'blue').save(second,format='PNG')
+        raster=ee.Image.constant([255]*3)
+        with tempfile.TemporaryDirectory() as tmp:
+            cache=Path(tmp)
+            with patch.object(ee.data,'computePixels',side_effect=[first.getvalue(),TimeoutError('interrupted')]):
+                with self.assertRaises(TimeoutError):
+                    chart.render_png(raster,grid,max_request_pixels=6,cache_dir=cache)
+            with patch.object(ee.data,'computePixels',return_value=second.getvalue()) as compute:
+                png,requests=chart.render_png(raster,grid,max_request_pixels=6,cache_dir=cache)
+            self.assertEqual(compute.call_count,1)
+            self.assertEqual([r['cached'] for r in requests],[True,False])
+            image=Image.open(BytesIO(png))
+            self.assertEqual(image.getpixel((1,1)),(255,0,0))
+            self.assertEqual(image.getpixel((1,3)),(0,0,255))
+            next(cache.glob('*/0-2.png')).write_bytes(b'changed')
+            with self.assertRaisesRegex(ValueError,'strip checksum mismatch'):
+                chart.render_png(raster,grid,max_request_pixels=6,cache_dir=cache)
+
+    def test_legacy_cache_rejected_without_server_access(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            (root/'provenance.json').write_text(json.dumps({'renderer_version':3}))
+            with patch.object(ee.data,'computeValue',side_effect=AssertionError('Unexpected server access')):
+                with self.assertRaisesRegex(ValueError,'older renderer'):
+                    chart.render_server(None,{'id':'old'},'continental',root,root,4000)
+
+    def test_request_path_downloads_only_png_and_checks_cache(self):
+        grid,extent=chart.projected_grid(chart.VIEWS['northeast'],500)
+        stride=chart.BARB_STRIDES['northeast']
+        count=len(range(8,500,stride))*len(range(8,grid['dimensions']['height'],stride))
+        output_grid={'dimensions':{'width':3,'height':2},'crsCode':'EPSG:5070',
+                     'affineTransform':{'scaleX':10,'scaleY':-10,'translateX':0,'translateY':0}}
+        raw=BytesIO();Image.new('RGB',(3,2),'white').save(raw,format='PNG')
+        info={'id':'test-image','properties':{'start_time':'2026-09-20T12:00:00Z',
+              'end_time':'2026-09-24T15:00:00Z','forecast_hour':99}}
+        class Checks:
+            def getInfo(self):
+                return {'valid_weather':1,'barb_count':count,'pressure_label_count':10,'upright_pressure_labels':True}
+        def compute(request):
+            self.assertEqual(request['fileFormat'],'PNG')
+            return raw.getvalue()
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            with patch.object(layers,'compose',return_value=(ee.Image.constant([255]*3),output_grid,Checks())), \
+                 patch.object(chart,'boundaries',return_value=ee.FeatureCollection([])), \
+                 patch.object(ee.data,'computePixels',side_effect=compute), \
+                 patch.object(ee.data,'computeValue',side_effect=AssertionError('Unexpected value download')):
+                proof=chart.render_server(None,info,'northeast',root,root,4000)
+                self.assertFalse(list(root.glob('*.npz')))
+                self.assertFalse((root/'barb-geometries.json').exists())
+                self.assertEqual(proof['downloads'],['rendered RGB pixels','source metadata','validation booleans and feature counts'])
+                self.assertEqual(chart.render_server(None,info,'northeast',root,root,4000),proof)
+                (root/'earth-engine-map.png').write_bytes(b'changed')
+                with self.assertRaisesRegex(ValueError,'checksum mismatch'):
+                    chart.render_server(None,info,'northeast',root,root,4000)
 
 
 if __name__=='__main__':
