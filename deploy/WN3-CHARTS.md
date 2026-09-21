@@ -50,6 +50,11 @@ and stores them under `var/charts/cartopy-data/`; use `--cartopy-dir` to change
 that location. Once the regional fields and boundaries are cached, the same
 chart can be rendered offline. Generated files remain under ignored `var/`.
 
+An [Earth Engine rendering alternative](WN3-EARTH-ENGINE-CHARTS.md) produces
+continental and Northeast views without downloading global Zarr planes.
+Earth Engine renders the weather raster and boundaries; local tools add
+annotations and the legend.
+
 ## Reading the chart
 
 - Pressure contours: ensemble-mean sea-level pressure, converted from Pa to
