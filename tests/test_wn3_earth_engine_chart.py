@@ -1,15 +1,18 @@
 import importlib.util
+from io import BytesIO
 import json
 import math
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 HAS_CHARTS = all(importlib.util.find_spec(name) is not None for name in (
     'ee', 'numpy', 'matplotlib', 'cartopy', 'scipy', 'pyproj', 'shapely',
 ))
 if HAS_CHARTS:
     import numpy as np
+    from PIL import Image
     from scripts import wn3_earth_engine_chart as chart
 
 
@@ -77,6 +80,38 @@ class EarthEngineWindBarbTests(unittest.TestCase):
                 chart.render_server(None,{'id':'old'},'continental',root,root,2000)
             with self.assertRaisesRegex(ValueError,'older renderer'):
                 chart.annotate(root,{})
+
+    def test_retina_resolution_preserves_barb_locations_and_winds(self):
+        for view in chart.VIEWS:
+            with self.subTest(view=view):
+                annotation,_=chart.projected_grid(chart.VIEWS[view],chart.ANNOTATION_WIDTH)
+                shape=(annotation['dimensions']['height'],annotation['dimensions']['width'])
+                fields={'u_kt':np.full(shape,3.),'v_kt':np.full(shape,4.)}
+                standard,_=chart.projected_grid(chart.VIEWS[view],chart.BASE_MAP_WIDTH)
+                retina,_=chart.projected_grid(chart.VIEWS[view],chart.DEFAULT_MAP_WIDTH)
+                original=chart.barb_features(fields,annotation,standard,view)
+                high_res=chart.barb_features(fields,annotation,retina,view)
+                self.assertEqual(original,high_res)
+                self.assertGreater(len(high_res['symbols']),900)
+
+    def test_render_strips_preserve_pixels_and_projected_alignment(self):
+        expected=np.arange(8*7*3,dtype=np.uint8).reshape(8,7,3)
+        grid={'dimensions':{'width':7,'height':8},'crsCode':'EPSG:5070',
+              'affineTransform':{'scaleX':10,'scaleY':-10,'translateX':100,'translateY':200,
+                                 'shearX':0,'shearY':0}}
+        def compute(request):
+            tile=request['grid']
+            self.assertEqual(tile['affineTransform']['translateX'],100)
+            self.assertEqual(tile['affineTransform']['scaleY'],-10)
+            row=(200-tile['affineTransform']['translateY'])//10
+            output=BytesIO()
+            Image.fromarray(expected[row:row+tile['dimensions']['height']]).save(output,format='PNG')
+            return output.getvalue()
+        with patch.object(chart.ee.data,'computePixels',side_effect=compute) as compute_pixels:
+            png,requests=chart.render_png(None,grid,max_request_pixels=21)
+        np.testing.assert_array_equal(np.asarray(Image.open(BytesIO(png))),expected)
+        self.assertEqual(compute_pixels.call_count,3)
+        self.assertEqual([(r['row'],r['height']) for r in requests],[(0,3),(3,3),(6,2)])
 
 
 if __name__=='__main__':

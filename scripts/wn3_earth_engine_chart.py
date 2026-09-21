@@ -20,8 +20,8 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import matplotlib.patheffects as effects
 from matplotlib.colors import LinearSegmentedColormap, Normalize
+from matplotlib.transforms import ScaledTranslation
 import cartopy.crs as ccrs
 from cartopy.io.shapereader import Reader
 from PIL import Image
@@ -39,7 +39,11 @@ KT = 3600/1852
 PALETTE = ['ffffff', 'edf6fc', 'c8e9f7', '8dc5eb', '6789ce', '916cbe',
            'c57bb9', 'df579d', 'd7386d', 'e33b3f', 'ed7946', 'f5be62', 'd3a74b']
 VIEWS = {'continental': [-125.5, 23, -60, 53.5], 'northeast': [-85, 30, -60, 48]}
-RENDERER_VERSION = 2
+RENDERER_VERSION = 3
+BASE_MAP_WIDTH = 2000
+DEFAULT_MAP_WIDTH = 4000
+ANNOTATION_WIDTH = 500
+BARB_STRIDES = {'continental': 12, 'northeast': 15}
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -128,20 +132,20 @@ def barb_geometry(x, y, u, v, length):
     return {'lines':lines,'flags':polygons,**counts}
 
 def barb_features(fields, annotation_grid, grid, view):
-    """Prepare planar vectors from the same checked samples as the old chart."""
+    """Prepare denser planar vectors independently of the output resolution."""
     rows,cols=fields['u_kt'].shape
     a=annotation_grid['affineTransform']
     x=a['translateX']+(np.arange(cols)+.5)*a['scaleX']
     y=a['translateY']+(np.arange(rows)+.5)*a['scaleY']
     xx,yy=np.meshgrid(x,y)
-    stride=25 if view=='continental' else 30
+    stride=BARB_STRIDES[view]
     xx,yy=xx[8::stride,8::stride],yy[8::stride,8::stride]
     geographic=Transformer.from_crs('EPSG:5070','EPSG:4326',always_xy=True)
     lon,lat=geographic.transform(xx,yy)
     u,v=ccrs.epsg(5070).transform_vectors(ccrs.PlateCarree(),lon,lat,
         fields['u_kt'][8::stride,8::stride],fields['v_kt'][8::stride,8::stride])
     # The fixed fraction of map width keeps glyph size stable in the finished figure.
-    length=grid['affineTransform']['scaleX']*grid['dimensions']['width']*.0065
+    length=grid['affineTransform']['scaleX']*grid['dimensions']['width']*.01
     lines=[];flags=[];symbols=[]
     for index in np.ndindex(xx.shape):
         glyph=barb_geometry(float(xx[index]),float(yy[index]),float(u[index]),float(v[index]),length)
@@ -153,13 +157,41 @@ def barb_features(fields, annotation_grid, grid, view):
     return {'crs':'EPSG:5070','lines':lines,'flags':flags,'symbols':symbols,
             'length_projected_m':length,'sample_stride':stride}
 
-def paint_barbs(features, projection):
+def paint_barbs(features, projection, line_width=1):
     def collection(items):
         return ee.FeatureCollection([ee.Feature(ee.Geometry(item['geometry'],proj=features['crs'],geodesic=False)) for item in items])
-    layer=ee.Image(0).byte().reproject(projection).paint(collection(features['lines']),1,1)
+    layer=ee.Image(0).byte().reproject(projection).paint(collection(features['lines']),1,line_width)
     if features['flags']:
         layer=layer.paint(collection(features['flags']),1)
     return layer.selfMask().visualize(palette=['3c4b54'],opacity=.85)
+
+def render_png(raster, grid, max_request_pixels=8_000_000):
+    """Fetch aligned row strips within EE's request limit; join without resampling."""
+    width,height=grid['dimensions']['width'],grid['dimensions']['height']
+    rows_per_request=max(1,max_request_pixels//width)
+    canvas=Image.new('RGB',(width,height))
+    requests=[]
+    for row in range(0,height,rows_per_request):
+        rows=min(rows_per_request,height-row)
+        affine=dict(grid['affineTransform'])
+        affine['translateY']+=row*affine['scaleY']
+        tile_grid={**grid,'dimensions':{'width':width,'height':rows},'affineTransform':affine}
+        started=time.monotonic()
+        png=ee.data.computePixels({'expression':raster,'fileFormat':'PNG','grid':tile_grid,
+                                  'workloadTag':'kcdw-wind-pressure-map'})
+        requests.append({'row':row,'height':rows,'seconds':time.monotonic()-started,'png_bytes':len(png)})
+        print(json.dumps({'rendered_rows':[row,row+rows],'total_rows':height,
+                          'seconds':requests[-1]['seconds']}),flush=True)
+        with Image.open(BytesIO(png)) as tile:
+            tile.load()
+            if tile.size!=(width,rows):
+                raise ValueError('Unexpected rendered image dimensions')
+            if 'A' in tile.getbands() and tile.getchannel('A').getextrema()!=(255,255):
+                raise ValueError('Missing rendered image pixels')
+            canvas.paste(tile.convert('RGB'),(0,row))
+    output=BytesIO()
+    canvas.save(output,format='PNG')
+    return output.getvalue(),requests
 
 def source_image(run, valid):
     subset=ee.ImageCollection(COLLECTION).filter(ee.Filter.eq('start_time',run)).filter(ee.Filter.eq('end_time',valid)).select(BANDS)
@@ -190,14 +222,15 @@ def render_server(source, info, view, root, cartopy_dir, width):
         return saved
     grid,extent=projected_grid(VIEWS[view],width)
     projection=ee_projection(grid)
+    line_width=max(1,round(width/BASE_MAP_WIDTH))
     native=ee.Projection('EPSG:4326',NATIVE)
     pressure=source.select(BANDS[0]).multiply(.01).rename('pressure_hpa')
     smooth=pressure.convolve(ee.Kernel.gaussian(radius=6,sigma=2,units='pixels',normalize=True)).reproject(native).rename('smoothed_pressure_hpa')
     wind=source.select(BANDS[1]).multiply(KT).rename('wind_kt')
     u=source.select(BANDS[2]).multiply(KT).rename('u_kt')
     v=source.select(BANDS[3]).multiply(KT).rename('v_kt')
-    # A modest, projected grid supplies only annotation positions and barbs.
-    annotation_grid,annotation_extent=projected_grid(VIEWS[view],width//4)
+    # Keep symbol locations and pressure labels stable when changing pixel density.
+    annotation_grid,annotation_extent=projected_grid(VIEWS[view],ANNOTATION_WIDTH)
     sample=ee.Image.cat([smooth,wind,u,v]).resample('bilinear')
     sample=sample.addBands(sample.mask().reduce(ee.Reducer.min()).rename('valid')).unmask(-9999)
     t=time.monotonic()
@@ -222,20 +255,21 @@ def render_server(source, info, view, root, cartopy_dir, width):
     lo=math.floor(float(arrays['smoothed_pressure_hpa'].min())/2)*2-2
     hi=math.ceil(float(arrays['smoothed_pressure_hpa'].max())/2)*2+2
     levels=list(range(lo,hi+1,2))
-    contours=ee.ImageCollection([p.subtract(level).zeroCrossing() for level in levels]).max().selfMask()
+    contours=ee.ImageCollection([p.subtract(level).zeroCrossing() for level in levels]).max().reproject(projection)
+    if line_width>1:
+        # Preserve apparent contour weight at higher pixel density.
+        kernel=ee.Kernel.fixed(line_width,line_width,[[1]*line_width for _ in range(line_width)])
+        contours=contours.focalMax(kernel=kernel)
+    contours=contours.selfMask()
     base=wind.resample('bilinear').visualize(min=0,max=60,palette=PALETTE)
-    boundary=ee.Image(0).byte().reproject(projection).paint(boundaries(VIEWS[view],cartopy_dir),1,1).selfMask()
+    boundary=ee.Image(0).byte().reproject(projection).paint(boundaries(VIEWS[view],cartopy_dir),1,line_width).selfMask()
+    # Export display RGB as bytes; row strips also account for EE's mask overhead.
     raster=(base.blend(boundary.visualize(palette=['77868f']))
             .blend(contours.visualize(palette=['253746']))
-            .blend(paint_barbs(barbs,projection)))
+            .blend(paint_barbs(barbs,projection,line_width)).byte())
     t=time.monotonic()
-    png=ee.data.computePixels({'expression':raster,'fileFormat':'PNG','grid':grid,'workloadTag':'kcdw-wind-pressure-map'})
+    png,render_requests=render_png(raster,grid)
     render_seconds=time.monotonic()-t
-    image=Image.open(BytesIO(png));image.load()
-    if image.size!=(grid['dimensions']['width'],grid['dimensions']['height']):
-        raise ValueError('Unexpected rendered image dimensions')
-    if len(image.getbands())==4 and image.getchannel('A').getextrema()!=(255,255):
-        raise ValueError('Missing rendered image pixels')
     (root/'earth-engine-map.png').write_bytes(png)
     point_grid={'dimensions':{'width':1,'height':1},'crsCode':'EPSG:4326',
         'affineTransform':{'scaleX':.1,'shearX':0,'translateX':-74.35,'shearY':0,'scaleY':-.1,'translateY':40.95}}
@@ -259,14 +293,17 @@ def render_server(source, info, view, root, cartopy_dir, width):
         if comparisons:
             break
     proof={'renderer_version':RENDERER_VERSION,'source':info,'view':view,'width':width,'grid':grid,'extent':extent,
+        'pixel_ratio':width/BASE_MAP_WIDTH,'line_width_pixels':line_width,
         'annotation_grid':annotation_grid,'annotation_extent':annotation_extent,
         'fetched_at':datetime.now(timezone.utc).isoformat(),'annotation_seconds':annotation_seconds,
-        'server_render_seconds':render_seconds,'png_bytes':len(png),
+        'server_render_seconds':render_seconds,'render_requests':render_requests,'png_bytes':len(png),
         'pressure_levels_hpa':levels,'point_raw':point,'bigquery_parity':comparisons,
         'rendering':{'earth_engine':['wind shading','pressure smoothing and contours','map boundaries','wind barb rasterization','projection and rasterization'],
                      'local_geometry':['wind barb projection rotation and glyph geometry'],
                      'local':['pressure labels','H/L labels','KCDW marker','titles and legend']},
-        'wind_barbs':{'count':len(barbs['symbols']),'rounding':'Nearest 5 kt; half increments upward',
+        'wind_barbs':{'count':len(barbs['symbols']),'sample_stride':barbs['sample_stride'],
+                      'length_projected_m':barbs['length_projected_m'],
+                      'rounding':'Nearest 5 kt; half increments upward',
                       'marks_kt':{'half':5,'full':10,'flag':50},'staff_direction':'Wind from (upwind)',
                       'speed':'Magnitude of ensemble-mean U/V; circle when rounded magnitude is zero'},
         'files':{name:digest(root/name) for name in ['earth-engine-map.png','annotation-fields.npz','barb-geometries.json']},
@@ -300,8 +337,12 @@ def annotate(root,proof):
     # are already in the Earth Engine PNG.
     contours=ax.contour(xx,yy,p,levels=proof['pressure_levels_hpa'],colors='none',linewidths=0)
     labels=ax.clabel(contours,fmt='%d',fontsize=9,colors='#253746',inline=False)
+    # Offset numbers perpendicular to their isobar, avoiding a line through the
+    # text while preserving the wind shading beneath every label.
     for label in labels:
-        label.set_bbox({'facecolor':'white','edgecolor':'none','pad':.8,'alpha':.9})
+        angle=math.radians(label.get_rotation())
+        offset=ScaledTranslation(-math.sin(angle)*5/72,math.cos(angle)*5/72,fig.dpi_scale_trans)
+        label.set_transform(label.get_transform()+offset)
     geographic=Transformer.from_crs('EPSG:5070','EPSG:4326',always_xy=True)
     centers=[]
     size=61 if proof['view']=='continental' else 91
@@ -315,14 +356,14 @@ def annotate(root,proof):
             if any(math.hypot(x[j]-px,y[i]-py)<(800000 if proof['view']=='continental' else 450000) for px,py in placed):
                 continue
             placed.append((x[j],y[i]));pressure=float(p[i,j])
-            ax.text(x[j],y[i],symbol,fontsize=25,weight='bold',color=color,ha='center',va='center',zorder=7,path_effects=[effects.withStroke(linewidth=3,foreground='white')])
-            ax.annotate(f'{pressure:.0f}',(x[j],y[i]),xytext=(0,-21),textcoords='offset points',ha='center',color=color,fontsize=11,zorder=7,path_effects=[effects.withStroke(linewidth=2.5,foreground='white')])
+            ax.text(x[j],y[i],symbol,fontsize=25,weight='bold',color=color,ha='center',va='center',zorder=7)
+            ax.annotate(f'{pressure:.0f}',(x[j],y[i]),xytext=(0,-21),textcoords='offset points',ha='center',color=color,fontsize=11,zorder=7)
             clon,clat=geographic.transform(x[j],y[i]);centers.append({'symbol':symbol,'pressure_hpa':pressure,'longitude':clon,'latitude':clat})
             if len(placed)>=4:break
     transformer=Transformer.from_crs('EPSG:4326','EPSG:5070',always_xy=True)
     px,py=transformer.transform(*KCDW)
     ax.plot(px,py,'o',markersize=5,markerfacecolor='#172b36',markeredgecolor='white',markeredgewidth=1.5,zorder=10)
-    ax.annotate('KCDW',(px,py),xytext=(7,6),textcoords='offset points',fontsize=10,weight='bold',color='#172b36',zorder=10,path_effects=[effects.withStroke(linewidth=3,foreground='white')])
+    ax.annotate('KCDW',(px,py),xytext=(7,6),textcoords='offset points',fontsize=10,weight='bold',color='#172b36',zorder=10)
     run=timestamp(proof['source']['properties']['start_time']);valid=timestamp(proof['source']['properties']['end_time'])
     fig.text(.032,.953,'10 m wind & sea-level pressure',fontsize=23,weight='bold',color='#182d35')
     fig.text(.968,.953,'WEATHERNEXT 3',fontsize=19,ha='right',weight='bold',color='#182d35')
@@ -338,7 +379,11 @@ def annotate(root,proof):
     fig.text(.032,.022,'Shading: mean speed  |  Barbs: mean U/V  |  0.1° model grid  |  Experimental forecast; no gusts or ensemble spread shown',fontsize=9,color='#43535e')
     fig.text(.032,.006,'© 2026 Google / DeepMind WeatherNext. Boundaries: Natural Earth. Terms: storage.googleapis.com/weathernext-public/terms-of-use.pdf',fontsize=8,color='#43535e')
     out=root/'wn3-earth-engine-wind-pressure.png'
-    fig.savefig(out,dpi=180,facecolor='white');plt.close(fig)
+    dpi=180*proof['pixel_ratio']
+    fig.savefig(out,dpi=dpi,facecolor='white');plt.close(fig)
+    with Image.open(out) as finished:
+        proof['finished_image']={'width':finished.width,'height':finished.height,'dpi':dpi,
+                                 'text_backgrounds':False,'text_halos':False}
     proof['pressure_centers']=centers
     proof['files'][out.name]=digest(out)
     (root/'provenance.json').write_text(json.dumps(proof,indent=2))
@@ -350,17 +395,18 @@ def main():
     parser.add_argument('--valid',required=True)
     parser.add_argument('--view',choices=[*VIEWS,'both'],default='both')
     parser.add_argument('--project',default='aviation-486817')
-    parser.add_argument('--width',type=int,default=2000)
+    parser.add_argument('--width',type=int,default=DEFAULT_MAP_WIDTH,
+                        help='Earth Engine map width in pixels (default: 4000, 2x retina); also scales final chart DPI')
     parser.add_argument('--output-dir',type=Path,required=True)
     parser.add_argument('--cartopy-dir',type=Path,default=REPO/'var/charts/cartopy-data/shapefiles/natural_earth')
     args=parser.parse_args()
     run,valid=timestamp(args.run),timestamp(args.valid)
     lead=(valid-run).total_seconds()/3600
-    if run.minute or run.second or run.hour%6 or not lead.is_integer() or not 1<=lead<=360 or not 800<=args.width<=3000:
-        parser.error('Use a synoptic initialization, an hourly lead 1–360, and width 800–3000')
+    if run.minute or run.second or run.hour%6 or not lead.is_integer() or not 1<=lead<=360 or not 800<=args.width<=4000:
+        parser.error('Use a synoptic initialization, an hourly lead 1–360, and width 800–4000')
     credentials,_=google.auth.default(scopes=['https://www.googleapis.com/auth/cloud-platform','https://www.googleapis.com/auth/earthengine'])
     ee.Initialize(credentials=credentials,project=args.project)
-    ee.data.setDeadline(60000);ee.data.setMaxRetries(1)
+    ee.data.setDeadline(180000);ee.data.setMaxRetries(1)
     image,info=source_image(run.strftime('%Y-%m-%dT%H:%M:%SZ'),valid.strftime('%Y-%m-%dT%H:%M:%SZ'))
     for view in VIEWS if args.view=='both' else [args.view]:
         root=args.output_dir/view
