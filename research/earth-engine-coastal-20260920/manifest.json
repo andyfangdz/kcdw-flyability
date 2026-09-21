@@ -2,7 +2,7 @@
   "version": 1,
   "event_slug": "commercial-checkride",
   "event_date": "2026-09-24",
-  "prepared_at": "2026-09-21T03:18:52.338525+00:00",
+  "prepared_at": "2026-09-21T03:53:27.639504+00:00",
   "runs": [
     "2026-09-19T12:00:00Z",
     "2026-09-20T12:00:00Z"
@@ -39,6 +39,14 @@
       "resolution": "0.25\u00b0",
       "collection": "ECMWF/NRT_FORECAST/IFS/OPER",
       "source_url": "https://developers.google.com/earth-engine/datasets/catalog/ECMWF_NRT_FORECAST_IFS_OPER"
+    },
+    {
+      "id": "gfs",
+      "name": "NOAA GFS",
+      "statistic": "Deterministic",
+      "resolution": "0.25\u00b0",
+      "collection": "NOAA/GFS0P25",
+      "source_url": "https://developers.google.com/earth-engine/datasets/catalog/NOAA_GFS0P25"
     }
   ],
   "palette": [
@@ -64,6 +72,198 @@
   ],
   "renderer_version": 1,
   "frames": [
+    {
+      "model": "gfs",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-23T12:00:00Z",
+      "lead": 96,
+      "source_id": "NOAA/GFS0P25/2026091912F096",
+      "sha256": "662a0ab465c4d2fd02f88b0ef2cec00f2852a5b2be03ab93e2c23b38a4112039",
+      "width": 1800,
+      "height": 1725,
+      "pressure_source": {
+        "source_url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260919/12/atmos/gfs.t12z.pgrb2.0p25.f096",
+        "grib_sha256": "f49ae0e28a4a2d10416ecde4c43441d4fb53238ef39feadf4876a4f822e7ea52",
+        "geotiff_sha256": "dc978e22ca72775f52fae39489c619986e6f870d8944b0f99ea1eadd593abed9"
+      },
+      "url": "/events/commercial-checkride/maps/662a0ab465c4d2fd02f88b0ef2cec00f2852a5b2be03ab93e2c23b38a4112039.png"
+    },
+    {
+      "model": "gfs",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-24T00:00:00Z",
+      "lead": 108,
+      "source_id": "NOAA/GFS0P25/2026091912F108",
+      "sha256": "6316a776310f7b54391ebe6571784462f39e97e96f81f469d4071882ad752b1a",
+      "width": 1800,
+      "height": 1725,
+      "pressure_source": {
+        "source_url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260919/12/atmos/gfs.t12z.pgrb2.0p25.f108",
+        "grib_sha256": "b4d0199504c8983738d1ea115147dc183b50e2f9754677d5833191f70fbb13a6",
+        "geotiff_sha256": "90556d4bdbe9667415c440c5127019911d252d3450ec94105314669b59f29dd4"
+      },
+      "url": "/events/commercial-checkride/maps/6316a776310f7b54391ebe6571784462f39e97e96f81f469d4071882ad752b1a.png"
+    },
+    {
+      "model": "gfs",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-24T12:00:00Z",
+      "lead": 120,
+      "source_id": "NOAA/GFS0P25/2026091912F120",
+      "sha256": "87146836128540cfda24218a8cb1685a18c530b850077320ccc954793f3e1888",
+      "width": 1800,
+      "height": 1725,
+      "pressure_source": {
+        "source_url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260919/12/atmos/gfs.t12z.pgrb2.0p25.f120",
+        "grib_sha256": "8fbcfe8ae8a8324e8471f8bf987828aa74b220cb904a8ba1e87c996de1d07297",
+        "geotiff_sha256": "a7f3d574954ab3f764e3f593caef85856d40e5a2b3cd9801e4d1bb491605c014"
+      },
+      "url": "/events/commercial-checkride/maps/87146836128540cfda24218a8cb1685a18c530b850077320ccc954793f3e1888.png"
+    },
+    {
+      "model": "gfs",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-24T18:00:00Z",
+      "lead": 126,
+      "source_id": "NOAA/GFS0P25/2026091912F126",
+      "sha256": "8f1cb06a476861e06c6c5db3fe4c3b7def92c7241618b2bfe4225e0cf6b90080",
+      "width": 1800,
+      "height": 1725,
+      "pressure_source": {
+        "source_url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260919/12/atmos/gfs.t12z.pgrb2.0p25.f126",
+        "grib_sha256": "2410427a3e73011b66eaa237f9f35295cb211398906384dca8bc856a08a9cba8",
+        "geotiff_sha256": "39a8033d9ab0cf5b65c5a5793aa0c29f6f59b9f19f10e4c1201aeff4848dddd7"
+      },
+      "url": "/events/commercial-checkride/maps/8f1cb06a476861e06c6c5db3fe4c3b7def92c7241618b2bfe4225e0cf6b90080.png"
+    },
+    {
+      "model": "gfs",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-25T00:00:00Z",
+      "lead": 132,
+      "source_id": "NOAA/GFS0P25/2026091912F132",
+      "sha256": "eda90ec01175e8a6fc404a4979611055d5defad368cbdb3a63689f51bac239ee",
+      "width": 1800,
+      "height": 1725,
+      "pressure_source": {
+        "source_url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260919/12/atmos/gfs.t12z.pgrb2.0p25.f132",
+        "grib_sha256": "75a240bfed8df088df8c74a8bcf7c4b7686192022d185a7324fe3f045189d02e",
+        "geotiff_sha256": "5311dac5646dadd5e3770914a3919cbd2a3d880adcce6a90c18ae6dcf26e1860"
+      },
+      "url": "/events/commercial-checkride/maps/eda90ec01175e8a6fc404a4979611055d5defad368cbdb3a63689f51bac239ee.png"
+    },
+    {
+      "model": "gfs",
+      "run": "2026-09-19T12:00:00Z",
+      "valid": "2026-09-25T12:00:00Z",
+      "lead": 144,
+      "source_id": "NOAA/GFS0P25/2026091912F144",
+      "sha256": "5b706e8e31f51707e423db9a3398e776d66b504a5cc45b30e57562a8bd5a725a",
+      "width": 1800,
+      "height": 1725,
+      "pressure_source": {
+        "source_url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260919/12/atmos/gfs.t12z.pgrb2.0p25.f144",
+        "grib_sha256": "b491c5c019a99979c68b1e01e21d3f326e18528cfe7b285a2649a64ba2aa308c",
+        "geotiff_sha256": "b1af77be4b8550d292464a66e18fcae1b7ed16080f1e96228dff27863aa6e275"
+      },
+      "url": "/events/commercial-checkride/maps/5b706e8e31f51707e423db9a3398e776d66b504a5cc45b30e57562a8bd5a725a.png"
+    },
+    {
+      "model": "gfs",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-23T12:00:00Z",
+      "lead": 72,
+      "source_id": "NOAA/GFS0P25/2026092012F072",
+      "sha256": "a700c593b4d078c766da2545f81a0ade983673fcc470898e8d45df71f267c408",
+      "width": 1800,
+      "height": 1725,
+      "pressure_source": {
+        "source_url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260920/12/atmos/gfs.t12z.pgrb2.0p25.f072",
+        "grib_sha256": "763727cd46a7ca11d027cf649bfedab789f7aee356ca8740d256ac6c9f5bd60d",
+        "geotiff_sha256": "32c1cc2946ccc80ccb209ba14ae2be11bd34314af458f1b20c787e3821f0c13e"
+      },
+      "url": "/events/commercial-checkride/maps/a700c593b4d078c766da2545f81a0ade983673fcc470898e8d45df71f267c408.png"
+    },
+    {
+      "model": "gfs",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-24T00:00:00Z",
+      "lead": 84,
+      "source_id": "NOAA/GFS0P25/2026092012F084",
+      "sha256": "ec3bd8c493c4b6b5794f9d0f7e8d073740d3904de4b11a2580811a3b90eec3c3",
+      "width": 1800,
+      "height": 1725,
+      "pressure_source": {
+        "source_url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260920/12/atmos/gfs.t12z.pgrb2.0p25.f084",
+        "grib_sha256": "b24a2b75d38a8cc6fbb4978e8bbdb763c98c14c92a9496ea59dc9ec80bcbee0f",
+        "geotiff_sha256": "9a24f91dbed727aef39fc879746b69dfc8d0df396d6a9a9a6dde9369ad6d7630"
+      },
+      "url": "/events/commercial-checkride/maps/ec3bd8c493c4b6b5794f9d0f7e8d073740d3904de4b11a2580811a3b90eec3c3.png"
+    },
+    {
+      "model": "gfs",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-24T12:00:00Z",
+      "lead": 96,
+      "source_id": "NOAA/GFS0P25/2026092012F096",
+      "sha256": "2a5480fd5505570a91c774078318537b34c8c77f8294d73eb37b1f6cd7260dc2",
+      "width": 1800,
+      "height": 1725,
+      "pressure_source": {
+        "source_url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260920/12/atmos/gfs.t12z.pgrb2.0p25.f096",
+        "grib_sha256": "de396fbbd933694ceb58921af09925df76e733bfe0006d109e5ecc0b1cebea5f",
+        "geotiff_sha256": "0f406e87c54843872c32f40d35ad4d34f1921cb89da2577039f25c3b19f9e17d"
+      },
+      "url": "/events/commercial-checkride/maps/2a5480fd5505570a91c774078318537b34c8c77f8294d73eb37b1f6cd7260dc2.png"
+    },
+    {
+      "model": "gfs",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-24T18:00:00Z",
+      "lead": 102,
+      "source_id": "NOAA/GFS0P25/2026092012F102",
+      "sha256": "d57c3de6f209b3b73b689914c18481a09da6557dce01f2ca6d661a04fff6f5d2",
+      "width": 1800,
+      "height": 1725,
+      "pressure_source": {
+        "source_url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260920/12/atmos/gfs.t12z.pgrb2.0p25.f102",
+        "grib_sha256": "80b6f61b8724b1814b3ec123ff8eab234f0e6358f7966f6ed088c2bb0f87a8ee",
+        "geotiff_sha256": "c565f29bdf4ce413bf97b82e5061899b6561116f9e611c86bc4f951779261181"
+      },
+      "url": "/events/commercial-checkride/maps/d57c3de6f209b3b73b689914c18481a09da6557dce01f2ca6d661a04fff6f5d2.png"
+    },
+    {
+      "model": "gfs",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-25T00:00:00Z",
+      "lead": 108,
+      "source_id": "NOAA/GFS0P25/2026092012F108",
+      "sha256": "ab11961be16acd5d7d75a913552e2e75c68c6faa074025d65c780cb8cbe0afdc",
+      "width": 1800,
+      "height": 1725,
+      "pressure_source": {
+        "source_url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260920/12/atmos/gfs.t12z.pgrb2.0p25.f108",
+        "grib_sha256": "47ed1fca5fed1a07d7621542834d7c608109f4e8772ef538a62e5d7802bb4673",
+        "geotiff_sha256": "f965465817133eefdd966c886b0927912d69033b11f451f4b361fa27d95f952c"
+      },
+      "url": "/events/commercial-checkride/maps/ab11961be16acd5d7d75a913552e2e75c68c6faa074025d65c780cb8cbe0afdc.png"
+    },
+    {
+      "model": "gfs",
+      "run": "2026-09-20T12:00:00Z",
+      "valid": "2026-09-25T12:00:00Z",
+      "lead": 120,
+      "source_id": "NOAA/GFS0P25/2026092012F120",
+      "sha256": "7a8b2c5933a5e6a99e78a4ee42cb8514961ef7b8521a70ed571710899a993482",
+      "width": 1800,
+      "height": 1725,
+      "pressure_source": {
+        "source_url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260920/12/atmos/gfs.t12z.pgrb2.0p25.f120",
+        "grib_sha256": "31898e68cabf48daf09fe24f7d0e2ca920f9622ec85f63c118f95c5464f98c3a",
+        "geotiff_sha256": "6c1458e9fc65d8027a09d13417ea147414a69164f02b61801ca4d842c42c653a"
+      },
+      "url": "/events/commercial-checkride/maps/7a8b2c5933a5e6a99e78a4ee42cb8514961ef7b8521a70ed571710899a993482.png"
+    },
     {
       "model": "ifs",
       "run": "2026-09-19T12:00:00Z",

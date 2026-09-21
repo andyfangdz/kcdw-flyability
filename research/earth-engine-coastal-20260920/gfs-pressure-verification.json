@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "model": "NOAA GFS",
+  "method": "Five native spherical-grid coordinates per input compared in Earth Engine against the original NOAA GRIB2, with absolute tolerance 0.000001 Pa. Earth Engine returned only counts and match booleans.",
+  "native_crs": "Longitude/latitude on a 6371229 m sphere",
+  "grid_transform": [
+    0.25,
+    0,
+    -180.125,
+    0,
+    -0.25,
+    90.125
+  ],
+  "inputs": [
+    {
+      "input": "2026091912F096",
+      "count": 5,
+      "matches_original_grib": 1
+    },
+    {
+      "input": "2026091912F108",
+      "count": 5,
+      "matches_original_grib": 1
+    },
+    {
+      "input": "2026091912F120",
+      "count": 5,
+      "matches_original_grib": 1
+    },
+    {
+      "input": "2026091912F126",
+      "count": 5,
+      "matches_original_grib": 1
+    },
+    {
+      "input": "2026091912F132",
+      "count": 5,
+      "matches_original_grib": 1
+    },
+    {
+      "input": "2026091912F144",
+      "count": 5,
+      "matches_original_grib": 1
+    },
+    {
+      "input": "2026092012F072",
+      "count": 5,
+      "matches_original_grib": 1
+    },
+    {
+      "input": "2026092012F084",
+      "count": 5,
+      "matches_original_grib": 1
+    },
+    {
+      "input": "2026092012F096",
+      "count": 5,
+      "matches_original_grib": 1
+    },
+    {
+      "input": "2026092012F102",
+      "count": 5,
+      "matches_original_grib": 1
+    },
+    {
+      "input": "2026092012F108",
+      "count": 5,
+      "matches_original_grib": 1
+    },
+    {
+      "input": "2026092012F120",
+      "count": 5,
+      "matches_original_grib": 1
+    }
+  ],
+  "native_sample_coordinates": [
+    [
+      -74.25,
+      41
+    ],
+    [
+      -82,
+      45
+    ],
+    [
+      -77,
+      32
+    ],
+    [
+      -65,
+      43
+    ],
+    [
+      -60,
+      35
+    ]
+  ]
+}

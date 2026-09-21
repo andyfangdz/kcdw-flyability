@@ -1,0 +1,3 @@
+-r requirements-earth-engine-charts.txt
+eccodes==2.48.0
+rasterio==1.4.4
