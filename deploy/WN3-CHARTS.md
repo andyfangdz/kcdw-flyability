@@ -52,8 +52,8 @@ chart can be rendered offline. Generated files remain under ignored `var/`.
 
 An [Earth Engine rendering alternative](WN3-EARTH-ENGINE-CHARTS.md) produces
 continental and Northeast views without downloading global Zarr planes.
-Earth Engine renders the weather raster and boundaries; local tools add
-annotations and the legend.
+Earth Engine renders the weather raster, wind barbs, and boundaries; local
+tools prepare barb geometry and add labels and the legend.
 
 ## Reading the chart
 
