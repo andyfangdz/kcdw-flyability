@@ -66,6 +66,28 @@ class EvidenceTests(unittest.TestCase):
             self.assertTrue(all(p in points for p in expected))
         self.assertLessEqual(len(json.dumps(result).encode()),cap)
 
+    def test_prioritized_eviction_keeps_flight_wind_and_rounds_values(self):
+        from unittest.mock import patch
+        from kcdw.event_narrative_evidence import EVICTION_ORDER
+        data=snapshot();data['narrative_priority_version']=1
+        comparison={'historical':True,'rh':71.91409004263917,'bounded_comparison_fixture':'x'*12000}
+        with patch('kcdw.event_narrative_evidence.validated_event_changes',return_value=comparison), \
+             patch('kcdw.event_narrative_evidence.PRIORITY_MAX_BYTES',1000000):
+            complete=build_event_evidence(data,NOW)
+        available=[s['id'] for s in complete['sources'] if s['status']=='available']
+        cap=len(json.dumps(complete).encode())*2//3
+        with patch('kcdw.event_narrative_evidence.validated_event_changes',return_value=comparison), \
+             patch('kcdw.event_narrative_evidence.PRIORITY_MAX_BYTES',cap):
+            result=build_event_evidence(data,NOW)
+        sources={s['id']:s for s in result['sources']}
+        self.assertEqual(sources['snapshot_changes']['evidence']['rh'],71.91)
+        omitted=[i for i in available if sources[i]['status']=='unavailable']
+        kept=[i for i in available if sources[i]['status']=='available']
+        self.assertTrue(omitted)
+        rank={alias:i for i,alias in enumerate(EVICTION_ORDER)}
+        self.assertLess(max(rank.get(i,-1) for i in omitted),min(rank.get(i,-1) for i in kept if i in rank))
+        self.assertLessEqual(len(json.dumps(result).encode()),cap)
+
     def test_api_and_fresh_models(self):
         data = snapshot()
         result = build_event_evidence(data, NOW)

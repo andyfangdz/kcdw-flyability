@@ -69,6 +69,15 @@ def compact_sampling(packet):
     return result
 
 
+def round_values(packet, places=2):
+    """Round floats to display precision; RH/pressure arrive with ~15 digits."""
+    if isinstance(packet,bool):return packet
+    if isinstance(packet,float):return round(packet,places)
+    if isinstance(packet,dict):return {k:round_values(v,places) for k,v in packet.items()}
+    if isinstance(packet,list):return [round_values(v,places) for v in packet]
+    return deepcopy(packet)
+
+
 def compact_official_prose(packet):
     """Last-resort prose reduction; retain every product's facts and coverage."""
     out=deepcopy(packet)

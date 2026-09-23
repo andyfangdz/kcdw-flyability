@@ -69,6 +69,16 @@ def collect_model_matrix(client, snapshot, cache_path, now):
     return collect(client, snapshot, now, cache_path)
 
 
+def collect_event_gusts(client, snapshot, cache_path, now):
+    from .event_gusts import collect_gusts as collect
+    return collect(client, snapshot, now, cache_path)
+
+
+def collect_synoptic_pattern(client, snapshot, now):
+    from .synoptic_pattern import collect_pattern as collect
+    return collect(client, snapshot, now)
+
+
 def collect_wn3_100m_wind(snapshot, now):
     from .wn3_surface_context import collect_wind as collect
     return collect(snapshot, now)
@@ -165,12 +175,15 @@ def update(var: Path, cloud_config: Path | None, now: datetime | None = None, ev
             snapshot["initialization_provenance_version"] = 1
             snapshot["narrative_sampling_dictionary_version"] = 1
             snapshot["native_ensemble_evidence_version"] = 1
+            snapshot["narrative_priority_version"] = 1
             from .coastal_maps import load as load_coastal_maps
             for key, collect in (
                 ("coastal_maps", lambda: load_coastal_maps(var / "events" / event.slug / "coastal-maps.json", snapshot['event'])),
                 ("event_wind", lambda: collect_wind(HttpClient(timeout=15, retries=0, direct_native=True), snapshot, now)),
+                ("event_gusts", lambda: collect_event_gusts(HttpClient(timeout=12, retries=0, direct_native=True), snapshot, var / "events" / event.slug / "gust-guidance-cache.json", now)),
                 ("native_wind", lambda: collect_native_wind(snapshot, var / "events" / event.slug / "native-wind-cache", now)),
                 ("wind_trends", lambda: build_wind_trends(snapshot, var / "events" / event.slug / "runs", now)),
+                ("synoptic_pattern", lambda: collect_synoptic_pattern(HttpClient(timeout=10, retries=1), snapshot, now)),
                 ("event_afds", lambda: collect_afds(HttpClient(timeout=10, retries=1), snapshot, now)),
                 ("cloud_ceiling", lambda: collect_ceiling(snapshot, var / "events" / event.slug / "native-ceiling-cache", now)),
                 ("cloud_layer_signals", lambda: collect_layer_signals(HttpClient(timeout=15, retries=0, direct_native=True), snapshot, now)),
@@ -199,6 +212,8 @@ def update(var: Path, cloud_config: Path | None, now: datetime | None = None, ev
                 record(f"event={event.slug} forecast_history=unavailable")
             try:
                 snapshot["event_changes"] = build_event_changes(snapshot, var / "events" / event.slug / "runs", now)
+                if snapshot["event_changes"] is None:
+                    record(f"event={event.slug} event_changes=none")
             except Exception:
                 snapshot["event_changes"] = None
                 record(f"event={event.slug} event_changes=unavailable")

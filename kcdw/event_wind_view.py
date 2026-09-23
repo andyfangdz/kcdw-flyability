@@ -3,6 +3,7 @@ from html import escape
 from .events import local_clock as _local
 
 SOURCES={'wind_surface':('Flight-window winds · ensembles and NWS','event_wind'),
+         'wind_deterministic':('Flight-window gusts · NBM blend and deterministic models','event_gusts'),
          'wind_native':('Native winds aloft','native_wind'),
          'wind_trends':('Saved wind/gust forecast evolution','wind_trends')}
 
@@ -16,6 +17,10 @@ def wind_sources(snapshot,now):
                 from .event_wind import wind_evidence
                 value=wind_evidence(snapshot,now)
                 available=value and (value.get('nws') or any(value.get('ensembles',{}).values()))
+            elif key=='event_gusts':
+                from .event_gusts import gust_evidence
+                value=gust_evidence(snapshot,now)
+                available=value and any(value.get('models',{}).values())
             elif key=='native_wind':
                 from .native_wind import native_wind_evidence
                 value=native_wind_evidence(snapshot,now)
@@ -51,6 +56,44 @@ def _table(headers,rows,label):
 
 def _profile(point):
     return 'Unavailable' if not point else _n(point.get('from_true_deg'))+'° / '+_n(point.get('speed_kt'))
+
+
+def _run(stamp):
+    from .common import parse_time
+    return parse_time(stamp).strftime('%b %-d %HZ')
+
+
+def _nws_cross(samples):
+    import math
+    from .event_wind import HEADINGS
+    if any(p.get('gust_kt') is None or p.get('from_deg') is None for p in samples):return 'Unavailable'
+    return ' / '.join(_n(round(max(p['gust_kt']*abs(math.sin(math.radians(p['from_deg']-h))) for p in samples),1)) for h in HEADINGS.values())
+
+
+def _deterministic(packet,nws):
+    """NWS grid beside NBM and single-run models: where the gust split comes from."""
+    if not packet:return '<h3>Deterministic &amp; blend gusts</h3><p>Deterministic and NBM gust guidance unavailable for this flight window.</p>'
+    rows=[]
+    if nws:
+        samples=nws['samples']
+        rows.append(['NWS grid','Updated '+_local(nws['issued_at'],True),
+                     ' · '.join(_n(p.get('gust_kt')) for p in samples),
+                     _n(max((p['gust_kt'] for p in samples if p.get('gust_kt') is not None),default=None)),
+                     _n(sum(p['wind_kt'] for p in samples)/len(samples)) if all(p.get('wind_kt') is not None for p in samples) else '—',
+                     _nws_cross(samples)])
+    for key,model in packet['models'].items():
+        if not model:continue
+        c=model['gust_crosswind_max_kt']
+        rows.append([model['label'],_run(model['run']) if model.get('run') else 'Page GFS source',
+                     ' · '.join(_n(p['gust_kt']) for p in model['samples']),_n(model['peak_gust_kt']),_n(model['mean_wind_kt']),
+                     'Unavailable' if c['04'] is None else _n(c['04'])+' / '+_n(c['10'])])
+    from .event_gusts import MODELS
+    labels={m[0]:m[1] for m in MODELS}
+    missing=[labels.get(k,k) for k,v in packet['models'].items() if v is None]
+    hours=' · '.join(_local(p['at']) for p in next(m for m in packet['models'].values() if m)['samples'])
+    return ('<h3>Deterministic &amp; blend gusts</h3><p class="small">NWS grids start from NBM, so an NWS–ensemble gust split usually traces to NBM. Each other row is one model run requested by initialization time; none is a probability.</p>'+
+            _table(['Source','Run',f'Gust by hour ({hours})','Peak gust','Mean sustained','Peak gust crosswind RWY 4 / 10'],rows,'Deterministic and blend gusts')+
+            ('<p class="small">No covering run yet: '+escape(', '.join(missing))+'.</p>' if missing else ''))
 
 
 def render_wind(snapshot,now):
@@ -89,6 +132,7 @@ def render_wind(snapshot,now):
             provenance.append(label+' · fetched '+_local(model['fetched_at'],True)+' · advertised init '+str(model.get('advertised_init') or 'unknown')+
                               ' · coverage ends '+str(model.get('data_end') or 'unknown')+
                               (' · likely source '+model['likely_init']+' (inferred/unverified)' if model.get('likely_init') else ' · supplying run unverified'))
+        parts.append(_deterministic(sources.get('wind_deterministic'),nws))
         parts.append('<h3>Ensemble flight-window wind</h3><p class="small">Median / p90 of member flight maxima, in kt. Crosswind projects each member’s gust along its mean direction; compare with your own limits.</p>')
         parts.append(_table(['Model','Sustained','Gust','RWY 4 crosswind','RWY 10 crosswind'], rows, 'Ensemble wind and runway crosswind'))
         parts.append('<details><summary>Gust thresholds &amp; direction counts</summary>' +

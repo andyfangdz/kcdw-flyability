@@ -19,6 +19,9 @@ from .synoptic_context import context_evidence, _Text
 from .tropical_guidance import validate_wn3_cyclones
 
 MAX_BYTES = 60_000
+# Restored paired changes and flight-window wind need more room. The observe-only
+# TypeSafe change review sends the full packet: ~29k input tokens at this size.
+PRIORITY_MAX_BYTES = 72_000
 MODEL_URL = 'https://open-meteo.com/en/docs/ensemble-api'
 WEATHERLAB_URL = 'https://storage.googleapis.com/weathernext3_statistics_spatial/weathernext_3_0_0_statistics/zarr/'
 SOURCES = {s.key: (s.name, MODEL_URL) for s in MODELS} | {
@@ -33,6 +36,11 @@ SOURCES = {s.key: (s.name, MODEL_URL) for s in MODELS} | {
     'snapshot_changes': ('Changes since the previous forecast', MODEL_URL),
 }
 ERRORS = (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowError)
+# Least to most important when whole sources must be omitted for size.
+# Unlisted sources go first; protected cloud/RH/change sources are never listed.
+EVICTION_ORDER = ('cpc_wpc', 'nhc', 'wn3_cyclones', 'wn3_hourly', 'geps', 'aifs_ens', 'gfs',
+                  'gefs', 'ecmwf_ens', 'run_history', 'wind_native', 'synoptic_pattern', 'afd_aly', 'wind_trends',
+                  'wn3_point', 'afd_phi', 'wind_deterministic', 'afd_okx', 'wind_surface')
 
 
 def _text(value, limit=6000):
@@ -287,6 +295,12 @@ def build_event_evidence(snapshot, now) -> dict:
                 'url': packet['product_url'] if packet else None,
                 'status': 'available' if packet else 'unavailable',
                 'evidence': packet if packet else {'reason': 'Current office discussion unavailable; no carry-forward or favorable inference.'}})
+    if 'synoptic_pattern' in snapshot:
+        from .synoptic_pattern import pattern_evidence
+        packet = pattern_evidence(snapshot, now)
+        result['sources'].append({'id': 'synoptic_pattern', 'label': 'WPC surface analysis and forecast centers',
+            'url': 'https://www.wpc.ncep.noaa.gov/html/sfc-zoom.php', 'status': 'available' if packet else 'unavailable',
+            'evidence': packet if packet else {'reason': 'WPC coded surface products unavailable; no favorable inference.'}})
     # Prospective supplemental sources: legacy evidence digests stay unchanged.
     from .event_wind_view import wind_sources, SOURCES as WIND_SOURCES
     for alias, packet in wind_sources(snapshot, now).items():
@@ -304,9 +318,14 @@ def build_event_evidence(snapshot, now) -> dict:
     if snapshot.get('narrative_sampling_dictionary_version') == 1:
         from .event_evidence_compact import compact_sampling
         result = compact_sampling(result)
+    prioritized = snapshot.get('narrative_priority_version') == 1
+    if prioritized:
+        from .event_evidence_compact import round_values
+        result = round_values(result)
     # Bound the complete serialized envelope, including Unicode escaping used by
     # callers' default json.dumps. Keep dates/status if a large bulletin is cut.
-    while len(json.dumps(result, allow_nan=False).encode()) > MAX_BYTES:
+    limit = PRIORITY_MAX_BYTES if prioritized else MAX_BYTES
+    while len(json.dumps(result, allow_nan=False).encode()) > limit:
         candidates = [(len(p.get('text', '')), p) for s in result['sources'] for p in s['evidence'].get('products', []) if len(p.get('text', '')) > 700]
         if candidates:
             _, product = max(candidates, key=lambda item: item[0])
@@ -388,6 +407,12 @@ def build_event_evidence(snapshot, now) -> dict:
             disposable = [s for s in result['sources'] if s['id'] not in protected and s['status'] == 'available']
             if not disposable:
                 raise ValueError('Protected scientific evidence exceeds narrative byte cap')
-            largest = max(disposable, key=lambda s: len(json.dumps(s)))
+            if prioritized:
+                # Flight-window NWS/ensemble wind and office reasoning control
+                # near-term briefs; drop distant outlooks and duplicates first.
+                rank = {alias: i for i, alias in enumerate(EVICTION_ORDER)}
+                largest = min(disposable, key=lambda s: (rank.get(s['id'], -1), -len(json.dumps(s))))
+            else:
+                largest = max(disposable, key=lambda s: len(json.dumps(s)))
             largest.update(status='unavailable', evidence={'reason': 'Omitted to maintain evidence size limit.'})
     return result

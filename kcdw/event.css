@@ -66,6 +66,14 @@
 .multimodel-comparison:has(#compare-geps:not(:checked)) [data-model="geps"]{display:none}
 .multimodel-comparison:has(#compare-wn2:not(:checked)) [data-model="wn2"]{display:none}
 .multimodel-comparison:has(#compare-wn3:not(:checked)) [data-model="wn3"]{display:none}
+.multimodel-comparison:has(#compare-det-nws:not(:checked)) [data-model="det-nws"]{display:none}
+.multimodel-comparison:has(#compare-det-nbm:not(:checked)) [data-model="det-nbm"]{display:none}
+.multimodel-comparison:has(#compare-det-nam:not(:checked)) [data-model="det-nam"]{display:none}
+.multimodel-comparison:has(#compare-det-hrrr:not(:checked)) [data-model="det-hrrr"]{display:none}
+.multimodel-comparison:has(#compare-det-ifs:not(:checked)) [data-model="det-ifs"]{display:none}
+.multimodel-comparison:has(#compare-det-icon:not(:checked)) [data-model="det-icon"]{display:none}
+.multimodel-comparison:has(#compare-det-ukmo:not(:checked)) [data-model="det-ukmo"]{display:none}
+.multimodel-comparison:has(#compare-det-rrfs:not(:checked)) [data-model="det-rrfs"]{display:none}
 .chart-scroll{overflow-x:auto;max-width:100%}
 .chart-scroll:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
 .multimodel-comparison .chart svg,.wn3-focus .chart svg{min-width:720px}
@@ -173,3 +181,12 @@
 .model-matrix details{margin-top:6px}.model-matrix details p{font-size:12px;max-width:950px}
 .wn2-members{border-top:1px solid var(--line);padding-top:18px}.wn2-members h2{font-size:26px}
 .model-matrix .matrix-note{font-size:11px;color:var(--muted);max-width:950px;margin:8px 0 0}
+.weather-pattern{padding:26px 0 8px;border-top:2px solid var(--ink)}
+.weather-pattern h2{max-width:950px;margin:6px 0 10px}
+.weather-pattern>p{max-width:950px;font-size:14px;line-height:1.7;margin:0 0 10px}
+.weather-pattern table{background:var(--white);border:1px solid var(--line);font-size:12px}
+.weather-pattern caption{caption-side:bottom;text-align:left;padding:9px 2px 0;font-size:11px;color:var(--muted)}
+.weather-pattern th small,.weather-pattern td small{display:block;color:var(--muted);font-size:11px}
+.weather-pattern tr[data-flight]{background:rgba(232,184,74,.22)}
+.weather-pattern blockquote{max-width:950px;font-size:13px;line-height:1.6;margin:10px 0;padding-left:12px;border-left:2px solid var(--line)}
+.weather-pattern details{margin-top:12px;font-size:12px}

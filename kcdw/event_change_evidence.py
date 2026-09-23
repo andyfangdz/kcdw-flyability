@@ -32,7 +32,9 @@ MAX_FILES = 256
 MAX_READ_BYTES = 32 * 1024 * 1024
 MAX_FILE_BYTES = 6 * 1024 * 1024
 MAX_ENVELOPE_BYTES = 16_384
-MAX_V2_ENVELOPE_BYTES = 24_576  # Native per-pair provenance; narrative remains 60k.
+# Native per-pair provenance across five guidance and six moisture pairs is
+# ~34k; narrative compaction shares sampling text and remains within 60k.
+MAX_V2_ENVELOPE_BYTES = 49_152
 MIN_AGE = timedelta(hours=6)
 MAX_AGE = timedelta(hours=18)
 TARGET_AGE = timedelta(hours=12)

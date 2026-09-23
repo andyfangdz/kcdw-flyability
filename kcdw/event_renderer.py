@@ -388,7 +388,55 @@ def _comparison_charts(snapshot: dict, models: list[dict], times: list[datetime]
         for row in saved:
             _saved_group(chart, row, names[row[0]], MODEL_COLORS[row[0]], unit)
         body += f'<div data-comparison-field="{short}">' + chart.render(title, unit, note, legend, _ticks(lo, max(hi, lo + .1))) + '</div>'
-    return body + '</section>'
+    return body + _deterministic_charts(snapshot, times, window, now, gfs_hourly if gfs["available"] else {}) + '</section>'
+
+
+def _deterministic_charts(snapshot, times, window, now, gfs_hourly) -> str:
+    """NWS grid, NBM and single-run models on their own charts; no ensemble bands."""
+    from .event_gusts import DASHED, MODELS as RUNS, NWS_COLOR, domain, nws_series, validate_gusts
+    try:
+        packet = validate_gusts(snapshot.get("event_gusts"), snapshot)
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowError):
+        return ""
+    lo, _ = domain(snapshot)
+    colors = {key: color for key, *_, color in RUNS}
+    series = []
+    try:
+        nws = nws_series(snapshot, now, times)
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowError):
+        nws = None
+    if nws:
+        series.append(("det-nws", "NWS grid (from NBM)", NWS_COLOR, nws["wind"], nws["gust"]))
+    for row in packet["models"]:
+        if row["ok"]:
+            index = {lo + timedelta(hours=i): i for i in range(len(row["gust"]))}
+            align = lambda values: [values[index[t]] if t in index else None for t in times]
+            series.append(("det-" + row["key"], f'{row["label"]} · {parse_time(row["run"]):%b %-d %HZ}', colors[row["key"]], align(row["wind"]), align(row["gust"])))
+    if gfs_hourly:
+        series.append(("gfs", "GFS operational", MODEL_COLORS["gfs"], _aligned(gfs_hourly, gfs_hourly.get("wind_speed_10m", []), times), _aligned(gfs_hourly, gfs_hourly.get("wind_gusts_10m", []), times)))
+    dashed = {"det-" + key for key in DASHED}
+    controls = "".join(f'<label><input id="compare-{key}" type="checkbox" checked><span class="swatch{" dashed" if key in dashed else ""}" style="--c:{color}"></span>{esc(label)}</label>'
+                       for key, label, color, *_ in series if key != "gfs")
+    body = ('<h3 id="deterministic-wind">Gusts and wind · NWS grid, NBM blend and single-run models</h3>'
+            '<p class="comparison-intro">One line per deterministic run (NBM is the statistical blend NWS grids start from); no uncertainty bands. The GFS checkbox above also controls GFS here.</p>'
+            '<fieldset class="comparison-controls"><legend>Show deterministic sources</legend>' + controls + '</fieldset>')
+    missing = [row["label"] for row in packet["models"] if not row["ok"]]
+    for position, title, note in ((4, "Wind gusts · deterministic and blend", "Each model's own gust diagnostic at hourly samples; NWS grid values hold for each grid interval. "),
+                                  (3, "Sustained wind · deterministic and blend", "Hourly 10 m sustained wind. ")):
+        lo_v, hi_v = _extent(*(s[position] for s in series))
+        chart = Chart(times, lo_v, max(hi_v, lo_v + .1), window)
+        for key, label, color, *values in series:
+            data = values[position - 3]
+            if not any(v is not None for v in data):
+                continue
+            chart.parts.append(f'<g data-model="{key}" data-label="{esc(label)}" data-unit="kt" data-values="{esc(encode_chart_values([round(v, 2) if v is not None else None for v in data]))}"><title>{esc(label)}</title>')
+            chart.line(data, color, 3.0 if key in ("det-nws", "gfs") else 1.8, dashed=key in dashed)
+            chart.parts.append('</g>')
+        legend = [(label, color, key in dashed) for key, label, color, *values in series if any(v is not None for v in values[position - 3])]
+        text = note + "Not probabilities or votes; missing is unknown, not calm." + (" No covering run: " + ", ".join(missing) + "." if missing else "")
+        body += f'<div data-comparison-field="det-{"gust" if position == 4 else "wind"}">' + chart.render(title, "kt", text, legend, _ticks(lo_v, max(hi_v, lo_v + .1))) + '</div>'
+    return body
+
 
 def _wn3_numbers(snapshot: dict, times: list[datetime], window: tuple[int, int], now: datetime, history=None) -> str:
     """WN3 fields absent from the shared charts, plus event-window numbers."""
@@ -561,6 +609,9 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
     except Exception:
         narrative_html = UNAVAILABLE
     initializations_html = render_initializations(snapshot, now)
+    from .synoptic_pattern import render_pattern
+    pattern_html = render_pattern(snapshot, now)
+    pattern_link = '<a href="#weather-pattern">Weather pattern</a>' if pattern_html else ''
     from .event_wind_view import render_wind
     wind_html = render_wind(snapshot, now)
     wind_link = '<a href="#wind-analysis">Wind &amp; runways</a>' if wind_html else ''
@@ -613,9 +664,9 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
 <header class="top"><div class="wrap"><a class="brand" href="/">KCDW / Field notes</a><nav class="top-links" aria-label="Main navigation"><a href="/">Current outlook</a><a href="{esc(event.path())}" aria-current="page">{esc(event.nav_label)}</a><a href="{esc(event.path())}/history">History ↗</a></nav></div></header>
 <main id="main" class="wrap">
 <header class="event-header"><div><p class="eyebrow">KCDW / Dated event briefing</p><h1>{esc(event.title)}</h1>{timing_header(snapshot, event)}</div><div class="event-meta"><p>{days} days out · {len(models)} of {len(MODELS)} systems</p><p class="freshness"><strong>{freshness}</strong><br><time datetime="{esc(snapshot['collected_at'])}">{esc(collected.astimezone(TZ).strftime('%b %-d, %H:%M %Z'))}</time> · {age // 3600}h {(age % 3600) // 60}m old at render</p></div></header>
-<nav class="section-nav" aria-label="Briefing sections"><a href="#briefing">Flight brief</a><a href="#low-cloud-analysis">Cloud &amp; ceiling</a>{wind_link}<a href="#model-guidance">Model comparison</a>{coastal_link}<a href="#regional-guidance">Regional context</a><a href="#notes-sources">Sources</a></nav>
+<nav class="section-nav" aria-label="Briefing sections"><a href="#briefing">Flight brief</a>{pattern_link}<a href="#low-cloud-analysis">Cloud &amp; ceiling</a>{wind_link}<a href="#model-guidance">Model comparison</a>{coastal_link}<a href="#regional-guidance">Regional context</a><a href="#notes-sources">Sources</a></nav>
 <section id="briefing" class="operational-briefing" data-tone="{esc(briefing['tone'])}" aria-label="Flight brief">{brief_html}</section>
-{cloud_html}{wind_html}
+{pattern_html}{cloud_html}{wind_html}
 <div id="model-guidance" class="evidence-group">{matrix_html}{comparison}{model_detail}</div>
 {coastal_html}
 <details id="regional-guidance" class="report-detail"><summary>Regional outlooks &amp; tropical context</summary>{context_html}</details>
