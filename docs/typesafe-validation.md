@@ -11,7 +11,7 @@ saved private previews without publishing historical weather as a current report
 | Input archive | `var/runs/20260920T160146Z.694793` |
 | Assessment time | September 20, 2026, 16:01:46 UTC |
 | Model | `jev-1.13.0` |
-| Draft and final writer | Codex `gpt-6-astra`, high effort |
+| Draft and final writer | Codex `gpt-6-sol`, high effort |
 | NWS passage ranking | Six offices completed |
 | Daily outlook and weather-confidence judgments | All seven days completed |
 | Requested two-hour windows | All 16 completed |

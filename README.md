@@ -30,7 +30,7 @@ The sample uses offline fixtures and writes `public/index.html` and `public/heal
 | `make update` | Collect, generate analysis, validate, and publish. |
 | `python3 -m kcdw.event_update --no-publish` | Collect and archive dated-event reports locally. |
 
-Live analysis prefers the installed Claude Code CLI and its existing login. When Claude reports exhausted credits or quota, it automatically uses the authenticated Codex CLI with `gpt-6-astra`. WeatherNext queries need allowlisted Google Application Default Credentials and a billing project. Native GRIB decoding uses a separate optional environment. See [operations](docs/operations.md), [homeserver setup](deploy/HOMESERVER.md), and [native collection](docs/forecast-guide.md#low-cloud-analysis) for configuration.
+Live analysis prefers the installed Claude Code CLI and its existing login. When Claude reports exhausted credits or quota, it automatically uses the authenticated Codex CLI with `gpt-6-sol`. WeatherNext queries need allowlisted Google Application Default Credentials and a billing project. Native GRIB decoding uses a separate optional environment. See [operations](docs/operations.md), [homeserver setup](deploy/HOMESERVER.md), and [native collection](docs/forecast-guide.md#low-cloud-analysis) for configuration.
 
 TypeSafe integration ranks relevant NWS discussion passages, generates the seven-day flyability and weather-confidence assessments, and reviews briefing claims and forecast-change explanations. Claude, or Codex when Claude's quota is exhausted, interprets radar and writes prose around the fixed assessments. TypeSafe is off by default unless configured in the service; see [setup and behavior](docs/typesafe.md). Its confidence index is ordinal, not a probability of safe flight.
 

@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-MODEL = 'gpt-6-astra'
+MODEL = 'gpt-6-sol'
 EFFORT = 'high'
 PROVIDER = 'codex'
 MAX_OUTPUT_BYTES = 4_000_000

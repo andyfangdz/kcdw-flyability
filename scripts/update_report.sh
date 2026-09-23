@@ -79,7 +79,7 @@ for frame in "${radar_files[@]}"; do radar_args+=(--image "$frame"); done
 log "radar_attachments=$radar_count radar_source=$radar_state"
 
 agent_version="$(python3 -m kcdw.claude_agent --version-only 2>/dev/null | head -n 1)"
-log "agent=claude-code model=claude-opus-5-5 effort=high fallback=codex fallback_model=gpt-6-astra agent_version=${agent_version:-unknown}"
+log "agent=claude-code model=claude-opus-5-5 effort=medium fallback=codex fallback_model=gpt-6-sol fallback_effort=high agent_version=${agent_version:-unknown}"
 set +e
 timeout "${AGENT_TIMEOUT:-25m}" python3 -m kcdw.assessment_agent --research --snapshot "$snapshot" --var "$VAR_DIR" --artifacts "$typesafe_dir" --prompt "$prompt" --schema schema/analysis.schema.json --output "$analysis" --log "$codex_log" "${radar_args[@]}" >>"$codex_log" 2>&1
 codex_rc=$?

@@ -20,7 +20,7 @@ import tempfile
 from pathlib import Path
 
 MODEL = 'claude-opus-5-5'
-EFFORT = 'high'
+EFFORT = 'medium'
 PROVIDER = 'claude-code'
 MAX_OUTPUT_BYTES = 4_000_000
 RESEARCH_TOOLS = ('Read', 'WebSearch', 'WebFetch')
