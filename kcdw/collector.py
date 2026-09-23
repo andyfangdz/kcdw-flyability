@@ -19,6 +19,7 @@ from .ensemble_guidance import collect_aifs_ens
 from .geometry import geometry_contains
 from .nbm_guidance import collect_nbm
 from .weathernext3 import collect_weather_next3
+from .wn3_hourly import collect as collect_wn3_hourly
 from .intervals import expand_grid_values
 
 LAT, LON = 40.8752, -74.2814
@@ -313,6 +314,7 @@ def collect(now: datetime | None = None, client: Client | None = None, radar_dir
         "nbm_nbh": _source(lambda: collect_nbm(client, now, "NBH", cache_dir), now),
         "nbm_nbs": _source(lambda: collect_nbm(client, now, "NBS", cache_dir), now),
         "weather_next3": _source(lambda: collect_weather_next3(now), now),
+        "weather_next3_hourly": _source(lambda: collect_wn3_hourly(now), now),
         "aifs_ens": _source(lambda: collect_aifs_ens(client, now), now),
     }
     sources["nws_hourly"] = _source(lambda: _periods(client.get(props["forecastHourly"]), 180), now) if props else _source(lambda: (_ for _ in ()).throw(RuntimeError("points unavailable")), now)

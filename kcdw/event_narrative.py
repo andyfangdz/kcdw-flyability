@@ -20,7 +20,7 @@ CLOCK_SKEW = timedelta(minutes=5)
 TITLE = 'Flight assessment'
 AGENT_TIMEOUT = 420
 # Accepted (provider, model) envelopes and their display label; the Codex pair keeps archived narratives renderable.
-PROVIDERS = {('claude-code', 'claude-fable-5-1'): 'Claude', ('codex', 'gpt-6-astra'): 'Codex'}
+PROVIDERS = {('claude-code', 'claude-opus-5-5'): 'Claude', ('claude-code', 'claude-fable-5-1'): 'Claude', ('codex', 'gpt-6-astra'): 'Codex'}
 UNAVAILABLE = f'<section id="event-narrative"><h2>{TITLE}</h2><p>Current weather explanation unavailable.</p></section>'
 
 

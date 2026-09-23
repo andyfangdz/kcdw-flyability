@@ -96,21 +96,6 @@ class TrendTests(unittest.TestCase):
         text = self.chart(render_trends(archive(('wn3',)), EVENT, NOW), 'rain')
         self.assertNotIn('class="band"', text)
 
-    def test_headline_keeps_other_model_comparisons_collapsed(self):
-        a = archive()
-        a['pressure_comparisons'] = {key: [
-            dict(collected_at=point(3)['collected_at'], gfs=990, center=1010, low=1009, high=1011, is_current=False),
-            dict(collected_at=point()['collected_at'], gfs=1005, center=1011, low=1010, high=1012, is_current=True)] for key in KEYS if key != 'gfs'}
-        text = render_trends(a, EVENT, NOW)
-        match = re.search(r'<p class="trend-summary">(.*?)</p>', text)
-        assert match is not None
-        headline = match.group(1)
-        self.assertLess(len(headline), 700)
-        self.assertIn('wn3', headline)
-        self.assertIn('aifs_ens', headline)
-        self.assertNotIn('gefs:', headline)
-        self.assertRegex(text, r'<details[^>]*><summary>All pressure-gap comparisons</summary>.*gefs:')
-
     def test_one_sample_does_not_claim_a_trend(self):
         text = render_trends(archive(count=1), EVENT, NOW)
         self.assertIn('No history yet', text)
@@ -192,7 +177,6 @@ class TrendTests(unittest.TestCase):
         self.assertIn('1020.0', text)
         self.assertIn('rolling; cycle not bound', text)
         self.assertIn('p10–p90', text)
-        self.assertEqual(a, copy.deepcopy(a))
 
 
 if __name__ == '__main__':

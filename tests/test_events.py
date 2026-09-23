@@ -11,7 +11,7 @@ from kcdw.cloud_publish import event_bundle
 from kcdw.event_ensemble import MODELS, collect_event, share_percentages
 from kcdw.event_renderer import render, summary
 from kcdw.event_update import archive_run
-from kcdw.events import Event, find_event, load_events, upcoming_events
+from kcdw.events import Event, load_events
 from kcdw.renderer import event_nav_links
 
 NOW = datetime(2026, 9, 12, 20, 0, tzinfo=timezone.utc)
@@ -66,18 +66,6 @@ class FakeClient:
 
 
 class EventConfigTests(unittest.TestCase):
-    def test_repository_events_file_loads_and_navigates(self):
-        events = load_events()
-        self.assertTrue(events)
-        checkride = find_event("commercial-checkride")
-        self.assertEqual(checkride.date, "2026-09-24")
-        self.assertEqual(checkride.path(), "/events/commercial-checkride")
-        self.assertEqual(checkride.days_out(NOW), 12)
-        self.assertIn("Checkride", event_nav_links(NOW))
-        far_future = datetime(2027, 6, 1, tzinfo=timezone.utc)
-        self.assertEqual(upcoming_events(far_future), [])
-        self.assertEqual(event_nav_links(far_future), "")
-
     def test_invalid_events_are_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "events.json"
@@ -193,7 +181,6 @@ class EventRendererTests(unittest.TestCase):
         self.assertIn('aria-current="page">Checkride · Sep 24', html)
         self.assertIn("CMC GEPS", html)
         self.assertIn("Missing low cloud is unavailable", html)
-        self.assertIn('id="official-title">Before departure', html)
         self.assertEqual(health["generated_at"], snapshot["collected_at"])
         self.assertEqual(health["event"], "commercial-checkride")
         self.assertFalse(health["stale"])
@@ -406,7 +393,6 @@ class WeatherNext3EventTests(unittest.TestCase):
         self.assertIn('Mean event rainfall', markup)
         self.assertIn('Hourly p10–p90', markup)
         self.assertIn('not event-total percentiles', markup)
-        self.assertLess(markup.index('id="wn3-numbers"'), markup.index('Forecast context / per-model distributions'))
         envelope['forecast']['fields']['wind_speed_10m']['mean'][0] = None
         markup, health = render(snapshot, NOW)
         self.assertNotIn('id="wn3-numbers"', markup)

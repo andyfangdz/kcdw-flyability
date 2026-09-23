@@ -53,7 +53,7 @@ passing checks. Once TypeSafe assessment generation is enabled, a failed or
 invalid weekly decision stops that update and preserves the previous report.
 Event reviewer failures leave valid narrative and deterministic charts available.
 
-The prose writer prefers Claude Code (`claude-fable-5-1`, high effort). An explicit
+The prose writer prefers Claude Code (`claude-opus-5-5`, high effort). An explicit
 failed CLI response reporting exhausted credits or quota switches that run to
 Codex (`gpt-6-astra`, high effort), including subsequent writing passes. Other
 errors and invalid outputs still fail normally. Each new scheduled run tries

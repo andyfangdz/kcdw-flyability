@@ -135,6 +135,9 @@ def prepare(snapshot):
     if sources.get("weather_next3", {}).get("ok"):
         from .weathernext3 import summarize_weather_next3
         sources["weather_next3"]["data"] = summarize_weather_next3(sources["weather_next3"]["data"], parse_time(snapshot["collected_at"]))
+    if sources.get("weather_next3_hourly", {}).get("ok"):
+        from .wn3_hourly import summarize
+        sources["weather_next3_hourly"]["data"] = summarize(sources["weather_next3_hourly"]["data"], parse_time(snapshot["collected_at"]))
     if "weekly_guidance" in result:
         from .synoptic_context import _Text
         try:

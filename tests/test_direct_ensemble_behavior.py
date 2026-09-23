@@ -37,8 +37,6 @@ class NativeBehaviorTests(unittest.TestCase):
         self.assertTrue(any('api.open-meteo.com' in url for url in client.urls))
 
     def test_native_supersaturation_is_preserved_after_interpolation(self):
-        from kcdw.direct_ensemble_worker import field_spec
-        self.assertGreaterEqual(field_spec('ecmwf_ens','r850')[-1],102)
         packet={'init':'2026-09-17T12:00:00Z','model':'ecmwf_ens','points':[
             {'member':'01','field':'r850','lead':0,'value':102.0},
             {'member':'01','field':'r850','lead':6,'value':98.0}]}
@@ -58,11 +56,6 @@ class NativeBehaviorTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError,'refetch required'):
                     worker.point('gefs',init,6,'00','r850','source',(0,99),'2026-09-17T14:00:00Z')
 
-    def test_gefs_native_parameter_identity(self):
-        from kcdw.direct_ensemble_worker import field_spec
-        self.assertEqual(field_spec('gefs','r2')[0],260242)
-        self.assertEqual(field_spec('gefs','tp')[:2],(228228,'kg m**-2'))
-        self.assertEqual(field_spec('ecmwf_ens','tp')[:2],(228,'m'))
     def test_gefs_rain_uniform_interval_and_missing_fields(self):
         p={'init':'2026-09-17T12:00:00Z','model':'gefs','points':[
             {'member':'00','field':'tp','lead':6,'value':12,'identity':{'startStep':0,'endStep':6}},

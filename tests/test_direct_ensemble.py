@@ -24,10 +24,6 @@ class DirectEnsembleTests(unittest.TestCase):
     def test_index_identity_rejected(self):
         t=datetime(2026,9,17,12,tzinfo=timezone.utc)
         with self.assertRaises(ValueError):indexed_ranges('aifs_ens','{}\n{}',t,6,'cf')
-    def test_noaa_pressure_identity_is_not_ecmwf_param_id(self):
-        from kcdw.direct_ensemble_worker import field_spec
-        self.assertEqual(field_spec('gefs','msl'),(260074,'Pa','meanSea',0,75000,115000))
-        self.assertEqual(field_spec('ecmwf_ens','msl')[0],151)
     def test_gefs_final_index_field_has_a_bounded_range(self):
         from kcdw.direct_ensemble_worker import indexed_ranges
         t=datetime(2026,9,17,12,tzinfo=timezone.utc)

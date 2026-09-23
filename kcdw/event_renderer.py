@@ -390,7 +390,6 @@ def _comparison_charts(snapshot: dict, models: list[dict], times: list[datetime]
         body += f'<div data-comparison-field="{short}">' + chart.render(title, unit, note, legend, _ticks(lo, max(hi, lo + .1))) + '</div>'
     return body + '</section>'
 
-
 def _wn3_numbers(snapshot: dict, times: list[datetime], window: tuple[int, int], now: datetime, history=None) -> str:
     """WN3 fields absent from the shared charts, plus event-window numbers."""
     from .event_ensemble import weathernext3_diagnostic
@@ -604,7 +603,9 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
         brief_html += '<details class="report-detail"><summary>NWS forecaster excerpts</summary>' + afd_html + '</details>'
     cloud_html = ('<div class="evidence-group">' + render_low_cloud(snapshot, now)
                   + '<details class="report-detail"><summary>Humidity profiles &amp; charts</summary>' + moisture_html + '</details></div>')
-    model_detail = ('<details class="report-detail"><summary>Model-run trends</summary>' + trends + '</details>'
+    from .wn3_hourly import render_event as render_hourly_wn3
+    model_detail = (render_hourly_wn3(snapshot, now)
+                    + '<details class="report-detail"><summary>Model-run trends</summary>' + trends + '</details>'
                     + ('<details class="report-detail"><summary>Additional WN3 fields &amp; event totals</summary>' + wn3_numbers + '</details>' if wn3_numbers else '')
                     + ('<details class="report-detail"><summary>Independent WN2 member check</summary>' + wn2_html + '</details>' if wn2_html else ''))
     doc = f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="script-src 'sha256-{script_hash}'; object-src 'none'; base-uri 'none'"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KCDW · {esc(event.title)} · {esc(event.day.strftime("%b %-d"))}</title><style>{css}</style></head>

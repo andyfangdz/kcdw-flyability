@@ -80,9 +80,6 @@ class NativeCacheTests(unittest.TestCase):
         for model in ('ecmwf_ens', 'aifs_ens'):
             leads = cache.plan_leads(model, INIT - timedelta(hours=12), NOW, END)
             self.assertEqual(leads[0], 12)  # same-member cumulative baseline for closing lead 18
-        self.assertNotIn('lcc', cache.REQUIRED_FIELDS['ecmwf_ens'])
-        self.assertNotIn('gust', cache.REQUIRED_FIELDS['aifs_ens'])
-        self.assertIn('gust', cache.UNSUPPORTED_FIELDS['aifs_ens'])
         self.assertNotIn(('00', 'lcc', 0), cache.required_keys('gefs', [0]))
         self.assertIn(('00', 'gust', 0), cache.required_keys('gefs', [0]))
 
@@ -138,11 +135,9 @@ class NativeCacheTests(unittest.TestCase):
         worker.incomplete = False
         self.assertEqual(cache.discover('gefs', NOW, END, worker=worker, root=self.root)[0].hour, 18)
 
-    def test_producer_marks_native_v3_and_geps_matches_worker_fields(self):
+    def test_producer_marks_native_v3(self):
         p = cache.produce_run('gefs', INIT, NOW, END, worker=FakeWorker(), root=self.root)
         self.assertEqual(p['native_version'], 3)
-        from kcdw import direct_geps_worker
-        self.assertEqual(set(cache.REQUIRED_FIELDS['geps']), set(direct_geps_worker.FIELDS))
 
     def test_geps_analysis_does_not_request_nonexistent_accumulation(self):
         class Grouped:

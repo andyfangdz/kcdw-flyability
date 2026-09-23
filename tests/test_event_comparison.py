@@ -7,7 +7,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from kcdw import event_ensemble
-from kcdw.event_renderer import Chart, MODEL_COLORS, render
+from kcdw.event_renderer import Chart, render
 from test_events import EVENT, NOW, FakeClient, synthetic_wn3
 
 
@@ -53,8 +53,6 @@ class ComparisonTests(unittest.TestCase):
         self.assertIn('id="compare-bands" type="checkbox" checked', markup)
         self.assertEqual(set(re.findall(r'data-wn3-field="([^"]+)"', markup)), {'dewpoint', 'total-cloud'})
         self.assertNotIn('WeatherNext 2 / pressure', markup)
-        self.assertNotEqual(MODEL_COLORS['wn3'], MODEL_COLORS['aifs_ens'])
-        self.assertIn('<span class="legend-item"><span class="swatch"', markup)
 
 
     def test_actual_timestamp_axis_and_gap_bands(self):

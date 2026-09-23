@@ -74,6 +74,11 @@ def collect_wn3_100m_wind(snapshot, now):
     return collect(snapshot, now)
 
 
+def collect_wn3_hourly(now):
+    from .wn3_hourly import collect
+    return collect(now)
+
+
 def collect_wn2_members(client, snapshot, now):
     from .event_wn2_members import collect_members as collect
     return collect(client, snapshot, now)
@@ -170,6 +175,7 @@ def update(var: Path, cloud_config: Path | None, now: datetime | None = None, ev
                 ("cloud_ceiling", lambda: collect_ceiling(snapshot, var / "events" / event.slug / "native-ceiling-cache", now)),
                 ("cloud_layer_signals", lambda: collect_layer_signals(HttpClient(timeout=15, retries=0, direct_native=True), snapshot, now)),
                 ("wn3_100m_wind", lambda: collect_wn3_100m_wind(snapshot, now)),
+                ("wn3_hourly", lambda: collect_wn3_hourly(now)),
                 ("weathernext2_members", lambda: collect_wn2_members(None, snapshot, now)),
                 ("model_matrix", lambda: collect_model_matrix(HttpClient(timeout=12, retries=0, direct_native=True), snapshot, var / "events" / event.slug / "model-matrix-cache.json", now)),
             ):

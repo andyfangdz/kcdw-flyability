@@ -50,6 +50,7 @@ def source_rows(snapshot: dict) -> str:
     labels.update({"phi_afd": "NWS Mount Holly (PHI) AFD", "bgm_afd": "NWS Binghamton (BGM) AFD",
                    "aly_afd": "NWS Albany (ALY) AFD", "box_afd": "NWS Boston/Norton (BOX) AFD",
                    "ctp_afd": "NWS State College (CTP) AFD"})
+    labels['weather_next3_hourly'] = 'Google WeatherNext 3 hourly runs (48h)'
     rows = []
     for key, source in snapshot["sources"].items():
         status = "Available" if source["ok"] else "Unavailable"
@@ -75,6 +76,9 @@ def source_rows(snapshot: dict) -> str:
         elif key in ("nbm_nbh", "nbm_nbs") and source["ok"]:
             data = source.get("data") or {}
             detail = f'Cycle {data.get("cycle_time", "unknown")}; fetched {source["fetched_at"]}'
+        elif key == 'weather_next3_hourly' and source['ok']:
+            packet = source.get('data') or {}
+            detail = f'Actual run {packet.get("init_time", "unknown")}; 48-hour horizon; fetched {packet.get("collected_at", "unknown")}; surface mean/p10/p90, including 100 m wind; no gust or ceiling fields'
         elif key == "weather_next3" and source["ok"]:
             packet = source.get("data") or {}
             data = packet.get("status", {})

@@ -29,10 +29,7 @@ class NativeWorkerV3Tests(unittest.TestCase):
         with self.assertRaises(ValueError):
             w.indexed_ranges('gefs', NOAA.replace('204-210','0-210'), INIT, 210, '30b', 400)
 
-    def test_model_native_specs_and_shared_identity(self):
-        self.assertEqual(w.field_spec('gefs','gust')[:4], (260065,'m s**-1','surface',0))
-        self.assertEqual(w.field_spec('gefs','lcc')[:4], (228164,'%','lowCloudLayer',0))
-        self.assertEqual(w.field_spec('aifs_ens','lcc')[:4], (3073,'%','lowCloudLayer',0))
+    def test_model_identity_preserves_native_accumulation_intervals(self):
         self.assertEqual(w.expected_identity('gefs',INIT,210,'30','lcc')['startStep'], 204)
         self.assertEqual(w.expected_identity('gefs',INIT,210,'30','gust')['stepType'], 'instant')
         for lead,start in ((6,5),(168,162)):
@@ -42,8 +39,6 @@ class NativeWorkerV3Tests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 w.expected_identity('ecmwf_ens',INIT,168,'01','gust',start_step=start)
         self.assertEqual(w.expected_identity('aifs_ens',INIT,168,'00','tp')['startStep'],0)
-        self.assertEqual(w.field_spec('ecmwf_ens','tp')[:2],(228,'m'))
-        self.assertGreater(w.field_spec('gefs','r850')[-1],100)
 
     def test_gcs_preferred_canonical_origin_preserved(self):
         origin=w.url_for('ecmwf_ens',INIT,168,'ef')

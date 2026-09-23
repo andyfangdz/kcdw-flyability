@@ -1,0 +1,403 @@
+{
+  "snapshot_path": "var/events/commercial-checkride/runs/20260921T042546Z.896948/snapshot.json",
+  "snapshot_sha256": "2378fc4f81a7a3734bcdd748204ff43b1bcf216e120bc678c3524abd63666cfb",
+  "snapshot_collected_at": "2026-09-21T04:26:11Z",
+  "surface_evidence": {
+    "init_time": "2026-09-20T18:00:00Z",
+    "columns": [
+      "time_utc",
+      "derived_surface_rh_pct",
+      "10m_mean_kt",
+      "100m_mean_kt",
+      "100m_p10_kt",
+      "100m_p90_kt"
+    ],
+    "rows": [
+      [
+        "2026-09-24T11:00:00Z",
+        76.9,
+        7.7,
+        15.0,
+        13.3,
+        16.6
+      ],
+      [
+        "2026-09-24T12:00:00Z",
+        75.0,
+        7.7,
+        14.5,
+        12.7,
+        16.1
+      ],
+      [
+        "2026-09-24T13:00:00Z",
+        69.8,
+        8.2,
+        13.6,
+        11.8,
+        15.3
+      ],
+      [
+        "2026-09-24T14:00:00Z",
+        62.2,
+        9.1,
+        13.4,
+        11.5,
+        15.4
+      ],
+      [
+        "2026-09-24T15:00:00Z",
+        56.0,
+        9.3,
+        13.4,
+        11.4,
+        15.3
+      ],
+      [
+        "2026-09-24T16:00:00Z",
+        52.0,
+        8.9,
+        12.7,
+        10.8,
+        15.3
+      ],
+      [
+        "2026-09-24T17:00:00Z",
+        49.2,
+        8.1,
+        11.7,
+        9.2,
+        14.3
+      ],
+      [
+        "2026-09-24T18:00:00Z",
+        47.8,
+        7.3,
+        10.5,
+        7.8,
+        13.3
+      ]
+    ],
+    "rh_method": "Approximate surface RH over liquid water from WN3 ensemble-mean 2 m temperature and dew point, using 100 \u00d7 exp(17.67 Td/(Td+243.5) \u2212 17.67 T/(T+243.5)), \u00b0C; capped at 100%. This is RH of the mean inputs, not ensemble-mean RH or an RH percentile. No WN3 925/850 hPa RH is supplied by BigQuery.",
+    "wind_method": "100 m mean and p10\u2013p90 are elevated wind-speed statistics, not gust statistics. They provide context for a possible mix-down scenario only if momentum reaches the surface. Surface stability, mixing depth, terrain and convection are unresolved here; 100 m speed is neither a predicted gust nor a gust upper bound."
+  },
+  "100m_original_packet": {
+    "grid_point": {
+      "latitude": 40.9,
+      "longitude": -74.3
+    },
+    "hours": [
+      {
+        "at": "2026-09-24T11:00:00Z",
+        "mean": 7.71882963180542,
+        "p10": 6.825955867767334,
+        "p90": 8.5462646484375
+      },
+      {
+        "at": "2026-09-24T12:00:00Z",
+        "mean": 7.4419846534729,
+        "p10": 6.553300857543945,
+        "p90": 8.281200408935547
+      },
+      {
+        "at": "2026-09-24T13:00:00Z",
+        "mean": 6.974875450134277,
+        "p10": 6.085000514984131,
+        "p90": 7.877712249755859
+      },
+      {
+        "at": "2026-09-24T14:00:00Z",
+        "mean": 6.90004301071167,
+        "p10": 5.935752868652344,
+        "p90": 7.92874002456665
+      },
+      {
+        "at": "2026-09-24T15:00:00Z",
+        "mean": 6.872288703918457,
+        "p10": 5.865957260131836,
+        "p90": 7.885941505432129
+      },
+      {
+        "at": "2026-09-24T16:00:00Z",
+        "mean": 6.559164524078369,
+        "p10": 5.561756610870361,
+        "p90": 7.852607727050781
+      },
+      {
+        "at": "2026-09-24T17:00:00Z",
+        "mean": 6.007654190063477,
+        "p10": 4.709240436553955,
+        "p90": 7.3768439292907715
+      },
+      {
+        "at": "2026-09-24T18:00:00Z",
+        "mean": 5.396878242492676,
+        "p10": 4.003624439239502,
+        "p90": 6.846319198608398
+      }
+    ],
+    "init_time": "2026-09-20T18:00:00Z",
+    "query": {
+      "bytes_billed": 35651584,
+      "bytes_processed": 35224896,
+      "job_id": "job_3di6j20dtXNbjfsenXkh3KYDh4OV",
+      "local_cache_hit": true,
+      "location": "US",
+      "project": "aviation-486817",
+      "query_cache_hit": false,
+      "retrieved_at": "2026-09-21T02:26:17.328342Z",
+      "table": "866962084172.WeatherNext_3.weathernext_3_0_0_0p1deg"
+    },
+    "snapshot_collected_at": "2026-09-21T04:26:11Z",
+    "unit": "m/s",
+    "version": 1
+  },
+  "selected_surface_fields": [
+    {
+      "at": "2026-09-24T11:00:00Z",
+      "fields": {
+        "low_cloud_cover": {
+          "mean": 8.463582396507263,
+          "p10": 0.0,
+          "p90": 25.034427642822266,
+          "unit": "%"
+        },
+        "temperature_2m": {
+          "mean": 9.254266357421898,
+          "p10": 8.513970947265648,
+          "p90": 9.885583496093773,
+          "unit": "degC"
+        },
+        "total_cloud_cover": {
+          "mean": 35.026878118515015,
+          "p10": 0.0468369631562382,
+          "p90": 98.77601265907288,
+          "unit": "%"
+        },
+        "wind_speed_10m": {
+          "mean": 3.9707608222961426,
+          "p10": 3.3120734691619873,
+          "p90": 4.552533149719238,
+          "unit": "m/s"
+        }
+      }
+    },
+    {
+      "at": "2026-09-24T12:00:00Z",
+      "fields": {
+        "low_cloud_cover": {
+          "mean": 9.030571579933167,
+          "p10": 0.03984820214100182,
+          "p90": 32.66753852367401,
+          "unit": "%"
+        },
+        "temperature_2m": {
+          "mean": 10.508996582031273,
+          "p10": 9.878747558593773,
+          "p90": 11.093316650390648,
+          "unit": "degC"
+        },
+        "total_cloud_cover": {
+          "mean": 40.05177915096283,
+          "p10": 0.20930110476911068,
+          "p90": 99.03039932250977,
+          "unit": "%"
+        },
+        "wind_speed_10m": {
+          "mean": 3.965927839279175,
+          "p10": 3.432072639465332,
+          "p90": 4.463379383087158,
+          "unit": "m/s"
+        }
+      }
+    },
+    {
+      "at": "2026-09-24T13:00:00Z",
+      "fields": {
+        "low_cloud_cover": {
+          "mean": 8.633051812648773,
+          "p10": 0.0,
+          "p90": 19.87336575984955,
+          "unit": "%"
+        },
+        "temperature_2m": {
+          "mean": 12.294488525390648,
+          "p10": 11.740655517578148,
+          "p90": 12.947076416015648,
+          "unit": "degC"
+        },
+        "total_cloud_cover": {
+          "mean": 42.999157309532166,
+          "p10": 0.30392257031053305,
+          "p90": 99.84670281410217,
+          "unit": "%"
+        },
+        "wind_speed_10m": {
+          "mean": 4.2335028648376465,
+          "p10": 3.480543613433838,
+          "p90": 4.844676494598389,
+          "unit": "m/s"
+        }
+      }
+    },
+    {
+      "at": "2026-09-24T14:00:00Z",
+      "fields": {
+        "low_cloud_cover": {
+          "mean": 13.905574381351471,
+          "p10": 0.0,
+          "p90": 41.23782813549042,
+          "unit": "%"
+        },
+        "temperature_2m": {
+          "mean": 14.073266601562523,
+          "p10": 13.377099609375023,
+          "p90": 14.746331787109398,
+          "unit": "degC"
+        },
+        "total_cloud_cover": {
+          "mean": 48.214882612228394,
+          "p10": 0.4452638793736696,
+          "p90": 99.68457221984863,
+          "unit": "%"
+        },
+        "wind_speed_10m": {
+          "mean": 4.6686930656433105,
+          "p10": 3.9557461738586426,
+          "p90": 5.49440860748291,
+          "unit": "m/s"
+        }
+      }
+    },
+    {
+      "at": "2026-09-24T15:00:00Z",
+      "fields": {
+        "low_cloud_cover": {
+          "mean": 19.377459585666656,
+          "p10": 0.0,
+          "p90": 68.27332377433777,
+          "unit": "%"
+        },
+        "temperature_2m": {
+          "mean": 15.532220458984398,
+          "p10": 14.738732910156273,
+          "p90": 16.208428955078148,
+          "unit": "degC"
+        },
+        "total_cloud_cover": {
+          "mean": 53.13310623168945,
+          "p10": 0.6585911847651005,
+          "p90": 100.0,
+          "unit": "%"
+        },
+        "wind_speed_10m": {
+          "mean": 4.802990436553955,
+          "p10": 4.171442031860352,
+          "p90": 5.529485702514648,
+          "unit": "m/s"
+        }
+      }
+    },
+    {
+      "at": "2026-09-24T16:00:00Z",
+      "fields": {
+        "low_cloud_cover": {
+          "mean": 23.627759516239166,
+          "p10": 0.011818367056548595,
+          "p90": 75.57033896446228,
+          "unit": "%"
+        },
+        "temperature_2m": {
+          "mean": 16.681665039062523,
+          "p10": 15.890710449218773,
+          "p90": 17.351525878906273,
+          "unit": "degC"
+        },
+        "total_cloud_cover": {
+          "mean": 56.696683168411255,
+          "p10": 0.5088163074105978,
+          "p90": 99.95688199996948,
+          "unit": "%"
+        },
+        "wind_speed_10m": {
+          "mean": 4.561774253845215,
+          "p10": 3.8918676376342773,
+          "p90": 5.427151679992676,
+          "unit": "m/s"
+        }
+      }
+    },
+    {
+      "at": "2026-09-24T17:00:00Z",
+      "fields": {
+        "low_cloud_cover": {
+          "mean": 23.411142826080322,
+          "p10": 0.10225526057183743,
+          "p90": 75.87924599647522,
+          "unit": "%"
+        },
+        "temperature_2m": {
+          "mean": 17.604028320312523,
+          "p10": 16.831964111328148,
+          "p90": 18.336602783203148,
+          "unit": "degC"
+        },
+        "total_cloud_cover": {
+          "mean": 58.28513503074646,
+          "p10": 0.2768382430076599,
+          "p90": 100.0,
+          "unit": "%"
+        },
+        "wind_speed_10m": {
+          "mean": 4.154365539550781,
+          "p10": 3.348187208175659,
+          "p90": 4.989124298095703,
+          "unit": "m/s"
+        }
+      }
+    },
+    {
+      "at": "2026-09-24T18:00:00Z",
+      "fields": {
+        "low_cloud_cover": {
+          "mean": 21.543478965759277,
+          "p10": 0.07607153384014964,
+          "p90": 76.74933671951294,
+          "unit": "%"
+        },
+        "temperature_2m": {
+          "mean": 18.170159912109398,
+          "p10": 17.290277099609398,
+          "p90": 19.053735351562523,
+          "unit": "degC"
+        },
+        "total_cloud_cover": {
+          "mean": 61.338597536087036,
+          "p10": 0.6369412876665592,
+          "p90": 100.0,
+          "unit": "%"
+        },
+        "wind_speed_10m": {
+          "mean": 3.735349178314209,
+          "p10": 2.7622733116149902,
+          "p90": 4.609898567199707,
+          "unit": "m/s"
+        }
+      }
+    }
+  ],
+  "surface_query": {
+    "bytes_billed": 285212672,
+    "bytes_processed": 285128256,
+    "job_id": "job_RjHk0Yw5mGj8Ffwiush-sNeJgr8j",
+    "local_cache_hit": true,
+    "location": "US",
+    "project": "aviation-486817",
+    "query_cache_hit": false,
+    "retrieved_at": "2026-09-21T02:25:57.858256Z",
+    "table": "866962084172.WeatherNext_3.weathernext_3_0_0_0p1deg"
+  },
+  "profile_reference": "research/wn3-ensemble-20260920/profiles/analysis.md",
+  "profile_init": "2026-09-20T00:00:00Z",
+  "note": "100 m and 10 m summaries share the Sep 20 18Z run/grid. Pressure profiles are a separate older run; no cross-run member pairing or gust conversion."
+}

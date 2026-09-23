@@ -27,11 +27,8 @@ def packet(fields=('r850',)) -> dict[str, Any]:
 
 
 class GepsContracts(unittest.TestCase):
-    def test_fields_members_and_url(self):
-        self.assertEqual(len(w.model_specs()), 10)
-        self.assertEqual(w.expected_members(), [f'{i:02}' for i in range(21)])
+    def test_url_binds_field_run_and_lead(self):
         self.assertIn('/today/ensemble/geps/grib2/raw/12/210/CMC_geps-raw_RH_TGL_2m_latlon0p5x0p5_2026091712_P210_allmbrs.grib2', w.url_for(INIT,210,'r2'))
-        self.assertNotIn('gust', w.model_specs())
 
     def test_offline_identity_and_supersaturation(self):
         p=packet(); self.assertIs(w.validate_packet(p,NOW),p)

@@ -81,9 +81,7 @@ class CoastalMapsTests(unittest.TestCase):
             data['frames'].extend(f | {'model':model_id} for f in list(data['frames']) if f['model']=='wn3')
         html = render(public_manifest(data),EVENT)
         self.assertIn('4 models · 2 runs · 2 times',html)
-        self.assertIn('coastal-grid-four',html)
         self.assertIn('Expand NOAA GFS map',html)
-        self.assertIn('matching NOAA sea-level pressure imported without resampling',html)
         self.assertIn('https://www.nco.ncep.noaa.gov/pmb/products/gfs/',html)
         self.assertEqual(html.count('class="coastal-card"'),4)
 

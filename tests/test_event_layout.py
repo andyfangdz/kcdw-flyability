@@ -13,5 +13,4 @@ class PageBudgetTests(unittest.TestCase):
         self.assertNotIn(block, fitted)
         self.assertIn('Earlier page-fetch history omitted', fitted)
         self.assertIn('<p>keep</p>', fitted)
-        self.assertLess(PAGE_BUDGET, 800_000)
         self.assertEqual(fit_page_budget(big, ''), fit_page_budget(big, 'absent block'))

@@ -1,0 +1,124 @@
+{
+  "label": "WN3-derived ECMWF-style neutral-profile gust approximation",
+  "native_wn3_gust_forecast": false,
+  "calibrated": false,
+  "source_snapshot": "var/events/commercial-checkride/runs/20260921T131049Z.996210/snapshot.json",
+  "source_snapshot_sha256": "5cbe6214305ebc6d58a24df4152b325a3b4f163992670b73b358b2cceb8f6562",
+  "snapshot_collected_at": "2026-09-21T13:11:39Z",
+  "wn3_initialization_utc": "2026-09-21T00:00:00Z",
+  "grid_point": {
+    "latitude": 40.9,
+    "longitude": -74.3
+  },
+  "constants": {
+    "kappa": 0.4,
+    "C_ugn": 7.2,
+    "knots_per_mps": 1.9438444924406046
+  },
+  "method": {
+    "documented_turbulent_gust_formula": "G = U10 + 7.2 u_star f(zi/L)",
+    "assumed_stability_factor": 1,
+    "inferred_friction_velocity": "u_star = 0.4 (U100 - U10) / ln(100/10)",
+    "combined_formula": "G = U10 + (2.88 / ln(10)) (U100 - U10)"
+  },
+  "assumptions": [
+    "Neutral stratification; no stability enhancement.",
+    "No deep-convective gust contribution.",
+    "Both heights follow one horizontally homogeneous logarithmic surface-layer profile.",
+    "Zero displacement height, common effective roughness, aligned wind directions.",
+    "Uses ensemble-mean scalar speeds; does not diagnose member gust probabilities."
+  ],
+  "limitations": [
+    "WN3 published variables omit surface stress/friction velocity and Monin-Obukhov length.",
+    "Two model height winds need not obey the assumed profile or common roughness.",
+    "Hourly samples are not maxima over every model timestep or the full flight interval.",
+    "This is neither an upper/lower bound nor a validated forecast of observed airport gusts."
+  ],
+  "references": [
+    "https://www.ecmwf.int/sites/default/files/2023-06/Part-IV-Physical-Processes.pdf",
+    "https://www.ecmwf.int/en/newsletter/171/news/wind-gust-predictions-storm-eunice",
+    "https://developers.google.com/weathernext/guides/models"
+  ],
+  "hours": [
+    {
+      "at_utc": "2026-09-24T11:00:00Z",
+      "at_local": "2026-09-24T07:00:00-04:00",
+      "wn3_mean_10m_mps": 4.054835319519043,
+      "wn3_mean_100m_mps": 7.816199779510498,
+      "wn3_mean_10m_kt": 7.881969303600731,
+      "wn3_mean_100m_kt": 15.19347689321695,
+      "inferred_neutral_friction_velocity_mps": 0.6534159317605174,
+      "conditional_neutral_gust_kt": 17.02696981722525
+    },
+    {
+      "at_utc": "2026-09-24T12:00:00Z",
+      "at_local": "2026-09-24T08:00:00-04:00",
+      "wn3_mean_10m_mps": 3.9720003604888916,
+      "wn3_mean_100m_mps": 7.404469966888428,
+      "wn3_mean_10m_kt": 7.7209510247084285,
+      "wn3_mean_100m_kt": 14.393138164577936,
+      "inferred_neutral_friction_velocity_mps": 0.5962810437439781,
+      "conditional_neutral_gust_kt": 16.06630990907339
+    },
+    {
+      "at_utc": "2026-09-24T13:00:00Z",
+      "at_local": "2026-09-24T09:00:00-04:00",
+      "wn3_mean_10m_mps": 4.204117774963379,
+      "wn3_mean_100m_mps": 6.894360542297363,
+      "wn3_mean_10m_kt": 8.172151182434213,
+      "wn3_mean_100m_kt": 13.40156476904455,
+      "inferred_neutral_friction_velocity_mps": 0.46734303553331324,
+      "conditional_neutral_gust_kt": 14.712934919487928
+    },
+    {
+      "at_utc": "2026-09-24T14:00:00Z",
+      "at_local": "2026-09-24T10:00:00-04:00",
+      "wn3_mean_10m_mps": 4.539224624633789,
+      "wn3_mean_100m_mps": 6.704348564147949,
+      "wn3_mean_10m_kt": 8.823546786545162,
+      "wn3_mean_100m_kt": 13.032211031821067,
+      "inferred_neutral_friction_velocity_mps": 0.3761205518270519,
+      "conditional_neutral_gust_kt": 14.087609801316859
+    },
+    {
+      "at_utc": "2026-09-24T15:00:00Z",
+      "at_local": "2026-09-24T11:00:00-04:00",
+      "wn3_mean_10m_mps": 4.62234354019165,
+      "wn3_mean_100m_mps": 6.639541149139404,
+      "wn3_mean_10m_kt": 8.985117032769946,
+      "wn3_mean_100m_kt": 12.906235495087394,
+      "inferred_neutral_friction_velocity_mps": 0.35042311618977723,
+      "conditional_neutral_gust_kt": 13.889526952661427
+    },
+    {
+      "at_utc": "2026-09-24T16:00:00Z",
+      "at_local": "2026-09-24T12:00:00-04:00",
+      "wn3_mean_10m_mps": 4.3763861656188965,
+      "wn3_mean_100m_mps": 6.342586040496826,
+      "wn3_mean_10m_kt": 8.507014144831547,
+      "wn3_mean_100m_kt": 12.329000942650417,
+      "inferred_neutral_friction_velocity_mps": 0.3415639023913396,
+      "conditional_neutral_gust_kt": 13.287433340287013
+    },
+    {
+      "at_utc": "2026-09-24T17:00:00Z",
+      "at_local": "2026-09-24T13:00:00-04:00",
+      "wn3_mean_10m_mps": 4.032135963439941,
+      "wn3_mean_100m_mps": 5.8649725914001465,
+      "wn3_mean_10m_kt": 7.837845285304422,
+      "wn3_mean_100m_kt": 11.400594670108276,
+      "inferred_neutral_friction_velocity_mps": 0.31839633350131213,
+      "conditional_neutral_gust_kt": 12.294018592191037
+    },
+    {
+      "at_utc": "2026-09-24T18:00:00Z",
+      "at_local": "2026-09-24T14:00:00-04:00",
+      "wn3_mean_10m_mps": 3.7118606567382812,
+      "wn3_mean_100m_mps": 5.3592400550842285,
+      "wn3_mean_10m_kt": 7.215279894307674,
+      "wn3_mean_100m_kt": 10.41752926474256,
+      "inferred_neutral_friction_velocity_mps": 0.28617911292109754,
+      "conditional_neutral_gust_kt": 11.22055128033081
+    }
+  ]
+}

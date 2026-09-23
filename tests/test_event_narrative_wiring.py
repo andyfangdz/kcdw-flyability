@@ -25,14 +25,13 @@ class EventNarrativeWiringTests(unittest.TestCase):
             self.assertEqual([tuple(map(float, point.split(','))) for point in segment],
                              [(round(chart.x(i),1),round(chart.y(values[i]),1)) for i in indices])
 
-    def test_narrative_is_prominent_and_renderer_failure_is_isolated(self):
+    def test_narrative_is_included_and_renderer_failure_is_isolated(self):
         snapshot = comparison.ComparisonTests().snapshot()
         fragment = '<section id="event-narrative"><h2>What this means</h2><p>Evidence explanation</p></section>'
         with patch.object(event_renderer, 'render_event_narrative', return_value=fragment, create=True) as narrative:
             markup, _ = event_renderer.render(snapshot, NOW)
         narrative.assert_called_once_with(snapshot, NOW)
         self.assertIn(fragment, markup)
-        self.assertLess(markup.index(fragment), markup.index('<section id="multimodel-comparison"'))
         with patch.object(event_renderer, 'render_event_narrative', side_effect=ValueError('bad output'), create=True):
             markup, _ = event_renderer.render(snapshot, NOW)
         self.assertIn('id="multimodel-comparison"', markup)

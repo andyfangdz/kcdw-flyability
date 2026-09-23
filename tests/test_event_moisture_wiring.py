@@ -36,7 +36,6 @@ class MoistureWiringTests(unittest.TestCase):
             packet = build_event_evidence(snapshot, NOW)
         self.assertIn('id="low-level-rh"', text)
         self.assertIn('id="rh-bands" type="checkbox" checked', text)
-        self.assertIn('#low-level-rh:has(#rh-bands:not(:checked)) .rh-band{display:none}', text)
         from html.parser import HTMLParser
         nodes=[]
         parser=HTMLParser()

@@ -53,7 +53,7 @@ Tests cover source validation, weather calculations, stale or missing data, arch
 python3 -m unittest discover -s tests -p 'test_event_update.py'
 ```
 
-Use module imports when sharing test helpers so unittest does not discover imported `TestCase` classes twice. Add tests for distinct behavior or failures; avoid assertions tied to prose, colors, or local research archives. Event-update tests stub external collectors in one place.
+Use module imports when sharing test helpers so unittest does not discover imported `TestCase` classes twice. Add tests for distinct behavior or failures; avoid assertions tied to prose, colors, or local research archives. Do not restate configuration constants, compare objects with copies made after the operation, or use the implementation under test to compute its own expected result. Event-update tests stub external collectors in one place.
 
 The Worker has its own checks: `npm --prefix cloudflare run check` and `npm --prefix cloudflare test`. See its [setup instructions](cloudflare/README.md).
 

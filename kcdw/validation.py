@@ -20,6 +20,15 @@ class ValidationError(ValueError):
 
 
 def validate_weather_next3_source(snapshot: dict) -> None:
+    hourly = snapshot.get('sources', {}).get('weather_next3_hourly', {})
+    if isinstance(hourly, dict) and hourly.get('ok'):
+        try:
+            from .wn3_hourly import validate
+            if hourly.get('fetched_at') != snapshot.get('collected_at'):
+                raise ValueError('Hourly WN3 collection time mismatch')
+            validate(hourly.get('data'), parse_time(snapshot['collected_at']))
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValidationError('WeatherNext 3 hourly source marked available with invalid guidance') from exc
     source = snapshot.get("sources", {}).get("weather_next3", {})
     if isinstance(source, dict) and source.get("ok"):
         try:

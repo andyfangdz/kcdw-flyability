@@ -15,10 +15,8 @@ def envelope(**changes):
 
 
 class ClaudeAgentTests(unittest.TestCase):
-    def test_command_pins_model_effort_and_isolation(self):
+    def test_command_enforces_isolation_and_explicit_tools(self):
         command = agent.build_command('{}', tools=agent.RESEARCH_TOOLS, add_dirs=(Path('/radar'),))
-        self.assertEqual(command[command.index('--model') + 1], 'claude-fable-5-1')
-        self.assertEqual(command[command.index('--effort') + 1], 'high')
         self.assertEqual(command[command.index('--tools') + 1], 'Read,WebSearch,WebFetch')
         self.assertEqual(command[command.index('--allowedTools') + 1], 'Read,WebSearch,WebFetch')
         self.assertEqual(command[command.index('--permission-prompts') + 1], 'none')

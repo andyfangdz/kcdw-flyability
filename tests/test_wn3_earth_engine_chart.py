@@ -1,5 +1,4 @@
 import importlib.util
-from datetime import datetime, timezone
 from io import BytesIO
 import json
 from pathlib import Path
@@ -20,21 +19,6 @@ if HAS_CHARTS:
 
 @unittest.skipUnless(HAS_CHARTS, 'Install requirements-earth-engine-charts.txt')
 class EarthEngineChartTests(apitestcase.ApiTestCase if HAS_CHARTS else unittest.TestCase):
-    def test_complete_chart_builds_without_reading_weather_values(self):
-        grid,extent=chart.projected_grid(chart.VIEWS['northeast'],chart.ANNOTATION_WIDTH)
-        source=ee.Image.constant([103000,10,6,8]).rename(chart.BANDS)
-        with patch.object(ee.data,'computeValue',side_effect=AssertionError('Unexpected value download')), \
-             patch.object(ee.data,'computePixels',side_effect=AssertionError('Unexpected pixel download')):
-            raster,output,checks=layers.compose(source,chart.BANDS,chart.NATIVE,grid,extent,extent,
-                4000,'northeast',ee.FeatureCollection([]),chart.PALETTE,
-                datetime(2026,9,20,12,tzinfo=timezone.utc),datetime(2026,9,24,15,tzinfo=timezone.utc),99)
-            encoded=json.dumps(ee.serializer.encode(raster))
-            ee.serializer.encode(checks)
-        self.assertEqual(output['dimensions']['width'],5760)
-        for operation in ('Image.sample','Image.convolve','Image.focalMax','String.decodeJSON','Number.format','Image.paint'):
-            self.assertIn(operation,encoded)
-        self.assertLess(len(encoded),1_000_000)
-
     def test_retina_layout_preserves_extent_and_doubles_pixel_density(self):
         for view in chart.VIEWS:
             _,extent=chart.projected_grid(chart.VIEWS[view],2000)

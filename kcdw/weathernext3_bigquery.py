@@ -17,16 +17,30 @@ from .weathernext3_zarr import KCDW, parse_utc, run_name
 DEFAULT_TABLE = "866962084172.WeatherNext_3.weathernext_3_0_0_0p1deg"
 SOURCE_URL = "https://developers.google.com/weathernext/guides/bigquery"
 
+
+def initialization(run):
+    """BigQuery supports whole-hour inits, including the shorter interim runs."""
+    init = parse_utc(run)
+    if init.minute or init.second or init.microsecond:
+        raise ValueError('run must be a whole UTC hour')
+    return init
+
+
+def horizon_hours(run):
+    return 360 if initialization(run).hour % 6 == 0 else 48
+
+
 def request_body(table, run, valid, arrays, maximum_bytes, execute=False):
     from .weathernext3 import FIELD_SPECS, OPTIONAL_FIELD_SPECS, STATISTICS
     ARRAYS = {f"{spec.array}_{stat}" for spec in (FIELD_SPECS | OPTIONAL_FIELD_SPECS).values() for stat in STATISTICS}
     if not re.fullmatch(r"[A-Za-z0-9_-]+\.[A-Za-z0-9_]+\.[A-Za-z0-9_]+", table):
         raise ValueError("invalid table identifier")
-    _, init = run_name(run)
+    init = initialization(run)
+    horizon = horizon_hours(run)
     times = sorted(set(parse_utc(v) for v in valid))
-    if not times or any(not 1 <= (v-init).total_seconds()/3600 <= 360 or
+    if not times or any(not 1 <= (v-init).total_seconds()/3600 <= horizon or
                         (v-init).total_seconds() % 3600 for v in times):
-        raise ValueError("valid times must be hourly leads 1..360")
+        raise ValueError(f"valid times must be hourly leads 1..{horizon}")
     if not arrays or not set(arrays) <= ARRAYS or maximum_bytes <= 0:
         raise ValueError("invalid arrays or byte cap")
     # This probe targets the documented regular 0.1-degree grid. Query the
@@ -133,7 +147,7 @@ def validate_provenance(value):
 
 
 class BigQueryStore:
-    """One complete synoptic run per cache entry; no GCS fallback.
+    """One complete run per cache entry; no GCS fallback.
 
     Cache entries retain original retrieval/job provenance. File locking avoids
     duplicate jobs across the report and history processes. Only complete,
@@ -154,32 +168,35 @@ class BigQueryStore:
             self.session = AuthorizedSession(credentials)
         return self.session
 
-    def candidates(self, now):
-        """Discover published synoptic rows with a cheap geography-only query."""
+    def candidates(self, now, *, include_interim=False):
+        """Discover published runs; interim 48-hour cycles are explicitly opt-in."""
         lower = now - timedelta(hours=24)
+        limit = 25 if include_interim else 5
+        cycle_filter = '' if include_interim else 'AND MOD(EXTRACT(HOUR FROM t.init_time), 6) = 0'
         body = request_body(self.table, now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat(),
                             [(now.replace(hour=0, minute=0, second=0, microsecond=0)+timedelta(hours=1)).isoformat()],
                             ['temperature_2m_mean'], min(self.cap, 32*1024**3), True)
         body['query'] = f'''SELECT TO_JSON_STRING(STRUCT(t.init_time AS init_time))
 FROM `{self.table}` t
 WHERE t.init_time >= @lower AND t.init_time <= @upper
-  AND MOD(EXTRACT(HOUR FROM t.init_time), 6) = 0
+  {cycle_filter}
   AND ST_DWITHIN(t.geography, ST_GEOGPOINT(@longitude, @latitude), 100)
-ORDER BY t.init_time DESC LIMIT 5'''
+ORDER BY t.init_time DESC LIMIT {limit}'''
         body['queryParameters'] = [p for p in body['queryParameters'] if p['name'] in ('longitude', 'latitude')]
         body['queryParameters'] += [dict(name=k, parameterType={'type':'TIMESTAMP'}, parameterValue={'value':v.isoformat()})
                                     for k,v in [('lower', lower), ('upper', now)]]
         result = query(self._session(), self.project, body)
-        runs = [run_name(r['init_time'])[1] for r in result['rows']]
-        if len(runs) > 5 or runs != sorted(set(runs), reverse=True) or any(not lower <= r <= now for r in runs):
+        runs = [initialization(r['init_time']) if include_interim else run_name(r['init_time'])[1]
+                for r in result['rows']]
+        if len(runs) > limit or runs != sorted(set(runs), reverse=True) or any(not lower <= r <= now for r in runs):
             raise ValueError('invalid BigQuery run discovery')
         return runs
 
     def fetch(self, run, arrays=None):
         from .weathernext3 import FIELD_SPECS, STATISTICS
         arrays = sorted(set(arrays or [f'{s.array}_{stat}' for s in FIELD_SPECS.values() for stat in STATISTICS]))
-        _, init = run_name(run)
-        valid = [(init+timedelta(hours=h)).isoformat() for h in range(1, 361)]
+        init = initialization(run)
+        valid = [(init+timedelta(hours=h)).isoformat() for h in range(1, horizon_hours(run)+1)]
         body = request_body(self.table, run, valid, arrays, self.cap, True)
         identity = dict(table=self.table, run=init.isoformat(), arrays=arrays, version=1)
         key = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()

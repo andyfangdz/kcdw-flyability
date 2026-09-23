@@ -19,7 +19,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-MODEL = 'claude-fable-5-1'
+MODEL = 'claude-opus-5-5'
 EFFORT = 'high'
 PROVIDER = 'claude-code'
 MAX_OUTPUT_BYTES = 4_000_000

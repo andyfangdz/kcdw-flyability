@@ -1,0 +1,1532 @@
+{
+  "init": "2026-09-21T00:00:00Z",
+  "model": "GFS",
+  "samples": [
+    {
+      "at": "2026-09-24T12:00:00Z",
+      "fields": {
+        "10u": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 84,
+            "gridType": "regular_ll",
+            "level": 10,
+            "paramId": 165,
+            "startStep": 84,
+            "stepType": "instant",
+            "typeOfLevel": "heightAboveGround",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1200
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 586767,
+            "end": 415719589,
+            "sha256": "a99263383874707eecb67ba97ec7a488e1bd966014cf23f8540c215b4e47c600",
+            "start": 415132823,
+            "total": 523497992
+          },
+          "value": -2.01864013671875
+        },
+        "10v": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 84,
+            "gridType": "regular_ll",
+            "level": 10,
+            "paramId": 166,
+            "startStep": 84,
+            "stepType": "instant",
+            "typeOfLevel": "heightAboveGround",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1200
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 573568,
+            "end": 416293157,
+            "sha256": "0411361bc6d6518991b15bbd81b7303446cccbeb40c6aa28241c876f5c0c67f3",
+            "start": 415719590,
+            "total": 523497992
+          },
+          "value": -4.300177001953125
+        },
+        "gust": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 84,
+            "gridType": "regular_ll",
+            "level": 0,
+            "paramId": 260065,
+            "startStep": 84,
+            "stepType": "instant",
+            "typeOfLevel": "surface",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1200
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 610323,
+            "end": 6536082,
+            "sha256": "d3d9f6ff1fdff9835628431fd5391206510916d55e20022e304fb05168f380f3",
+            "start": 5925760,
+            "total": 523497992
+          },
+          "value": 13.31512044519186
+        },
+        "u850": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 84,
+            "gridType": "regular_ll",
+            "level": 850,
+            "paramId": 131,
+            "startStep": 84,
+            "stepType": "instant",
+            "typeOfLevel": "isobaricInhPa",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1200
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 573448,
+            "end": 341309100,
+            "sha256": "a908767c72fbe052b2dfa7cc51cbd3ceeccc75c4f258e194a5bb6e99c6b8df76",
+            "start": 340735653,
+            "total": 523497992
+          },
+          "value": -13.680322265625001
+        },
+        "u925": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 84,
+            "gridType": "regular_ll",
+            "level": 925,
+            "paramId": 131,
+            "startStep": 84,
+            "stepType": "instant",
+            "typeOfLevel": "isobaricInhPa",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1200
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 572717,
+            "end": 364252687,
+            "sha256": "168526d8b1f2a51244d88179bca802ef09a314d66e676b8ffb2aa5818893a893",
+            "start": 363679971,
+            "total": 523497992
+          },
+          "value": -16.296606445312502
+        },
+        "v850": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 84,
+            "gridType": "regular_ll",
+            "level": 850,
+            "paramId": 132,
+            "startStep": 84,
+            "stepType": "instant",
+            "typeOfLevel": "isobaricInhPa",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1200
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 578787,
+            "end": 341887887,
+            "sha256": "352fdf894c23a1966698bb25eb8d6c881cd1811fe2bb5dc4a9b80bcd8d84702e",
+            "start": 341309101,
+            "total": 523497992
+          },
+          "value": -2.9911621093750003
+        },
+        "v925": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 84,
+            "gridType": "regular_ll",
+            "level": 925,
+            "paramId": 132,
+            "startStep": 84,
+            "stepType": "instant",
+            "typeOfLevel": "isobaricInhPa",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1200
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 582956,
+            "end": 364835643,
+            "sha256": "04d033b0c9c5f7fb7cfe96fbcb73f89239b6e6772ef90719b701c10a8a6101e9",
+            "start": 364252688,
+            "total": 523497992
+          },
+          "value": -3.839862060546875
+        }
+      },
+      "lead": 84,
+      "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260921/00/atmos/gfs.t00z.pgrb2.0p25.f084",
+      "fetched_at": "2026-09-21T04:26:11Z"
+    },
+    {
+      "at": "2026-09-24T13:00:00Z",
+      "lead": 85,
+      "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260921/00/atmos/gfs.t00z.pgrb2.0p25.f085",
+      "fields": {
+        "gust": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 260065,
+            "typeOfLevel": "surface",
+            "level": 0,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1300,
+            "stepType": "instant",
+            "startStep": 85,
+            "endStep": 85,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": 12.205544304847718,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 5904779,
+            "end": 6520481,
+            "total": 520878698,
+            "bytes": 615703,
+            "sha256": "2f98ea59acfbd830d6209224a18d23b93e83d1fc2c15175adde66ece8535e67a"
+          }
+        },
+        "u850": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 131,
+            "typeOfLevel": "isobaricInhPa",
+            "level": 850,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1300,
+            "stepType": "instant",
+            "startStep": 85,
+            "endStep": 85,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -14.255718994140626,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 341364175,
+            "end": 341934541,
+            "total": 520878698,
+            "bytes": 570367,
+            "sha256": "ee1feffdf2b68604068b64bf7c0ac56c590c289a836a4ef5e646e64da183bf51"
+          }
+        },
+        "v850": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 132,
+            "typeOfLevel": "isobaricInhPa",
+            "level": 850,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1300,
+            "stepType": "instant",
+            "startStep": 85,
+            "endStep": 85,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -3.13511962890625,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 341934542,
+            "end": 342514446,
+            "total": 520878698,
+            "bytes": 579905,
+            "sha256": "c703cb97ccd94e507adc7ff1e9b8374c977a14da4c9478e824e2b493717a9cb9"
+          }
+        },
+        "u925": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 131,
+            "typeOfLevel": "isobaricInhPa",
+            "level": 925,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1300,
+            "stepType": "instant",
+            "startStep": 85,
+            "endStep": 85,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -16.36639404296875,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 364368563,
+            "end": 364941598,
+            "total": 520878698,
+            "bytes": 573036,
+            "sha256": "5cade32fe067c8d7e3fcc39403d14e9ded936b27077fe7acbd39d5df051af23b"
+          }
+        },
+        "v925": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 132,
+            "typeOfLevel": "isobaricInhPa",
+            "level": 925,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1300,
+            "stepType": "instant",
+            "startStep": 85,
+            "endStep": 85,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -3.97164306640625,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 364941599,
+            "end": 365525267,
+            "total": 520878698,
+            "bytes": 583669,
+            "sha256": "169b04874ec7b5b8cf63fa6f94599b662a9ec3e52e44bbeb44edd52c2fb32042"
+          }
+        },
+        "10u": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 165,
+            "typeOfLevel": "heightAboveGround",
+            "level": 10,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1300,
+            "stepType": "instant",
+            "startStep": 85,
+            "endStep": 85,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -3.26180419921875,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 416062259,
+            "end": 416649199,
+            "total": 520878698,
+            "bytes": 586941,
+            "sha256": "28d724065b429ef69fd25cf54b6e607e8508db8d1185acd9132a7306b1e12352"
+          }
+        },
+        "10v": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 166,
+            "typeOfLevel": "heightAboveGround",
+            "level": 10,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1300,
+            "stepType": "instant",
+            "startStep": 85,
+            "endStep": 85,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -4.3361328125,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 416649200,
+            "end": 417223552,
+            "total": 520878698,
+            "bytes": 574353,
+            "sha256": "71f173dbbd2223f8839f29c65921a35aa5738fa30153e801159b4cc379109e53"
+          }
+        }
+      },
+      "fetched_at": "2026-09-21T04:32:57.065063+00:00"
+    },
+    {
+      "at": "2026-09-24T14:00:00Z",
+      "lead": 86,
+      "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260921/00/atmos/gfs.t00z.pgrb2.0p25.f086",
+      "fields": {
+        "gust": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 260065,
+            "typeOfLevel": "surface",
+            "level": 0,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1400,
+            "stepType": "instant",
+            "startStep": 86,
+            "endStep": 86,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": 10.416984449326993,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 5896260,
+            "end": 6513264,
+            "total": 522473094,
+            "bytes": 617005,
+            "sha256": "e6cdd9ee8d6e3953b4a272de921073751bdfa8dc5c680a22a5a41138a7042476"
+          }
+        },
+        "u850": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 131,
+            "typeOfLevel": "isobaricInhPa",
+            "level": 850,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1400,
+            "stepType": "instant",
+            "startStep": 86,
+            "endStep": 86,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -14.684454345703125,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 341467039,
+            "end": 342038676,
+            "total": 522473094,
+            "bytes": 571638,
+            "sha256": "228a9ce6a86fa07f628bf50789585605577792d88897a0ff33462075d179157a"
+          }
+        },
+        "v850": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 132,
+            "typeOfLevel": "isobaricInhPa",
+            "level": 850,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1400,
+            "stepType": "instant",
+            "startStep": 86,
+            "endStep": 86,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -3.6007080078125,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 342038677,
+            "end": 342619882,
+            "total": 522473094,
+            "bytes": 581206,
+            "sha256": "759aeaf22e2521241c16c156676967cce9d137988e8883c0ab584c0d67608899"
+          }
+        },
+        "u925": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 131,
+            "typeOfLevel": "isobaricInhPa",
+            "level": 925,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1400,
+            "stepType": "instant",
+            "startStep": 86,
+            "endStep": 86,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -11.542749023437501,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 364498692,
+            "end": 365076001,
+            "total": 522473094,
+            "bytes": 577310,
+            "sha256": "318098e8779a0739e6c552ef8c34c45d8e84f486bd0a5d268ebbbd38b18f0bfc"
+          }
+        },
+        "v925": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 132,
+            "typeOfLevel": "isobaricInhPa",
+            "level": 925,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1400,
+            "stepType": "instant",
+            "startStep": 86,
+            "endStep": 86,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -5.8904296875,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 365076002,
+            "end": 365660301,
+            "total": 522473094,
+            "bytes": 584300,
+            "sha256": "1b7c1904761b76dc78213c0be32b382f04b59fc4041c11850a397ce704d0993c"
+          }
+        },
+        "10u": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 165,
+            "typeOfLevel": "heightAboveGround",
+            "level": 10,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1400,
+            "stepType": "instant",
+            "startStep": 86,
+            "endStep": 86,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -4.0779052734375005,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 416185153,
+            "end": 416772086,
+            "total": 522473094,
+            "bytes": 586934,
+            "sha256": "e36ce627102792cdc831718bcdfde9961315161cc8b4a66fb542a902c7b04fdb"
+          }
+        },
+        "10v": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 166,
+            "typeOfLevel": "heightAboveGround",
+            "level": 10,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1400,
+            "stepType": "instant",
+            "startStep": 86,
+            "endStep": 86,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -4.0653015136718755,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 416772087,
+            "end": 417346768,
+            "total": 522473094,
+            "bytes": 574682,
+            "sha256": "dd603a11c8486c85e7a9c4c719b2d3dc9e5c7c2c9c21e8a87257d4fa1fb8a57f"
+          }
+        }
+      },
+      "fetched_at": "2026-09-21T04:32:57.053504+00:00"
+    },
+    {
+      "at": "2026-09-24T15:00:00Z",
+      "fields": {
+        "10u": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 87,
+            "gridType": "regular_ll",
+            "level": 10,
+            "paramId": 165,
+            "startStep": 87,
+            "stepType": "instant",
+            "typeOfLevel": "heightAboveGround",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1500
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 587514,
+            "end": 415787210,
+            "sha256": "38c2dd0282254603c814ae88b1df7e77b911c64a6217a1584a91e97f484829c8",
+            "start": 415199697,
+            "total": 522034995
+          },
+          "value": -4.5102386474609375
+        },
+        "10v": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 87,
+            "gridType": "regular_ll",
+            "level": 10,
+            "paramId": 166,
+            "startStep": 87,
+            "stepType": "instant",
+            "typeOfLevel": "heightAboveGround",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1500
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 571557,
+            "end": 416358767,
+            "sha256": "e8ebed9e8f8d24adf97d750e991fc9551820fcf96ee9609954dc7037ab5e73f0",
+            "start": 415787211,
+            "total": 522034995
+          },
+          "value": -3.2578247070312503
+        },
+        "gust": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 87,
+            "gridType": "regular_ll",
+            "level": 0,
+            "paramId": 260065,
+            "startStep": 87,
+            "stepType": "instant",
+            "typeOfLevel": "surface",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1500
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 618375,
+            "end": 6506482,
+            "sha256": "1cb40527974b48c65457b7e9709e5c3cd14371b543f6a552849aa399bdcd36f0",
+            "start": 5888108,
+            "total": 522034995
+          },
+          "value": 9.2094482421875
+        },
+        "u850": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 87,
+            "gridType": "regular_ll",
+            "level": 850,
+            "paramId": 131,
+            "startStep": 87,
+            "stepType": "instant",
+            "typeOfLevel": "isobaricInhPa",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1500
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 576185,
+            "end": 342568169,
+            "sha256": "96ec31c62d5e8b0b08ca9fc63e4466e4fb019ba4b16ca99fcc3f9a78c962df97",
+            "start": 341991985,
+            "total": 522034995
+          },
+          "value": -14.61195068359375
+        },
+        "u925": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 87,
+            "gridType": "regular_ll",
+            "level": 925,
+            "paramId": 131,
+            "startStep": 87,
+            "stepType": "instant",
+            "typeOfLevel": "isobaricInhPa",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1500
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 578505,
+            "end": 365654549,
+            "sha256": "ba3b5bed08c8e6d3c61fdd3d84b108ed20d9e9debff5628a09d59cafeeb7b9aa",
+            "start": 365076045,
+            "total": 522034995
+          },
+          "value": -10.5111083984375
+        },
+        "v850": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 87,
+            "gridType": "regular_ll",
+            "level": 850,
+            "paramId": 132,
+            "startStep": 87,
+            "stepType": "instant",
+            "typeOfLevel": "isobaricInhPa",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1500
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 582624,
+            "end": 343150793,
+            "sha256": "80b0f857dce649866a44bedeb8fe87e6aabfd2c2280964e255140fbda47da2f0",
+            "start": 342568170,
+            "total": 522034995
+          },
+          "value": -4.568487548828125
+        },
+        "v925": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 87,
+            "gridType": "regular_ll",
+            "level": 925,
+            "paramId": 132,
+            "startStep": 87,
+            "stepType": "instant",
+            "typeOfLevel": "isobaricInhPa",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1500
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 585240,
+            "end": 366239789,
+            "sha256": "8e3e817def2428d318f51df1844fe3f40d4a737b3d0319c99530bb2415dc2dc1",
+            "start": 365654550,
+            "total": 522034995
+          },
+          "value": -5.89862060546875
+        }
+      },
+      "lead": 87,
+      "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260921/00/atmos/gfs.t00z.pgrb2.0p25.f087",
+      "fetched_at": "2026-09-21T04:26:11Z"
+    },
+    {
+      "at": "2026-09-24T16:00:00Z",
+      "lead": 88,
+      "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260921/00/atmos/gfs.t00z.pgrb2.0p25.f088",
+      "fields": {
+        "gust": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 260065,
+            "typeOfLevel": "surface",
+            "level": 0,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1600,
+            "stepType": "instant",
+            "startStep": 88,
+            "endStep": 88,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": 8.109631729871035,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 5893831,
+            "end": 6514690,
+            "total": 522111437,
+            "bytes": 620860,
+            "sha256": "9da549b9206979caa6f38621b450c839c2e0dbf97cdc2a93c15ccd29f60dd474"
+          }
+        },
+        "u850": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 131,
+            "typeOfLevel": "isobaricInhPa",
+            "level": 850,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1600,
+            "stepType": "instant",
+            "startStep": 88,
+            "endStep": 88,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -10.801623535156251,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 340722743,
+            "end": 341295273,
+            "total": 522111437,
+            "bytes": 572531,
+            "sha256": "786e1077a490cfd683b6e3e9daa0a25cd37d0ca82609d18684067774db6564cc"
+          }
+        },
+        "v850": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 132,
+            "typeOfLevel": "isobaricInhPa",
+            "level": 850,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1600,
+            "stepType": "instant",
+            "startStep": 88,
+            "endStep": 88,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -5.38505859375,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 341295274,
+            "end": 341878938,
+            "total": 522111437,
+            "bytes": 583665,
+            "sha256": "af07b017d20b34a04dfbb1f3b9a84c32cf10cd071185121f94a9f2750f892a4b"
+          }
+        },
+        "u925": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 131,
+            "typeOfLevel": "isobaricInhPa",
+            "level": 925,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1600,
+            "stepType": "instant",
+            "startStep": 88,
+            "endStep": 88,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -9.038946533203125,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 363810190,
+            "end": 364385111,
+            "total": 522111437,
+            "bytes": 574922,
+            "sha256": "e4ccfc17e6aac80009d20d89e9c01316c49bfe263c02edaaf01d7e7847538806"
+          }
+        },
+        "v925": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 132,
+            "typeOfLevel": "isobaricInhPa",
+            "level": 925,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1600,
+            "stepType": "instant",
+            "startStep": 88,
+            "endStep": 88,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -5.744641113281251,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 364385112,
+            "end": 364970212,
+            "total": 522111437,
+            "bytes": 585101,
+            "sha256": "c11a1e04594e60a79b30ed333471d841a1ea248a02588bf1441198fbda18a836"
+          }
+        },
+        "10u": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 165,
+            "typeOfLevel": "heightAboveGround",
+            "level": 10,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1600,
+            "stepType": "instant",
+            "startStep": 88,
+            "endStep": 88,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -4.863476562500001,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 414748777,
+            "end": 415336681,
+            "total": 522111437,
+            "bytes": 587905,
+            "sha256": "df77d269373d7d336059e68ab3fa14451e1a1535a22a25db57374a6b5c05fc1f"
+          }
+        },
+        "10v": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 166,
+            "typeOfLevel": "heightAboveGround",
+            "level": 10,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1600,
+            "stepType": "instant",
+            "startStep": 88,
+            "endStep": 88,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -2.5763610839843754,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 415336682,
+            "end": 415912717,
+            "total": 522111437,
+            "bytes": 576036,
+            "sha256": "a542ed8ad7e7dde9de294efd777ff86a818ab534ec1dff2cd1987f9cf9533dc7"
+          }
+        }
+      },
+      "fetched_at": "2026-09-21T04:32:57.927848+00:00"
+    },
+    {
+      "at": "2026-09-24T17:00:00Z",
+      "lead": 89,
+      "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260921/00/atmos/gfs.t00z.pgrb2.0p25.f089",
+      "fields": {
+        "gust": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 260065,
+            "typeOfLevel": "surface",
+            "level": 0,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1700,
+            "stepType": "instant",
+            "startStep": 89,
+            "endStep": 89,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": 7.632662862539291,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 5888372,
+            "end": 6510265,
+            "total": 525687191,
+            "bytes": 621894,
+            "sha256": "fe2471e5c8dd93fe6a72e088c93be63ca7cc4ff9940a2454232b3a0b67596a74"
+          }
+        },
+        "u850": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 131,
+            "typeOfLevel": "isobaricInhPa",
+            "level": 850,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1700,
+            "stepType": "instant",
+            "startStep": 89,
+            "endStep": 89,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -9.0146484375,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 342753750,
+            "end": 343327599,
+            "total": 525687191,
+            "bytes": 573850,
+            "sha256": "3eaaed4ae99e51af59a322141e360be0b1587603cc225158207cd47d44c5d6e4"
+          }
+        },
+        "v850": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 132,
+            "typeOfLevel": "isobaricInhPa",
+            "level": 850,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1700,
+            "stepType": "instant",
+            "startStep": 89,
+            "endStep": 89,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -5.117010498046875,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 343327600,
+            "end": 343912274,
+            "total": 525687191,
+            "bytes": 584675,
+            "sha256": "f4f9398abd0c6df6bd1281e85e0a2ba1bfebf68f52d4caf7753ed36094abca2f"
+          }
+        },
+        "u925": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 131,
+            "typeOfLevel": "isobaricInhPa",
+            "level": 925,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1700,
+            "stepType": "instant",
+            "startStep": 89,
+            "endStep": 89,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -8.4429443359375,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 365829550,
+            "end": 366405324,
+            "total": 525687191,
+            "bytes": 575775,
+            "sha256": "cc8201c51744995db240e3f93893937d5e243ef0707853ca451c2087b3d0b7b1"
+          }
+        },
+        "v925": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 132,
+            "typeOfLevel": "isobaricInhPa",
+            "level": 925,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1700,
+            "stepType": "instant",
+            "startStep": 89,
+            "endStep": 89,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -5.686865234375,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 366405325,
+            "end": 366991351,
+            "total": 525687191,
+            "bytes": 586027,
+            "sha256": "47f4d306a50705a06747254bb373193df6cb47c9ad21dea6341c81027356e48f"
+          }
+        },
+        "10u": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 165,
+            "typeOfLevel": "heightAboveGround",
+            "level": 10,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1700,
+            "stepType": "instant",
+            "startStep": 89,
+            "endStep": 89,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -4.43016357421875,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 417928320,
+            "end": 418517032,
+            "total": 525687191,
+            "bytes": 588713,
+            "sha256": "d9dea16365e9cd935087400ea534e644d4a69c012c825281dc2c9750867d5b90"
+          }
+        },
+        "10v": {
+          "identity": {
+            "edition": 2,
+            "centre": "kwbc",
+            "paramId": 166,
+            "typeOfLevel": "heightAboveGround",
+            "level": 10,
+            "units": "m s**-1",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "validityDate": 20260924,
+            "validityTime": 1700,
+            "stepType": "instant",
+            "startStep": 89,
+            "endStep": 89,
+            "gridType": "regular_ll",
+            "Ni": 1440,
+            "Nj": 721
+          },
+          "value": -2.8317016601562504,
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "start": 418517033,
+            "end": 419093282,
+            "total": 525687191,
+            "bytes": 576250,
+            "sha256": "9a4cf6770ee9f5e937e3794a094ecc469e5e9cb901139aaf4fd27bf16bfd135b"
+          }
+        }
+      },
+      "fetched_at": "2026-09-21T04:32:57.933300+00:00"
+    },
+    {
+      "at": "2026-09-24T18:00:00Z",
+      "fields": {
+        "10u": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 90,
+            "gridType": "regular_ll",
+            "level": 10,
+            "paramId": 165,
+            "startStep": 90,
+            "stepType": "instant",
+            "typeOfLevel": "heightAboveGround",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1800
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 585570,
+            "end": 418580861,
+            "sha256": "84d0464bc52238d379c7b63f8c971a3696498e2a582de0f550a5f3ab323e0884",
+            "start": 417995292,
+            "total": 527304901
+          },
+          "value": -3.49114990234375
+        },
+        "10v": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 90,
+            "gridType": "regular_ll",
+            "level": 10,
+            "paramId": 166,
+            "startStep": 90,
+            "stepType": "instant",
+            "typeOfLevel": "heightAboveGround",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1800
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 576014,
+            "end": 419156875,
+            "sha256": "18462c55e602e2e79aae485d9eb9a9ada61559c4a833b5e04e26e7a47150b6d2",
+            "start": 418580862,
+            "total": 527304901
+          },
+          "value": -3.1728881835937504
+        },
+        "gust": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 90,
+            "gridType": "regular_ll",
+            "level": 0,
+            "paramId": 260065,
+            "startStep": 90,
+            "stepType": "instant",
+            "typeOfLevel": "surface",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1800
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 623535,
+            "end": 6504458,
+            "sha256": "c33f96a740f59c717f35e98fe5707f428322befc9d40841467703856cc565e3f",
+            "start": 5880924,
+            "total": 527304901
+          },
+          "value": 7.309577521681786
+        },
+        "u850": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 90,
+            "gridType": "regular_ll",
+            "level": 850,
+            "paramId": 131,
+            "startStep": 90,
+            "stepType": "instant",
+            "typeOfLevel": "isobaricInhPa",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1800
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 577769,
+            "end": 342959948,
+            "sha256": "76e670f0dc5a7288ba7c05404af0c506d753f9ddc5dc250058c4d2b4b427949f",
+            "start": 342382180,
+            "total": 527304901
+          },
+          "value": -8.413079833984375
+        },
+        "u925": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 90,
+            "gridType": "regular_ll",
+            "level": 925,
+            "paramId": 131,
+            "startStep": 90,
+            "stepType": "instant",
+            "typeOfLevel": "isobaricInhPa",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1800
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 579285,
+            "end": 366038277,
+            "sha256": "a8ac08256933426e92b8e0d809d9f9bb73541184484d4de39d477566aeb213e0",
+            "start": 365458993,
+            "total": 527304901
+          },
+          "value": -7.95450439453125
+        },
+        "v850": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 90,
+            "gridType": "regular_ll",
+            "level": 850,
+            "paramId": 132,
+            "startStep": 90,
+            "stepType": "instant",
+            "typeOfLevel": "isobaricInhPa",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1800
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 585188,
+            "end": 343545136,
+            "sha256": "f791d01223bc86d862ac5cbcb6db0565d9b6c11f8fc67312810fe6cf19f8d0be",
+            "start": 342959949,
+            "total": 527304901
+          },
+          "value": -4.883868408203125
+        },
+        "v925": {
+          "identity": {
+            "Ni": 1440,
+            "Nj": 721,
+            "centre": "kwbc",
+            "dataDate": 20260921,
+            "dataTime": 0,
+            "edition": 2,
+            "endStep": 90,
+            "gridType": "regular_ll",
+            "level": 925,
+            "paramId": 132,
+            "startStep": 90,
+            "stepType": "instant",
+            "typeOfLevel": "isobaricInhPa",
+            "units": "m s**-1",
+            "validityDate": 20260924,
+            "validityTime": 1800
+          },
+          "latitude": 41.0,
+          "longitude": -74.25,
+          "proof": {
+            "bytes": 586267,
+            "end": 366624544,
+            "sha256": "1faa12be7a28849fabedf5a7a50f835b3c8a099d40f5fc5f5356d8cb8cffb829",
+            "start": 366038278,
+            "total": 527304901
+          },
+          "value": -5.4766845703125
+        }
+      },
+      "lead": 90,
+      "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260921/00/atmos/gfs.t00z.pgrb2.0p25.f090",
+      "fetched_at": "2026-09-21T04:26:11Z"
+    }
+  ]
+}

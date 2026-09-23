@@ -1,0 +1,2858 @@
+{
+  "prepared_at": "2026-09-21T04:32:55.861064+00:00",
+  "snapshot_path": "var/events/commercial-checkride/runs/20260921T042546Z.896948/snapshot.json",
+  "snapshot_sha256": "2378fc4f81a7a3734bcdd748204ff43b1bcf216e120bc678c3524abd63666cfb",
+  "snapshot_collected_at": "2026-09-21T04:26:11Z",
+  "event": {
+    "date": "2026-09-24",
+    "description": "Commercial pilot practical test at KCDW, September 24, 2026. Confirmed appointment 08:00 EDT; expected flight around 10:00\u201312:00 EDT (2 hours). The 08:00\u201317:00 window is forecast context, not flight duration or scheduling flexibility. Prioritize maneuvering room throughout the expected flight.",
+    "nav_label": "Checkride \u00b7 Sep 24",
+    "slug": "commercial-checkride",
+    "title": "Commercial checkride",
+    "window": "08-17"
+  },
+  "event_timing": {
+    "appointment_start": "08:00",
+    "appointment_status": "confirmed",
+    "date": "2026-09-24",
+    "flight_duration_minutes": 120,
+    "flight_end": "12:00",
+    "flight_start": "10:00",
+    "flight_status": "expected",
+    "slug": "commercial-checkride",
+    "timezone": "America/New_York"
+  },
+  "wind": {
+    "window": {
+      "start": "2026-09-24T14:00:00Z",
+      "end": "2026-09-24T16:00:00Z"
+    },
+    "ensembles": {
+      "gefs": {
+        "label": "GEFS",
+        "fetched_at": "2026-09-21T04:26:11Z",
+        "advertised_init": "2026-09-20T00:00:00Z",
+        "data_end": "2026-10-25T03:00:00Z",
+        "likely_init": null,
+        "binding": "Rolling response; advertised metadata is not response-bound.",
+        "sustained": {
+          "n": 31,
+          "p50": 10.1,
+          "p90": 11.0
+        },
+        "direction_at": "2026-09-24T16:00:00Z",
+        "direction_counts": {
+          "NE": 30,
+          "E": 1
+        },
+        "samples": [
+          {
+            "at": "2026-09-24T14:00:00Z",
+            "sustained": {
+              "n": 31,
+              "p50": 9.9,
+              "p90": 11.0
+            },
+            "direction_counts": {
+              "NE": 31
+            }
+          },
+          {
+            "at": "2026-09-24T15:00:00Z",
+            "sustained": {
+              "n": 31,
+              "p50": 10.0,
+              "p90": 10.8
+            },
+            "direction_counts": {
+              "NE": 31
+            }
+          },
+          {
+            "at": "2026-09-24T16:00:00Z",
+            "sustained": {
+              "n": 31,
+              "p50": 9.5,
+              "p90": 10.7
+            },
+            "direction_counts": {
+              "NE": 30,
+              "E": 1
+            }
+          }
+        ],
+        "gust_max": {
+          "n": 31,
+          "p50": 17.5,
+          "p90": 20.8,
+          "ge20": 5,
+          "ge25": 2,
+          "ge30": 0
+        },
+        "crosswind": {
+          "04": {
+            "n": 31,
+            "p50": 6.6,
+            "p90": 9.1,
+            "ge15": 0
+          },
+          "10": {
+            "n": 31,
+            "p50": 8.6,
+            "p90": 13.2,
+            "ge15": 3
+          }
+        },
+        "advertised_available_at": "2026-09-21T03:44:22Z",
+        "metadata_fetched_at": "2026-09-21T04:26:11Z"
+      },
+      "ecmwf_ens": {
+        "label": "IFS ENS",
+        "fetched_at": "2026-09-21T04:26:11Z",
+        "advertised_init": "2026-09-20T18:00:00Z",
+        "data_end": "2026-09-26T21:00:00Z",
+        "likely_init": null,
+        "binding": "Rolling response; advertised metadata is not response-bound.",
+        "sustained": {
+          "n": 51,
+          "p50": 10.4,
+          "p90": 12.7
+        },
+        "direction_at": "2026-09-24T16:00:00Z",
+        "direction_counts": {
+          "NE": 47,
+          "E": 3,
+          "N": 1
+        },
+        "samples": [
+          {
+            "at": "2026-09-24T14:00:00Z",
+            "sustained": {
+              "n": 51,
+              "p50": 9.8,
+              "p90": 12.0
+            },
+            "direction_counts": {
+              "NE": 50,
+              "N": 1
+            }
+          },
+          {
+            "at": "2026-09-24T15:00:00Z",
+            "sustained": {
+              "n": 51,
+              "p50": 10.4,
+              "p90": 12.7
+            },
+            "direction_counts": {
+              "NE": 49,
+              "E": 1,
+              "N": 1
+            }
+          },
+          {
+            "at": "2026-09-24T16:00:00Z",
+            "sustained": {
+              "n": 51,
+              "p50": 10.1,
+              "p90": 12.0
+            },
+            "direction_counts": {
+              "NE": 47,
+              "E": 3,
+              "N": 1
+            }
+          }
+        ],
+        "gust_max": {
+          "n": 51,
+          "p50": 22.9,
+          "p90": 27.6,
+          "ge20": 40,
+          "ge25": 17,
+          "ge30": 0
+        },
+        "crosswind": {
+          "04": {
+            "n": 51,
+            "p50": 8.7,
+            "p90": 13.7,
+            "ge15": 2
+          },
+          "10": {
+            "n": 51,
+            "p50": 11.5,
+            "p90": 17.6,
+            "ge15": 13
+          }
+        },
+        "advertised_available_at": "2026-09-21T03:11:49Z",
+        "metadata_fetched_at": "2026-09-21T04:26:11Z"
+      },
+      "aifs_ens": {
+        "label": "AIFS ENS",
+        "fetched_at": "2026-09-21T04:26:11Z",
+        "advertised_init": "2026-09-20T18:00:00Z",
+        "data_end": "2026-10-06T00:00:00Z",
+        "likely_init": null,
+        "binding": "Rolling response; advertised metadata is not response-bound.",
+        "sustained": {
+          "n": 51,
+          "p50": 8.3,
+          "p90": 10.1
+        },
+        "direction_at": "2026-09-24T16:00:00Z",
+        "direction_counts": {
+          "NE": 50,
+          "N": 1
+        },
+        "samples": [
+          {
+            "at": "2026-09-24T14:00:00Z",
+            "sustained": {
+              "n": 51,
+              "p50": 7.8,
+              "p90": 9.8
+            },
+            "direction_counts": {
+              "NE": 46,
+              "N": 5
+            }
+          },
+          {
+            "at": "2026-09-24T15:00:00Z",
+            "sustained": {
+              "n": 51,
+              "p50": 8.0,
+              "p90": 9.8
+            },
+            "direction_counts": {
+              "NE": 49,
+              "N": 2
+            }
+          },
+          {
+            "at": "2026-09-24T16:00:00Z",
+            "sustained": {
+              "n": 51,
+              "p50": 8.0,
+              "p90": 9.7
+            },
+            "direction_counts": {
+              "NE": 50,
+              "N": 1
+            }
+          }
+        ],
+        "gust_max": null,
+        "crosswind": {
+          "04": null,
+          "10": null
+        },
+        "advertised_available_at": "2026-09-21T02:37:30Z",
+        "metadata_fetched_at": "2026-09-21T04:26:11Z"
+      }
+    },
+    "nws": {
+      "issued_at": "2026-09-20T18:08:16Z",
+      "fetched_at": "2026-09-21T04:26:11Z",
+      "url": "https://api.weather.gov/gridpoints/OKX/23,48",
+      "samples": [
+        {
+          "at": "2026-09-24T14:00:00Z",
+          "wind_kt": 12.0,
+          "gust_kt": 17.0,
+          "from_deg": 50.0
+        },
+        {
+          "at": "2026-09-24T15:00:00Z",
+          "wind_kt": 12.0,
+          "gust_kt": 17.0,
+          "from_deg": 50.0
+        },
+        {
+          "at": "2026-09-24T16:00:00Z",
+          "wind_kt": 12.0,
+          "gust_kt": 16.0,
+          "from_deg": 50.0
+        }
+      ],
+      "interval_columns": [
+        "start",
+        "end",
+        "wind_kt",
+        "gust_kt",
+        "from_deg"
+      ],
+      "interval_rows": [
+        [
+          "2026-09-24T14:00:00Z",
+          "2026-09-24T16:00:00Z",
+          12.0,
+          17.0,
+          50.0
+        ]
+      ],
+      "interval_note": "Source intervals intersected with the expected flight; hourly point samples alone can miss intervening hazards."
+    },
+    "notes": [
+      "Knots; true degrees. Raw member screens, not pooled/calibrated probabilities or limits.",
+      "Gust: closing-hour endpoints. Speed/direction: departure through return; interpolation adds no timing skill.",
+      "Crosswind pairs member gust with same-time mean direction, only an approximation of peak-gust direction.",
+      "True runway headings 04=030,10=083; availability/NOTAMs unchecked. Null is missing, not calm.",
+      "Separate advertised metadata is not per-value run verification. Flight window is approximate."
+    ]
+  },
+  "native_wind": {
+    "window": {
+      "start": "2026-09-24T14:00:00Z",
+      "end": "2026-09-24T16:00:00Z"
+    },
+    "models": {
+      "gfs": {
+        "label": "Native GFS",
+        "init": "2026-09-21T00:00:00Z",
+        "fetched_at": "2026-09-21T04:26:11Z",
+        "samples": [
+          {
+            "at": "2026-09-24T12:00:00Z",
+            "surface": {
+              "speed_kt": 9.2,
+              "from_true_deg": 25.1
+            },
+            "925": {
+              "speed_kt": 32.5,
+              "from_true_deg": 76.7
+            },
+            "850": {
+              "speed_kt": 27.2,
+              "from_true_deg": 77.7
+            },
+            "gust": {
+              "kt": 25.9,
+              "start": "2026-09-24T12:00:00Z",
+              "end": "2026-09-24T12:00:00Z",
+              "semantics": "instantaneous gust diagnostic"
+            }
+          },
+          {
+            "at": "2026-09-24T15:00:00Z",
+            "surface": {
+              "speed_kt": 10.8,
+              "from_true_deg": 54.2
+            },
+            "925": {
+              "speed_kt": 23.4,
+              "from_true_deg": 60.7
+            },
+            "850": {
+              "speed_kt": 29.8,
+              "from_true_deg": 72.6
+            },
+            "gust": {
+              "kt": 17.9,
+              "start": "2026-09-24T15:00:00Z",
+              "end": "2026-09-24T15:00:00Z",
+              "semantics": "instantaneous gust diagnostic"
+            }
+          },
+          {
+            "at": "2026-09-24T18:00:00Z",
+            "surface": {
+              "speed_kt": 9.2,
+              "from_true_deg": 47.7
+            },
+            "925": {
+              "speed_kt": 18.8,
+              "from_true_deg": 55.5
+            },
+            "850": {
+              "speed_kt": 18.9,
+              "from_true_deg": 59.9
+            },
+            "gust": {
+              "kt": 14.2,
+              "start": "2026-09-24T18:00:00Z",
+              "end": "2026-09-24T18:00:00Z",
+              "semantics": "instantaneous gust diagnostic"
+            }
+          }
+        ],
+        "notes": [
+          "GRIB/index run-bound; three-hour samples."
+        ]
+      },
+      "ifs": {
+        "label": "Native IFS",
+        "init": "2026-09-20T18:00:00Z",
+        "fetched_at": "2026-09-21T01:12:51Z",
+        "samples": [
+          {
+            "at": "2026-09-24T12:00:00Z",
+            "surface": {
+              "speed_kt": 8.5,
+              "from_true_deg": 36.4
+            },
+            "925": {
+              "speed_kt": 30.6,
+              "from_true_deg": 76.0
+            },
+            "850": {
+              "speed_kt": 25.1,
+              "from_true_deg": 73.9
+            },
+            "gust": null
+          },
+          {
+            "at": "2026-09-24T18:00:00Z",
+            "surface": {
+              "speed_kt": 8.2,
+              "from_true_deg": 59.4
+            },
+            "925": {
+              "speed_kt": 16.3,
+              "from_true_deg": 59.0
+            },
+            "850": {
+              "speed_kt": 14.3,
+              "from_true_deg": 65.0
+            },
+            "gust": {
+              "kt": 28.3,
+              "start": "2026-09-24T12:00:00Z",
+              "end": "2026-09-24T18:00:00Z",
+              "semantics": "six-hour maximum from two three-hour maxima"
+            }
+          }
+        ],
+        "notes": [
+          "GRIB/index run-bound; six-hour brackets."
+        ]
+      },
+      "aifs_single": {
+        "label": "Native AIFS Single",
+        "init": "2026-09-20T18:00:00Z",
+        "fetched_at": "2026-09-20T23:28:27Z",
+        "samples": [
+          {
+            "at": "2026-09-24T12:00:00Z",
+            "surface": {
+              "speed_kt": 8.4,
+              "from_true_deg": 22.6
+            },
+            "925": {
+              "speed_kt": 30.1,
+              "from_true_deg": 71.7
+            },
+            "850": {
+              "speed_kt": 29.7,
+              "from_true_deg": 80.3
+            },
+            "gust": null
+          },
+          {
+            "at": "2026-09-24T18:00:00Z",
+            "surface": {
+              "speed_kt": 8.7,
+              "from_true_deg": 48.0
+            },
+            "925": {
+              "speed_kt": 17.0,
+              "from_true_deg": 49.0
+            },
+            "850": {
+              "speed_kt": 26.3,
+              "from_true_deg": 76.9
+            },
+            "gust": null
+          }
+        ],
+        "notes": [
+          "GRIB/index run-bound; six-hour brackets."
+        ]
+      }
+    },
+    "notes": [
+      "Native 0.25-degree nearest grid 41.0N, 74.25W, approximately 14 km from KCDW; not airport observations.",
+      "925/850 hPa are pressure levels, not precise AGL heights; terrain masking unavailable. These sparse profiles do not diagnose formal LLWS, turbulence or a low-level jet.",
+      "ECMWF six-hour brackets are not direct flight-hour samples; GFS three-hour samples are not continuous coverage. Directions are FROM true north. Missing gust is unknown."
+    ]
+  },
+  "native_wind_raw": {
+    "models": {
+      "aifs_single": {
+        "fetched_at": "2026-09-20T23:28:27Z",
+        "init": "2026-09-20T18:00:00Z",
+        "model": "aifs_single",
+        "samples": [
+          {
+            "at": "2026-09-24T12:00:00Z",
+            "fields": {
+              "10u": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 90,
+                  "gridType": "regular_ll",
+                  "level": 10,
+                  "marsClass": "ai",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 165,
+                  "startStep": 90,
+                  "stepType": "instant",
+                  "typeOfLevel": "heightAboveGround",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1200
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 691889,
+                  "end": 75400246,
+                  "sha256": "2a66742464a3f26160c819209825d7a7a245fd62d9bcd0f5442186816fc0be9d",
+                  "start": 74708358,
+                  "total": 83673981
+                },
+                "value": -1.6569805145263672
+              },
+              "10v": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 90,
+                  "gridType": "regular_ll",
+                  "level": 10,
+                  "marsClass": "ai",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 166,
+                  "startStep": 90,
+                  "stepType": "instant",
+                  "typeOfLevel": "heightAboveGround",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1200
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 711134,
+                  "end": 79763152,
+                  "sha256": "ca808487b43cf3a6e465c67f6ceb424b4763ff4bb3a5e76d765df5a3ea70e66b",
+                  "start": 79052019,
+                  "total": 83673981
+                },
+                "value": -3.983732223510742
+              },
+              "u850": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 90,
+                  "gridType": "regular_ll",
+                  "level": 850,
+                  "marsClass": "ai",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 131,
+                  "startStep": 90,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1200
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 581880,
+                  "end": 50092681,
+                  "sha256": "15165e3cd0430f0b1f887ad693004a74799919b7628e737a92666645d2855967",
+                  "start": 49510802,
+                  "total": 83673981
+                },
+                "value": -15.03689956665039
+              },
+              "u925": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 90,
+                  "gridType": "regular_ll",
+                  "level": 925,
+                  "marsClass": "ai",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 131,
+                  "startStep": 90,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1200
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 586662,
+                  "end": 74146543,
+                  "sha256": "6cb228cef8a24d1bc3177437baf6c053d3f879f1f2ef73c0d5983003c1748a6a",
+                  "start": 73559882,
+                  "total": 83673981
+                },
+                "value": -14.71829605102539
+              },
+              "v850": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 90,
+                  "gridType": "regular_ll",
+                  "level": 850,
+                  "marsClass": "ai",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 132,
+                  "startStep": 90,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1200
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 615708,
+                  "end": 52654964,
+                  "sha256": "67798f3d7b3840daec79901a74bae69861279ef04668176d573dead0a5d8e752",
+                  "start": 52039257,
+                  "total": 83673981
+                },
+                "value": -2.576099395751953
+              },
+              "v925": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 90,
+                  "gridType": "regular_ll",
+                  "level": 925,
+                  "marsClass": "ai",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 132,
+                  "startStep": 90,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1200
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 618957,
+                  "end": 77573184,
+                  "sha256": "ba270b5d553697b9e7442ab00e2b9de2773fc788a68eee910c1fb6c142b35d72",
+                  "start": 76954228,
+                  "total": 83673981
+                },
+                "value": -4.869915008544922
+              }
+            },
+            "lead": 90,
+            "url": "https://data.ecmwf.int/forecasts/20260920/18z/aifs-single/0p25/oper/20260920180000-90h-oper-fc.grib2"
+          },
+          {
+            "at": "2026-09-24T18:00:00Z",
+            "fields": {
+              "10u": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 96,
+                  "gridType": "regular_ll",
+                  "level": 10,
+                  "marsClass": "ai",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 165,
+                  "startStep": 96,
+                  "stepType": "instant",
+                  "typeOfLevel": "heightAboveGround",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 692141,
+                  "end": 73032784,
+                  "sha256": "a075a38f85911cf3d321979d3351fc7b081aeb2792cc25b7ba0db00d08830542",
+                  "start": 72340644,
+                  "total": 83795065
+                },
+                "value": -3.3199214935302734
+              },
+              "10v": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 96,
+                  "gridType": "regular_ll",
+                  "level": 10,
+                  "marsClass": "ai",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 166,
+                  "startStep": 96,
+                  "stepType": "instant",
+                  "typeOfLevel": "heightAboveGround",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 711298,
+                  "end": 77459296,
+                  "sha256": "fc2cab16014c7522aa1a717e0f1696891e3673a65176b864036a72a3f2792d9a",
+                  "start": 76747999,
+                  "total": 83795065
+                },
+                "value": -2.985250473022461
+              },
+              "u850": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 96,
+                  "gridType": "regular_ll",
+                  "level": 850,
+                  "marsClass": "ai",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 131,
+                  "startStep": 96,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 582222,
+                  "end": 51129242,
+                  "sha256": "d2ddff80a9ba9f41dfecfe70c7fb6244cabe431dc7da753996d889f5921da2e4",
+                  "start": 50547021,
+                  "total": 83795065
+                },
+                "value": -13.202102661132812
+              },
+              "u925": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 96,
+                  "gridType": "regular_ll",
+                  "level": 925,
+                  "marsClass": "ai",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 131,
+                  "startStep": 96,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 589519,
+                  "end": 75868524,
+                  "sha256": "93cd3c82b9eb485fbb98f7f83dc73f42f7ea4edf78b1c3192597628c91a90409",
+                  "start": 75279006,
+                  "total": 83795065
+                },
+                "value": -6.604938507080078
+              },
+              "v850": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 96,
+                  "gridType": "regular_ll",
+                  "level": 850,
+                  "marsClass": "ai",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 132,
+                  "startStep": 96,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 616065,
+                  "end": 53689188,
+                  "sha256": "36b3e3e73c4c2f1d13966909074ec8ad3ace7d04b07bf76c0e9a4611a5a35bee",
+                  "start": 53073124,
+                  "total": 83795065
+                },
+                "value": -3.0611572265625
+              },
+              "v925": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 96,
+                  "gridType": "regular_ll",
+                  "level": 925,
+                  "marsClass": "ai",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 132,
+                  "startStep": 96,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 619318,
+                  "end": 80921321,
+                  "sha256": "6cbe6daa2cd25f79efc260f6d00b18109d8d0649d0773f06cd2058256e558a49",
+                  "start": 80302004,
+                  "total": 83795065
+                },
+                "value": -5.748035430908203
+              }
+            },
+            "lead": 96,
+            "url": "https://data.ecmwf.int/forecasts/20260920/18z/aifs-single/0p25/oper/20260920180000-96h-oper-fc.grib2"
+          }
+        ]
+      },
+      "gfs": {
+        "fetched_at": "2026-09-21T04:26:11Z",
+        "init": "2026-09-21T00:00:00Z",
+        "model": "gfs",
+        "samples": [
+          {
+            "at": "2026-09-24T12:00:00Z",
+            "fields": {
+              "10u": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 84,
+                  "gridType": "regular_ll",
+                  "level": 10,
+                  "paramId": 165,
+                  "startStep": 84,
+                  "stepType": "instant",
+                  "typeOfLevel": "heightAboveGround",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1200
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 586767,
+                  "end": 415719589,
+                  "sha256": "a99263383874707eecb67ba97ec7a488e1bd966014cf23f8540c215b4e47c600",
+                  "start": 415132823,
+                  "total": 523497992
+                },
+                "value": -2.01864013671875
+              },
+              "10v": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 84,
+                  "gridType": "regular_ll",
+                  "level": 10,
+                  "paramId": 166,
+                  "startStep": 84,
+                  "stepType": "instant",
+                  "typeOfLevel": "heightAboveGround",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1200
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 573568,
+                  "end": 416293157,
+                  "sha256": "0411361bc6d6518991b15bbd81b7303446cccbeb40c6aa28241c876f5c0c67f3",
+                  "start": 415719590,
+                  "total": 523497992
+                },
+                "value": -4.300177001953125
+              },
+              "gust": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 84,
+                  "gridType": "regular_ll",
+                  "level": 0,
+                  "paramId": 260065,
+                  "startStep": 84,
+                  "stepType": "instant",
+                  "typeOfLevel": "surface",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1200
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 610323,
+                  "end": 6536082,
+                  "sha256": "d3d9f6ff1fdff9835628431fd5391206510916d55e20022e304fb05168f380f3",
+                  "start": 5925760,
+                  "total": 523497992
+                },
+                "value": 13.31512044519186
+              },
+              "u850": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 84,
+                  "gridType": "regular_ll",
+                  "level": 850,
+                  "paramId": 131,
+                  "startStep": 84,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1200
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 573448,
+                  "end": 341309100,
+                  "sha256": "a908767c72fbe052b2dfa7cc51cbd3ceeccc75c4f258e194a5bb6e99c6b8df76",
+                  "start": 340735653,
+                  "total": 523497992
+                },
+                "value": -13.680322265625001
+              },
+              "u925": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 84,
+                  "gridType": "regular_ll",
+                  "level": 925,
+                  "paramId": 131,
+                  "startStep": 84,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1200
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 572717,
+                  "end": 364252687,
+                  "sha256": "168526d8b1f2a51244d88179bca802ef09a314d66e676b8ffb2aa5818893a893",
+                  "start": 363679971,
+                  "total": 523497992
+                },
+                "value": -16.296606445312502
+              },
+              "v850": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 84,
+                  "gridType": "regular_ll",
+                  "level": 850,
+                  "paramId": 132,
+                  "startStep": 84,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1200
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 578787,
+                  "end": 341887887,
+                  "sha256": "352fdf894c23a1966698bb25eb8d6c881cd1811fe2bb5dc4a9b80bcd8d84702e",
+                  "start": 341309101,
+                  "total": 523497992
+                },
+                "value": -2.9911621093750003
+              },
+              "v925": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 84,
+                  "gridType": "regular_ll",
+                  "level": 925,
+                  "paramId": 132,
+                  "startStep": 84,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1200
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 582956,
+                  "end": 364835643,
+                  "sha256": "04d033b0c9c5f7fb7cfe96fbcb73f89239b6e6772ef90719b701c10a8a6101e9",
+                  "start": 364252688,
+                  "total": 523497992
+                },
+                "value": -3.839862060546875
+              }
+            },
+            "lead": 84,
+            "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260921/00/atmos/gfs.t00z.pgrb2.0p25.f084"
+          },
+          {
+            "at": "2026-09-24T15:00:00Z",
+            "fields": {
+              "10u": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 87,
+                  "gridType": "regular_ll",
+                  "level": 10,
+                  "paramId": 165,
+                  "startStep": 87,
+                  "stepType": "instant",
+                  "typeOfLevel": "heightAboveGround",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1500
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 587514,
+                  "end": 415787210,
+                  "sha256": "38c2dd0282254603c814ae88b1df7e77b911c64a6217a1584a91e97f484829c8",
+                  "start": 415199697,
+                  "total": 522034995
+                },
+                "value": -4.5102386474609375
+              },
+              "10v": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 87,
+                  "gridType": "regular_ll",
+                  "level": 10,
+                  "paramId": 166,
+                  "startStep": 87,
+                  "stepType": "instant",
+                  "typeOfLevel": "heightAboveGround",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1500
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 571557,
+                  "end": 416358767,
+                  "sha256": "e8ebed9e8f8d24adf97d750e991fc9551820fcf96ee9609954dc7037ab5e73f0",
+                  "start": 415787211,
+                  "total": 522034995
+                },
+                "value": -3.2578247070312503
+              },
+              "gust": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 87,
+                  "gridType": "regular_ll",
+                  "level": 0,
+                  "paramId": 260065,
+                  "startStep": 87,
+                  "stepType": "instant",
+                  "typeOfLevel": "surface",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1500
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 618375,
+                  "end": 6506482,
+                  "sha256": "1cb40527974b48c65457b7e9709e5c3cd14371b543f6a552849aa399bdcd36f0",
+                  "start": 5888108,
+                  "total": 522034995
+                },
+                "value": 9.2094482421875
+              },
+              "u850": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 87,
+                  "gridType": "regular_ll",
+                  "level": 850,
+                  "paramId": 131,
+                  "startStep": 87,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1500
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 576185,
+                  "end": 342568169,
+                  "sha256": "96ec31c62d5e8b0b08ca9fc63e4466e4fb019ba4b16ca99fcc3f9a78c962df97",
+                  "start": 341991985,
+                  "total": 522034995
+                },
+                "value": -14.61195068359375
+              },
+              "u925": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 87,
+                  "gridType": "regular_ll",
+                  "level": 925,
+                  "paramId": 131,
+                  "startStep": 87,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1500
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 578505,
+                  "end": 365654549,
+                  "sha256": "ba3b5bed08c8e6d3c61fdd3d84b108ed20d9e9debff5628a09d59cafeeb7b9aa",
+                  "start": 365076045,
+                  "total": 522034995
+                },
+                "value": -10.5111083984375
+              },
+              "v850": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 87,
+                  "gridType": "regular_ll",
+                  "level": 850,
+                  "paramId": 132,
+                  "startStep": 87,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1500
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 582624,
+                  "end": 343150793,
+                  "sha256": "80b0f857dce649866a44bedeb8fe87e6aabfd2c2280964e255140fbda47da2f0",
+                  "start": 342568170,
+                  "total": 522034995
+                },
+                "value": -4.568487548828125
+              },
+              "v925": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 87,
+                  "gridType": "regular_ll",
+                  "level": 925,
+                  "paramId": 132,
+                  "startStep": 87,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1500
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 585240,
+                  "end": 366239789,
+                  "sha256": "8e3e817def2428d318f51df1844fe3f40d4a737b3d0319c99530bb2415dc2dc1",
+                  "start": 365654550,
+                  "total": 522034995
+                },
+                "value": -5.89862060546875
+              }
+            },
+            "lead": 87,
+            "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260921/00/atmos/gfs.t00z.pgrb2.0p25.f087"
+          },
+          {
+            "at": "2026-09-24T18:00:00Z",
+            "fields": {
+              "10u": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 90,
+                  "gridType": "regular_ll",
+                  "level": 10,
+                  "paramId": 165,
+                  "startStep": 90,
+                  "stepType": "instant",
+                  "typeOfLevel": "heightAboveGround",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 585570,
+                  "end": 418580861,
+                  "sha256": "84d0464bc52238d379c7b63f8c971a3696498e2a582de0f550a5f3ab323e0884",
+                  "start": 417995292,
+                  "total": 527304901
+                },
+                "value": -3.49114990234375
+              },
+              "10v": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 90,
+                  "gridType": "regular_ll",
+                  "level": 10,
+                  "paramId": 166,
+                  "startStep": 90,
+                  "stepType": "instant",
+                  "typeOfLevel": "heightAboveGround",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 576014,
+                  "end": 419156875,
+                  "sha256": "18462c55e602e2e79aae485d9eb9a9ada61559c4a833b5e04e26e7a47150b6d2",
+                  "start": 418580862,
+                  "total": 527304901
+                },
+                "value": -3.1728881835937504
+              },
+              "gust": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 90,
+                  "gridType": "regular_ll",
+                  "level": 0,
+                  "paramId": 260065,
+                  "startStep": 90,
+                  "stepType": "instant",
+                  "typeOfLevel": "surface",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 623535,
+                  "end": 6504458,
+                  "sha256": "c33f96a740f59c717f35e98fe5707f428322befc9d40841467703856cc565e3f",
+                  "start": 5880924,
+                  "total": 527304901
+                },
+                "value": 7.309577521681786
+              },
+              "u850": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 90,
+                  "gridType": "regular_ll",
+                  "level": 850,
+                  "paramId": 131,
+                  "startStep": 90,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 577769,
+                  "end": 342959948,
+                  "sha256": "76e670f0dc5a7288ba7c05404af0c506d753f9ddc5dc250058c4d2b4b427949f",
+                  "start": 342382180,
+                  "total": 527304901
+                },
+                "value": -8.413079833984375
+              },
+              "u925": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 90,
+                  "gridType": "regular_ll",
+                  "level": 925,
+                  "paramId": 131,
+                  "startStep": 90,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 579285,
+                  "end": 366038277,
+                  "sha256": "a8ac08256933426e92b8e0d809d9f9bb73541184484d4de39d477566aeb213e0",
+                  "start": 365458993,
+                  "total": 527304901
+                },
+                "value": -7.95450439453125
+              },
+              "v850": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 90,
+                  "gridType": "regular_ll",
+                  "level": 850,
+                  "paramId": 132,
+                  "startStep": 90,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 585188,
+                  "end": 343545136,
+                  "sha256": "f791d01223bc86d862ac5cbcb6db0565d9b6c11f8fc67312810fe6cf19f8d0be",
+                  "start": 342959949,
+                  "total": 527304901
+                },
+                "value": -4.883868408203125
+              },
+              "v925": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "kwbc",
+                  "dataDate": 20260921,
+                  "dataTime": 0,
+                  "edition": 2,
+                  "endStep": 90,
+                  "gridType": "regular_ll",
+                  "level": 925,
+                  "paramId": 132,
+                  "startStep": 90,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 586267,
+                  "end": 366624544,
+                  "sha256": "1faa12be7a28849fabedf5a7a50f835b3c8a099d40f5fc5f5356d8cb8cffb829",
+                  "start": 366038278,
+                  "total": 527304901
+                },
+                "value": -5.4766845703125
+              }
+            },
+            "lead": 90,
+            "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.20260921/00/atmos/gfs.t00z.pgrb2.0p25.f090"
+          }
+        ]
+      },
+      "ifs": {
+        "fetched_at": "2026-09-21T01:12:51Z",
+        "init": "2026-09-20T18:00:00Z",
+        "model": "ifs",
+        "samples": [
+          {
+            "at": "2026-09-24T12:00:00Z",
+            "fields": {
+              "10u": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 90,
+                  "gridType": "regular_ll",
+                  "level": 10,
+                  "marsClass": "od",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 165,
+                  "startStep": 90,
+                  "stepType": "instant",
+                  "typeOfLevel": "heightAboveGround",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1200
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 747250,
+                  "end": 12070324,
+                  "sha256": "2ccc6563c6a342a2da0a0fc3010ca153ecf9289ee13f9aa726b2eb0ae1f0540c",
+                  "start": 11323075,
+                  "total": 140911820
+                },
+                "value": -2.606048583984375
+              },
+              "10v": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 90,
+                  "gridType": "regular_ll",
+                  "level": 10,
+                  "marsClass": "od",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 166,
+                  "startStep": 90,
+                  "stepType": "instant",
+                  "typeOfLevel": "heightAboveGround",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1200
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 737288,
+                  "end": 18159991,
+                  "sha256": "8b05b523607b1054943ce7efd9f9a9e7e41a3a59dbce7f6deaaebad85af7d5b4",
+                  "start": 17422704,
+                  "total": 140911820
+                },
+                "value": -3.5396575927734375
+              },
+              "u850": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 90,
+                  "gridType": "regular_ll",
+                  "level": 850,
+                  "marsClass": "od",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 131,
+                  "startStep": 90,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1200
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 730199,
+                  "end": 84371702,
+                  "sha256": "6ceff09590caaf5048090a4c84cc1ee23851b7ad4e5a75f9e0adf54bbe8669b6",
+                  "start": 83641504,
+                  "total": 140911820
+                },
+                "value": -12.42535400390625
+              },
+              "u925": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 90,
+                  "gridType": "regular_ll",
+                  "level": 925,
+                  "marsClass": "od",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 131,
+                  "startStep": 90,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1200
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 723591,
+                  "end": 135394018,
+                  "sha256": "880cc18c5c18c74857a0a6724c7a6b5a1965af0728a6e2b262f4f9fa81ffd706",
+                  "start": 134670428,
+                  "total": 140911820
+                },
+                "value": -15.296722412109375
+              },
+              "v850": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 90,
+                  "gridType": "regular_ll",
+                  "level": 850,
+                  "marsClass": "od",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 132,
+                  "startStep": 90,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1200
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 747765,
+                  "end": 79443948,
+                  "sha256": "4fba841508609822677b0fc3c20144ad4576b16a6f9693ee963a9b44ec53c12b",
+                  "start": 78696184,
+                  "total": 140911820
+                },
+                "value": -3.5967864990234375
+              },
+              "v925": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 90,
+                  "gridType": "regular_ll",
+                  "level": 925,
+                  "marsClass": "od",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 132,
+                  "startStep": 90,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1200
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 739671,
+                  "end": 138794790,
+                  "sha256": "f395b161902e1ef6b33c1ba15cf87aaeca2112fffb689e90a2bc2c1630c6a11f",
+                  "start": 138055120,
+                  "total": 140911820
+                },
+                "value": -3.814056396484375
+              }
+            },
+            "lead": 90,
+            "url": "https://data.ecmwf.int/forecasts/20260920/18z/ifs/0p25/oper/20260920180000-90h-oper-fc.grib2"
+          },
+          {
+            "at": "2026-09-24T18:00:00Z",
+            "fields": {
+              "10u": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 96,
+                  "gridType": "regular_ll",
+                  "level": 10,
+                  "marsClass": "od",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 165,
+                  "startStep": 96,
+                  "stepType": "instant",
+                  "typeOfLevel": "heightAboveGround",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 750624,
+                  "end": 10911208,
+                  "sha256": "52138ac74ff5450863a5b00ed3a0f894e34371d6a117cd01c05de4c354f01ccc",
+                  "start": 10160585,
+                  "total": 142706793
+                },
+                "value": -3.642364501953125
+              },
+              "10v": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 96,
+                  "gridType": "regular_ll",
+                  "level": 10,
+                  "marsClass": "od",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 166,
+                  "startStep": 96,
+                  "stepType": "instant",
+                  "typeOfLevel": "heightAboveGround",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 739607,
+                  "end": 15785423,
+                  "sha256": "84f23e94d7ebf85c3edfaf1188a81886275c02a40fce8b85024dfc9bf72b2ffa",
+                  "start": 15045817,
+                  "total": 142706793
+                },
+                "value": -2.156951904296875
+              },
+              "gust3": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 96,
+                  "gridType": "regular_ll",
+                  "level": 10,
+                  "marsClass": "od",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 228028,
+                  "startStep": 93,
+                  "stepType": "max",
+                  "typeOfLevel": "heightAboveGround",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 1281031,
+                  "end": 61698133,
+                  "sha256": "3dd5d41798e02a0b8c9876f2aa43748ab1f194bd2cc2d25a9ed83ac561f54f03",
+                  "start": 60417103,
+                  "total": 142706793
+                },
+                "value": 14.539327502250671
+              },
+              "gust3_prev": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 93,
+                  "gridType": "regular_ll",
+                  "level": 10,
+                  "marsClass": "od",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 228028,
+                  "startStep": 90,
+                  "stepType": "max",
+                  "typeOfLevel": "heightAboveGround",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1500
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 1279269,
+                  "end": 72733331,
+                  "sha256": "9c4830f66a48a98ff4ff9f4d42bffef577422234358280c4a2149cea174ccb7b",
+                  "start": 71454063,
+                  "total": 142054217
+                },
+                "url": "https://data.ecmwf.int/forecasts/20260920/18z/ifs/0p25/oper/20260920180000-93h-oper-fc.grib2",
+                "value": 14.093490898609161
+              },
+              "u850": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 96,
+                  "gridType": "regular_ll",
+                  "level": 850,
+                  "marsClass": "od",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 131,
+                  "startStep": 96,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 734282,
+                  "end": 89151237,
+                  "sha256": "56fe387df333488b613145b8dd6678a6aceb441db83a24913d0afca3cc16ff0c",
+                  "start": 88416956,
+                  "total": 142706793
+                },
+                "value": -6.656219482421875
+              },
+              "u925": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 96,
+                  "gridType": "regular_ll",
+                  "level": 925,
+                  "marsClass": "od",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 131,
+                  "startStep": 96,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 727728,
+                  "end": 140613743,
+                  "sha256": "bfb3ee1a210240beb1df8f3d0ed1f9d971a86b5a5b919161bfa8e05993854068",
+                  "start": 139886016,
+                  "total": 142706793
+                },
+                "value": -7.1968231201171875
+              },
+              "v850": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 96,
+                  "gridType": "regular_ll",
+                  "level": 850,
+                  "marsClass": "od",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 132,
+                  "startStep": 96,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 752279,
+                  "end": 90621322,
+                  "sha256": "1624f6a68c3b5d700660ff313f0a48234bd8b7b875008d5628f3ceb609b146b4",
+                  "start": 89869044,
+                  "total": 142706793
+                },
+                "value": -3.1106719970703125
+              },
+              "v925": {
+                "identity": {
+                  "Ni": 1440,
+                  "Nj": 721,
+                  "centre": "ecmf",
+                  "dataDate": 20260920,
+                  "dataTime": 1800,
+                  "edition": 2,
+                  "endStep": 96,
+                  "gridType": "regular_ll",
+                  "level": 925,
+                  "marsClass": "od",
+                  "marsStream": "oper",
+                  "marsType": "fc",
+                  "paramId": 132,
+                  "startStep": 96,
+                  "stepType": "instant",
+                  "typeOfLevel": "isobaricInhPa",
+                  "units": "m s**-1",
+                  "validityDate": 20260924,
+                  "validityTime": 1800
+                },
+                "latitude": 41.0,
+                "longitude": -74.25,
+                "proof": {
+                  "bytes": 742015,
+                  "end": 142031565,
+                  "sha256": "feddad0c6d9b282b59db57b3ddd1d67229b621151d941d64a65b481ea7754d03",
+                  "start": 141289551,
+                  "total": 142706793
+                },
+                "value": -4.317901611328125
+              }
+            },
+            "lead": 96,
+            "url": "https://data.ecmwf.int/forecasts/20260920/18z/ifs/0p25/oper/20260920180000-96h-oper-fc.grib2"
+          }
+        ]
+      }
+    },
+    "snapshot_collected_at": "2026-09-21T04:26:11Z",
+    "version": 2,
+    "window": {
+      "end": "2026-09-24T16:00:00Z",
+      "slug": "commercial-checkride",
+      "start": "2026-09-24T14:00:00Z"
+    }
+  },
+  "model_matrix": {
+    "collected_at": "2026-09-21T04:26:24Z",
+    "event": {
+      "date": "2026-09-24",
+      "slug": "commercial-checkride",
+      "window": "08-17"
+    },
+    "license": "Open-Meteo: CC BY 4.0; WN3: Google experimental forecast terms",
+    "models": [
+      {
+        "change": "steady",
+        "current": {
+          "grid": {
+            "latitude": 40.9,
+            "longitude": -74.3
+          },
+          "run": "2026-09-20T18:00:00Z",
+          "source_url": "https://developers.google.com/weathernext/guides/models",
+          "values": {
+            "base_ft": 2900,
+            "gust_kt": null,
+            "later_base_ft": 4400,
+            "later_low_cloud_pct": 19,
+            "low_cloud_pct": 19,
+            "mid_cloud_pct": 3,
+            "mslp_hpa": 1030.2,
+            "rain_mm": 0.0,
+            "read": "scattered",
+            "rh925_pct": null,
+            "tone": "good",
+            "wind_dir_deg": 43,
+            "wind_kt": 9.1
+          }
+        },
+        "key": "wn3",
+        "label": "WN3 \u00b7 preferred",
+        "model_id": 12,
+        "ok": true,
+        "previous": {
+          "grid": {
+            "latitude": 40.9,
+            "longitude": -74.3
+          },
+          "run": "2026-09-20T12:00:00Z",
+          "source_url": "https://developers.google.com/weathernext/guides/models",
+          "values": {
+            "base_ft": 2800,
+            "gust_kt": null,
+            "later_base_ft": 4400,
+            "later_low_cloud_pct": 20,
+            "low_cloud_pct": 21,
+            "mid_cloud_pct": 3,
+            "mslp_hpa": 1031.6,
+            "rain_mm": 0.04,
+            "read": "scattered",
+            "rh925_pct": null,
+            "tone": "good",
+            "wind_dir_deg": 46,
+            "wind_kt": 8.8
+          }
+        }
+      },
+      {
+        "change": "steady",
+        "current": {
+          "grid": {
+            "latitude": 40.878735,
+            "longitude": -74.253204
+          },
+          "run": "2026-09-20T18:00:00Z",
+          "source_url": "https://single-runs-api.open-meteo.com/v1/forecast?latitude=40.8752&longitude=-74.2814&hourly=cloud_cover_low%2Ccloud_cover_mid%2Ctemperature_2m%2Cdew_point_2m%2Cwind_speed_10m%2Cwind_direction_10m%2Cwind_gusts_10m%2Cprecipitation%2Crelative_humidity_925hPa%2Cpressure_msl&models=ecmwf_ifs&wind_speed_unit=kn&precipitation_unit=mm&timezone=UTC&timeformat=iso8601&forecast_days=6&run=2026-09-20T18%3A00",
+          "values": {
+            "base_ft": 2600,
+            "gust_kt": 25.2,
+            "later_base_ft": 4300,
+            "later_low_cloud_pct": 77,
+            "low_cloud_pct": 87,
+            "mid_cloud_pct": 0,
+            "mslp_hpa": 1030.2,
+            "rain_mm": 0.0,
+            "read": "low_overcast",
+            "rh925_pct": null,
+            "tone": "poor",
+            "wind_dir_deg": 53,
+            "wind_kt": 10.0
+          }
+        },
+        "key": "ifs",
+        "label": "ECMWF IFS",
+        "model_id": "ecmwf_ifs",
+        "ok": true,
+        "previous": {
+          "grid": {
+            "latitude": 40.878735,
+            "longitude": -74.253204
+          },
+          "run": "2026-09-20T12:00:00Z",
+          "source_url": "https://single-runs-api.open-meteo.com/v1/forecast?latitude=40.8752&longitude=-74.2814&hourly=cloud_cover_low%2Ccloud_cover_mid%2Ctemperature_2m%2Cdew_point_2m%2Cwind_speed_10m%2Cwind_direction_10m%2Cwind_gusts_10m%2Cprecipitation%2Crelative_humidity_925hPa%2Cpressure_msl&models=ecmwf_ifs&wind_speed_unit=kn&precipitation_unit=mm&timezone=UTC&timeformat=iso8601&forecast_days=7&run=2026-09-20T12%3A00",
+          "values": {
+            "base_ft": 2500,
+            "gust_kt": 25.7,
+            "later_base_ft": 3600,
+            "later_low_cloud_pct": 76,
+            "low_cloud_pct": 97,
+            "mid_cloud_pct": 0,
+            "mslp_hpa": 1030.0,
+            "rain_mm": 0.0,
+            "read": "low_overcast",
+            "rh925_pct": null,
+            "tone": "poor",
+            "wind_dir_deg": 38,
+            "wind_kt": 9.5
+          }
+        }
+      },
+      {
+        "change": "steady",
+        "current": {
+          "grid": {
+            "latitude": 41.0,
+            "longitude": -74.25
+          },
+          "run": "2026-09-20T18:00:00Z",
+          "source_url": "https://single-runs-api.open-meteo.com/v1/forecast?latitude=40.8752&longitude=-74.2814&hourly=cloud_cover_low%2Ccloud_cover_mid%2Ctemperature_2m%2Cdew_point_2m%2Cwind_speed_10m%2Cwind_direction_10m%2Cwind_gusts_10m%2Cprecipitation%2Crelative_humidity_925hPa%2Cpressure_msl&models=ecmwf_aifs025_single&wind_speed_unit=kn&precipitation_unit=mm&timezone=UTC&timeformat=iso8601&forecast_days=6&run=2026-09-20T18%3A00",
+          "values": {
+            "base_ft": 2600,
+            "gust_kt": null,
+            "later_base_ft": 4900,
+            "later_low_cloud_pct": 5,
+            "low_cloud_pct": 13,
+            "mid_cloud_pct": 1,
+            "mslp_hpa": 1029.0,
+            "rain_mm": 0.0,
+            "read": "scattered",
+            "rh925_pct": 73,
+            "tone": "good",
+            "wind_dir_deg": 37,
+            "wind_kt": 8.5
+          }
+        },
+        "key": "aifs",
+        "label": "ECMWF AIFS",
+        "model_id": "ecmwf_aifs025_single",
+        "ok": true,
+        "previous": {
+          "grid": {
+            "latitude": 41.0,
+            "longitude": -74.25
+          },
+          "run": "2026-09-20T12:00:00Z",
+          "source_url": "https://single-runs-api.open-meteo.com/v1/forecast?latitude=40.8752&longitude=-74.2814&hourly=cloud_cover_low%2Ccloud_cover_mid%2Ctemperature_2m%2Cdew_point_2m%2Cwind_speed_10m%2Cwind_direction_10m%2Cwind_gusts_10m%2Cprecipitation%2Crelative_humidity_925hPa%2Cpressure_msl&models=ecmwf_aifs025_single&wind_speed_unit=kn&precipitation_unit=mm&timezone=UTC&timeformat=iso8601&forecast_days=7&run=2026-09-20T12%3A00",
+          "values": {
+            "base_ft": 2500,
+            "gust_kt": null,
+            "later_base_ft": 4700,
+            "later_low_cloud_pct": 7,
+            "low_cloud_pct": 14,
+            "mid_cloud_pct": 1,
+            "mslp_hpa": 1030.1,
+            "rain_mm": 0.0,
+            "read": "scattered",
+            "rh925_pct": 73,
+            "tone": "good",
+            "wind_dir_deg": 38,
+            "wind_kt": 8.6
+          }
+        }
+      },
+      {
+        "change": "steady",
+        "current": {
+          "grid": {
+            "latitude": 40.826553,
+            "longitude": -74.296875
+          },
+          "run": "2026-09-20T18:00:00Z",
+          "source_url": "https://single-runs-api.open-meteo.com/v1/forecast?latitude=40.8752&longitude=-74.2814&hourly=cloud_cover_low%2Ccloud_cover_mid%2Ctemperature_2m%2Cdew_point_2m%2Cwind_speed_10m%2Cwind_direction_10m%2Cwind_gusts_10m%2Cprecipitation%2Crelative_humidity_925hPa%2Cpressure_msl&models=gfs_global&wind_speed_unit=kn&precipitation_unit=mm&timezone=UTC&timeformat=iso8601&forecast_days=6&run=2026-09-20T18%3A00",
+          "values": {
+            "base_ft": 2800,
+            "gust_kt": 21.2,
+            "later_base_ft": 5000,
+            "later_low_cloud_pct": 15,
+            "low_cloud_pct": 86,
+            "mid_cloud_pct": 0,
+            "mslp_hpa": 1030.2,
+            "rain_mm": 0.0,
+            "read": "low_overcast",
+            "rh925_pct": 87,
+            "tone": "poor",
+            "wind_dir_deg": 56,
+            "wind_kt": 11.3
+          }
+        },
+        "key": "gfs",
+        "label": "NCEP GFS",
+        "model_id": "gfs_global",
+        "ok": true,
+        "previous": {
+          "grid": {
+            "latitude": 40.826553,
+            "longitude": -74.296875
+          },
+          "run": "2026-09-20T12:00:00Z",
+          "source_url": "https://single-runs-api.open-meteo.com/v1/forecast?latitude=40.8752&longitude=-74.2814&hourly=cloud_cover_low%2Ccloud_cover_mid%2Ctemperature_2m%2Cdew_point_2m%2Cwind_speed_10m%2Cwind_direction_10m%2Cwind_gusts_10m%2Cprecipitation%2Crelative_humidity_925hPa%2Cpressure_msl&models=gfs_global&wind_speed_unit=kn&precipitation_unit=mm&timezone=UTC&timeformat=iso8601&forecast_days=7&run=2026-09-20T12%3A00",
+          "values": {
+            "base_ft": 2600,
+            "gust_kt": 19.6,
+            "later_base_ft": 3200,
+            "later_low_cloud_pct": 94,
+            "low_cloud_pct": 100,
+            "mid_cloud_pct": 10,
+            "mslp_hpa": 1028.4,
+            "rain_mm": 0.0,
+            "read": "low_overcast",
+            "rh925_pct": 92,
+            "tone": "poor",
+            "wind_dir_deg": 47,
+            "wind_kt": 9.6
+          }
+        }
+      },
+      {
+        "change": "steady",
+        "current": {
+          "grid": {
+            "latitude": 40.875,
+            "longitude": -74.25
+          },
+          "run": "2026-09-21T00:00:00Z",
+          "source_url": "https://single-runs-api.open-meteo.com/v1/forecast?latitude=40.8752&longitude=-74.2814&hourly=cloud_cover_low%2Ccloud_cover_mid%2Ctemperature_2m%2Cdew_point_2m%2Cwind_speed_10m%2Cwind_direction_10m%2Cwind_gusts_10m%2Cprecipitation%2Crelative_humidity_925hPa%2Cpressure_msl&models=icon_global&wind_speed_unit=kn&precipitation_unit=mm&timezone=UTC&timeformat=iso8601&forecast_days=6&run=2026-09-21T00%3A00",
+          "values": {
+            "base_ft": 2300,
+            "gust_kt": 25.1,
+            "later_base_ft": 4100,
+            "later_low_cloud_pct": 5,
+            "low_cloud_pct": 38,
+            "mid_cloud_pct": 4,
+            "mslp_hpa": 1031.1,
+            "rain_mm": 0.0,
+            "read": "scattered",
+            "rh925_pct": 85,
+            "tone": "marginal",
+            "wind_dir_deg": 42,
+            "wind_kt": 10.0
+          }
+        },
+        "key": "icon",
+        "label": "DWD ICON",
+        "model_id": "icon_global",
+        "ok": true,
+        "previous": {
+          "grid": {
+            "latitude": 40.875,
+            "longitude": -74.25
+          },
+          "run": "2026-09-20T18:00:00Z",
+          "source_url": "https://single-runs-api.open-meteo.com/v1/forecast?latitude=40.8752&longitude=-74.2814&hourly=cloud_cover_low%2Ccloud_cover_mid%2Ctemperature_2m%2Cdew_point_2m%2Cwind_speed_10m%2Cwind_direction_10m%2Cwind_gusts_10m%2Cprecipitation%2Crelative_humidity_925hPa%2Cpressure_msl&models=icon_global&wind_speed_unit=kn&precipitation_unit=mm&timezone=UTC&timeformat=iso8601&forecast_days=7&run=2026-09-20T18%3A00",
+          "values": {
+            "base_ft": 2400,
+            "gust_kt": 25.2,
+            "later_base_ft": 3600,
+            "later_low_cloud_pct": 10,
+            "low_cloud_pct": 45,
+            "mid_cloud_pct": 12,
+            "mslp_hpa": 1030.6,
+            "rain_mm": 0.0,
+            "read": "scattered",
+            "rh925_pct": 74,
+            "tone": "marginal",
+            "wind_dir_deg": 41,
+            "wind_kt": 10.4
+          }
+        }
+      },
+      {
+        "change": "worse",
+        "current": {
+          "grid": {
+            "latitude": 40.875,
+            "longitude": -74.25
+          },
+          "run": "2026-09-20T12:00:00Z",
+          "source_url": "https://single-runs-api.open-meteo.com/v1/forecast?latitude=40.8752&longitude=-74.2814&hourly=cloud_cover_low%2Ccloud_cover_mid%2Ctemperature_2m%2Cdew_point_2m%2Cwind_speed_10m%2Cwind_direction_10m%2Cwind_gusts_10m%2Cprecipitation%2Crelative_humidity_925hPa%2Cpressure_msl&models=ukmo_global_deterministic_10km&wind_speed_unit=kn&precipitation_unit=mm&timezone=UTC&timeformat=iso8601&forecast_days=7&run=2026-09-20T12%3A00",
+          "values": {
+            "base_ft": 3000,
+            "gust_kt": 17.7,
+            "later_base_ft": 4100,
+            "later_low_cloud_pct": 89,
+            "low_cloud_pct": 94,
+            "mid_cloud_pct": 5,
+            "mslp_hpa": 1031.7,
+            "rain_mm": 0.0,
+            "read": "high_overcast",
+            "rh925_pct": 91,
+            "tone": "marginal",
+            "wind_dir_deg": 41,
+            "wind_kt": 8.0
+          }
+        },
+        "key": "ukmo",
+        "label": "UKMO Global",
+        "model_id": "ukmo_global_deterministic_10km",
+        "ok": true,
+        "previous": {
+          "grid": {
+            "latitude": 40.875,
+            "longitude": -74.25
+          },
+          "run": "2026-09-20T00:00:00Z",
+          "source_url": "https://single-runs-api.open-meteo.com/v1/forecast?latitude=40.8752&longitude=-74.2814&hourly=cloud_cover_low%2Ccloud_cover_mid%2Ctemperature_2m%2Cdew_point_2m%2Cwind_speed_10m%2Cwind_direction_10m%2Cwind_gusts_10m%2Cprecipitation%2Crelative_humidity_925hPa%2Cpressure_msl&models=ukmo_global_deterministic_10km&wind_speed_unit=kn&precipitation_unit=mm&timezone=UTC&timeformat=iso8601&forecast_days=7&run=2026-09-20T00%3A00",
+          "values": {
+            "base_ft": 3100,
+            "gust_kt": 20.2,
+            "later_base_ft": 3900,
+            "later_low_cloud_pct": 32,
+            "low_cloud_pct": 43,
+            "mid_cloud_pct": 22,
+            "mslp_hpa": 1031.4,
+            "rain_mm": 0.0,
+            "read": "scattered",
+            "rh925_pct": 88,
+            "tone": "good",
+            "wind_dir_deg": 43,
+            "wind_kt": 9.2
+          }
+        }
+      }
+    ],
+    "snapshot_collected_at": "2026-09-21T04:26:11Z",
+    "source": "WN3 native response-bound ensemble means; Open-Meteo single-runs deterministic guidance",
+    "thresholds": {
+      "base_ft": 3000,
+      "broken_pct": 50,
+      "gust_kt": 25,
+      "overcast_pct": 80,
+      "rain_mm": 1.0
+    },
+    "version": 1,
+    "window": {
+      "end": "2026-09-24T16:00:00Z",
+      "kind": "expected flight",
+      "later_end": "2026-09-24T19:00:00Z",
+      "start": "2026-09-24T14:00:00Z"
+    }
+  },
+  "wind_trends": {
+    "archives": [
+      {
+        "name": "20260920T042646Z.516284",
+        "sha256": "4e2dcfe9c4503cbbd1df8460ac9b25bea74a2bfa087bc19087540ac53bbab5aa"
+      },
+      {
+        "name": "20260920T102846Z.592285",
+        "sha256": "2621485dcc08cb35c55f0ab635b8dc8b17a558acc9580adc0593a2faba5ce099"
+      },
+      {
+        "name": "20260920T154231Z.690843",
+        "sha256": "32b605fa9957c263595b34e83500f41dac10e4efb04c7686a5386cd289cc9f5f"
+      },
+      {
+        "name": "20260920T162546Z.702906",
+        "sha256": "487276ec42e9e10688646d6630f2ce78f1c4d45e331d48fdd0918e2d25037ee5"
+      },
+      {
+        "name": "20260920T222746Z.802940",
+        "sha256": "a269abc5718506e2e0404992aad630fb9b12416333b352e3e3305bb1df9c214f"
+      }
+    ],
+    "columns": [
+      "collected_at",
+      "fetched_at",
+      "run_time",
+      "wind_center",
+      "wind_p10",
+      "wind_p90",
+      "gust_center",
+      "gust_p10",
+      "gust_p90",
+      "archive"
+    ],
+    "current_collected_at": "2026-09-21T04:26:11Z",
+    "event": {
+      "date": "2026-09-24",
+      "slug": "commercial-checkride",
+      "window": "08-17"
+    },
+    "models": {
+      "aifs_ens": {
+        "grid": [
+          41.0,
+          -74.25
+        ],
+        "label": "AIFS-ENS",
+        "run_binding": "response-bound",
+        "source_provenance": {
+          "initialization_time": "2026-09-20T18:00:00Z",
+          "model_init_is_response_bound": true,
+          "provenance": "direct-native",
+          "sampling": "Complete native member sets at 6-hour samples, linearly interpolated memberwise between adjacent endpoints; no extrapolation. Winds use paired u/v before speed/direction and quantiles. Rain amounts are uniformly disaggregated within each native interval, after same-member cumulative differencing for ECMWF and GEPS; not precise hourly rain timing. Negative differences within verified GRIB packing error are zero increments; larger decreases remain unknown. GEFS gust is instantaneous; IFS gust samples are maxima over their actual source intervals and interpolated display values are not hourly maxima. GEFS low cloud is a native interval average; AIFS low cloud is instantaneous. Their interpolated displays do not add timing skill. IFS low cloud, AIFS gust and GEPS gust/low cloud are unavailable from the verified native catalog.",
+          "source_provider": "ECMWF"
+        },
+        "states": [
+          [
+            "2026-09-20T04:27:00Z",
+            "2026-09-20T00:20:41Z",
+            "2026-09-19T18:00:00Z",
+            6.8,
+            5.7,
+            8.5,
+            null,
+            null,
+            null,
+            0
+          ],
+          [
+            "2026-09-20T10:29:37Z",
+            "2026-09-20T06:09:10Z",
+            "2026-09-20T00:00:00Z",
+            7.5,
+            6.0,
+            9.7,
+            null,
+            null,
+            null,
+            1
+          ],
+          [
+            "2026-09-20T16:26:12Z",
+            "2026-09-20T12:07:12Z",
+            "2026-09-20T06:00:00Z",
+            7.3,
+            5.7,
+            9.2,
+            null,
+            null,
+            null,
+            3
+          ],
+          [
+            "2026-09-20T22:29:06Z",
+            "2026-09-20T18:07:39Z",
+            "2026-09-20T12:00:00Z",
+            8.3,
+            6.4,
+            9.5,
+            null,
+            null,
+            null,
+            4
+          ],
+          [
+            "2026-09-21T04:26:11Z",
+            "2026-09-21T00:06:22Z",
+            "2026-09-20T18:00:00Z",
+            7.9,
+            6.0,
+            9.5,
+            null,
+            null,
+            null,
+            null
+          ]
+        ],
+        "statistic": "median"
+      },
+      "ecmwf_ens": {
+        "grid": [
+          41.0,
+          -74.25
+        ],
+        "label": "ECMWF ENS",
+        "run_binding": "response-bound",
+        "source_provenance": {
+          "initialization_time": "2026-09-20T18:00:00Z",
+          "model_init_is_response_bound": true,
+          "provenance": "direct-native",
+          "sampling": "Complete native member sets at 6-hour samples, linearly interpolated memberwise between adjacent endpoints; no extrapolation. Winds use paired u/v before speed/direction and quantiles. Rain amounts are uniformly disaggregated within each native interval, after same-member cumulative differencing for ECMWF and GEPS; not precise hourly rain timing. Negative differences within verified GRIB packing error are zero increments; larger decreases remain unknown. GEFS gust is instantaneous; IFS gust samples are maxima over their actual source intervals and interpolated display values are not hourly maxima. GEFS low cloud is a native interval average; AIFS low cloud is instantaneous. Their interpolated displays do not add timing skill. IFS low cloud, AIFS gust and GEPS gust/low cloud are unavailable from the verified native catalog.",
+          "source_provider": "ECMWF"
+        },
+        "states": [
+          [
+            "2026-09-20T04:27:00Z",
+            "2026-09-19T20:15:49Z",
+            "2026-09-19T12:00:00Z",
+            9.0,
+            6.8,
+            11.7,
+            23.0,
+            20.0,
+            27.5,
+            0
+          ],
+          [
+            "2026-09-20T10:29:37Z",
+            "2026-09-20T08:30:55Z",
+            "2026-09-20T00:00:00Z",
+            8.3,
+            6.5,
+            10.5,
+            22.1,
+            18.8,
+            26.0,
+            1
+          ],
+          [
+            "2026-09-20T16:26:12Z",
+            "2026-09-20T13:21:27Z",
+            "2026-09-20T06:00:00Z",
+            8.0,
+            6.2,
+            10.4,
+            23.4,
+            18.3,
+            25.3,
+            3
+          ],
+          [
+            "2026-09-20T22:29:06Z",
+            "2026-09-20T19:50:58Z",
+            "2026-09-20T12:00:00Z",
+            8.9,
+            7.0,
+            10.5,
+            24.6,
+            20.6,
+            27.7,
+            4
+          ],
+          [
+            "2026-09-21T04:26:11Z",
+            "2026-09-21T01:32:36Z",
+            "2026-09-20T18:00:00Z",
+            8.0,
+            6.9,
+            10.2,
+            22.9,
+            20.5,
+            26.5,
+            null
+          ]
+        ],
+        "statistic": "median"
+      },
+      "gefs": {
+        "grid": [
+          41.0,
+          -74.5
+        ],
+        "label": "GEFS",
+        "run_binding": "response-bound",
+        "source_provenance": {
+          "initialization_time": "2026-09-20T18:00:00Z",
+          "model_init_is_response_bound": true,
+          "provenance": "direct-native",
+          "sampling": "Complete native member sets at 6-hour samples, linearly interpolated memberwise between adjacent endpoints; no extrapolation. Winds use paired u/v before speed/direction and quantiles. Rain amounts are uniformly disaggregated within each native interval, after same-member cumulative differencing for ECMWF and GEPS; not precise hourly rain timing. Negative differences within verified GRIB packing error are zero increments; larger decreases remain unknown. GEFS gust is instantaneous; IFS gust samples are maxima over their actual source intervals and interpolated display values are not hourly maxima. GEFS low cloud is a native interval average; AIFS low cloud is instantaneous. Their interpolated displays do not add timing skill. IFS low cloud, AIFS gust and GEPS gust/low cloud are unavailable from the verified native catalog.",
+          "source_provider": "NOAA"
+        },
+        "states": [
+          [
+            "2026-09-20T04:27:00Z",
+            "2026-09-19T23:05:13Z",
+            "2026-09-19T18:00:00Z",
+            8.7,
+            7.3,
+            13.1,
+            16.7,
+            12.0,
+            25.4,
+            0
+          ],
+          [
+            "2026-09-20T10:29:37Z",
+            "2026-09-20T05:01:50Z",
+            "2026-09-20T00:00:00Z",
+            10.2,
+            8.4,
+            13.3,
+            19.8,
+            15.2,
+            28.8,
+            1
+          ],
+          [
+            "2026-09-20T16:26:12Z",
+            "2026-09-20T11:01:40Z",
+            "2026-09-20T06:00:00Z",
+            8.6,
+            6.8,
+            12.0,
+            16.5,
+            13.4,
+            22.7,
+            3
+          ],
+          [
+            "2026-09-20T22:29:06Z",
+            "2026-09-20T17:01:39Z",
+            "2026-09-20T12:00:00Z",
+            9.4,
+            8.0,
+            11.6,
+            17.4,
+            15.9,
+            22.4,
+            4
+          ],
+          [
+            "2026-09-21T04:26:11Z",
+            "2026-09-20T23:01:40Z",
+            "2026-09-20T18:00:00Z",
+            8.9,
+            7.8,
+            10.7,
+            17.0,
+            14.5,
+            21.7,
+            null
+          ]
+        ],
+        "statistic": "median"
+      },
+      "gfs": {
+        "grid": [
+          41.0,
+          -74.25
+        ],
+        "label": "GFS",
+        "run_binding": "response-bound",
+        "source_provenance": {
+          "initialization_time": "2026-09-21T00:00:00Z",
+          "model_init_is_response_bound": true,
+          "provenance": "direct-native",
+          "sampling": "Native nearest-point GRIB; instantaneous fields linearly interpolated to the hourly display only between adjacent selected steps, never across missing selected samples. GFS sampled every 3 hours (native hourly through 120h then 3-hourly); IFS 3-hourly through 144h then 6-hourly; AIFS 6-hourly. Rain is uniformly allocated across its native accumulation interval for hourly display: estimated hourly and partial-window amounts, not independent hourly forecasts. Native interval amounts and bounds are retained. GFS low cloud uses the exact instantaneous field, not its interval-average duplicate. Native and derived RH supersaturation is retained without clamping.",
+          "source_provider": "NOAA"
+        },
+        "states": [
+          [
+            "2026-09-20T04:27:00Z",
+            "2026-09-19T22:28:25.767285Z",
+            "2026-09-19T18:00:00Z",
+            8.939795941114843,
+            null,
+            null,
+            19.084224389065373,
+            null,
+            null,
+            0
+          ],
+          [
+            "2026-09-20T15:42:48Z",
+            "2026-09-20T10:29:06.012302Z",
+            "2026-09-20T06:00:00Z",
+            10.890403940270506,
+            null,
+            null,
+            17.011154792221227,
+            null,
+            null,
+            2
+          ],
+          [
+            "2026-09-20T16:26:12Z",
+            "2026-09-20T16:26:05.340849Z",
+            "2026-09-20T12:00:00Z",
+            9.174573613111598,
+            null,
+            null,
+            17.143160552751898,
+            null,
+            null,
+            3
+          ],
+          [
+            "2026-09-20T22:29:06Z",
+            "2026-09-20T22:28:09.400746Z",
+            "2026-09-20T18:00:00Z",
+            10.652909212391421,
+            null,
+            null,
+            16.659813265499192,
+            null,
+            null,
+            4
+          ],
+          [
+            "2026-09-21T04:26:11Z",
+            "2026-09-21T04:26:04.245020Z",
+            "2026-09-21T00:00:00Z",
+            10.253328292082472,
+            null,
+            null,
+            16.670717498524873,
+            null,
+            null,
+            null
+          ]
+        ],
+        "statistic": "deterministic"
+      },
+      "wn3": {
+        "grid": [
+          40.9,
+          -74.3
+        ],
+        "label": "WN3",
+        "run_binding": "response-bound",
+        "states": [
+          [
+            "2026-09-20T04:27:00Z",
+            "2026-09-20T04:26:46Z",
+            "2026-09-19T18:00:00Z",
+            7.635691768407306,
+            5.885118336193504,
+            9.747000646900151,
+            null,
+            null,
+            null,
+            0
+          ],
+          [
+            "2026-09-20T10:29:37Z",
+            "2026-09-20T10:28:46Z",
+            "2026-09-20T00:00:00Z",
+            8.066293024347358,
+            6.608180711387815,
+            9.692669635715031,
+            null,
+            null,
+            null,
+            1
+          ],
+          [
+            "2026-09-20T16:26:12Z",
+            "2026-09-20T16:25:46Z",
+            "2026-09-20T06:00:00Z",
+            8.520440251986871,
+            7.033254878824781,
+            10.527647442745595,
+            null,
+            null,
+            null,
+            3
+          ],
+          [
+            "2026-09-20T22:29:06Z",
+            "2026-09-20T22:27:46Z",
+            "2026-09-20T12:00:00Z",
+            8.716201885215149,
+            7.294962936549671,
+            10.316741234797895,
+            null,
+            null,
+            null,
+            4
+          ],
+          [
+            "2026-09-21T04:26:11Z",
+            "2026-09-21T04:25:46Z",
+            "2026-09-20T18:00:00Z",
+            8.86737975909437,
+            7.565185472723217,
+            10.549538902793538,
+            null,
+            null,
+            null,
+            null
+          ]
+        ],
+        "statistic": "mean"
+      }
+    },
+    "notes": [
+      "Same valid instant, not flight-period maxima. Historical weather at this sample is not historical flight timing.",
+      "Previous 36h; latest four distinct value states plus current. Consecutive identical values and duplicate collections are not independent updates.",
+      "Validated direct-native and WN3 runs are response-bound; rolling advertised runs remain unverified. History with different provider/sampling is omitted.",
+      "kt; ensemble centers are medians, WN3 mean, GFS deterministic. p10/p90 are marginal quantiles, not ranges or probabilities. Missing gusts are unknown.",
+      "Archive SHA-256 is an audit reference, not authentication; bounded scan may omit history.",
+      "Source/grid/sampling changes can affect snapshot differences; these are not pure initialization trends. Incompatible grids are omitted."
+    ],
+    "sample_at": "2026-09-24T16:00:00Z",
+    "sample_kind": "expected_flight_end",
+    "unit": "kt",
+    "version": 2
+  },
+  "nws_discussion": {
+    "aviation_excerpt": ".AVIATION /03Z MONDAY THROUGH FRIDAY/...\n\n[... omitted ...]\n\n.OUTLOOK FOR 00Z TUESDAY THROUGH THURSDAY...\n\nMonday night: VFR.\n\nTuesday through Thursday: Chance of MVFR or lower in showers. NE wind gusts 20-25 kt Tuesday and 20-30 kt Wednesday and Thursday, highest at the coastal terminals.\n\nDetailed information, including hourly TAF wind component forecasts, can be found at: https:/www.weather.gov/zny/n90",
+    "aviation_heading": ".AVIATION /03Z MONDAY THROUGH FRIDAY/...",
+    "aviation_truncated": true,
+    "discussion_excerpt": "[... omitted ...]\n\n.DISCUSSION...\n\n.KEY MESSAGE 2...\n\nA tight pressure gradient will reside across the area through the week with a prolonged gusty NE flow. Expect mainly dry conditions from Tuesday night into Thursday with rain chances coming up at the end of the week with the potential for a deepening coastal low to approach the area.\n\n.KEY MESSAGE 3...\n\nAs previously discussed the area will reside between an anomalously strong high to the north and a broad area of low pressure off the Mid Atlantic and Southeast coasts. Late in the week, offshore low pressure interacts with mid latitude energy, rapidly deepening in the Thursday to Friday timeframe. The 06Z operational GFS which was an outlier with the other globals and its own ensemble, now is getting some support from the 12Z ECMWF and EC-AIFS in retrograding the deepening low toward the forecast area. However, there is still little support from the ensembles and the AIGFS at this time. It's complex with the interaction of multiple streams in the polar jet. Definitely something to watch, especially with a prolonged period of NE flow and increasing astronomical tides. High surf, dangerous rips currents, beach erosion, and coastal flooding are all on the table, but much too early to have specific details.",
+    "discussion_truncated": true,
+    "fetched_at": "2026-09-21T04:26:11Z",
+    "id": "03ddb9b6-98f5-4753-9417-4f07fa2f36c8",
+    "issuanceTime": "2026-09-21T03:11:00Z",
+    "issued_at": "2026-09-21T03:11:00Z",
+    "issuingOffice": "KOKX",
+    "listing": {
+      "id": "03ddb9b6-98f5-4753-9417-4f07fa2f36c8",
+      "issuanceTime": "2026-09-21T03:11:00Z",
+      "issuingOffice": "KOKX",
+      "productCode": "AFD"
+    },
+    "name": "New York/Upton",
+    "office": "OKX",
+    "productCode": "AFD",
+    "productText": "\n000\nFXUS61 KOKX 210311\nAFDOKX\n\nArea Forecast Discussion\nNational Weather Service New York NY\n1111 PM EDT Sun Sep 20 2026\n\n.WHAT HAS CHANGED...\nGale watch posted for the ocean waters with the potential for \nNE gales from Tuesday through the end of the week.\n\n&&\n\n.KEY MESSAGES...\n1) Periods of rain, mainly light, will come to end from NW to \nSE tonight with a cold frontal passage. \n\n2) A frontal wave is expected to bring another chance of rain \nto the area Monday night to Tuesday along with gusty NE winds. \n\n3) A prolonged period of NE gales is possible, especially on \nthe ocean waters, from Tuesday through the end of the week.\nThere is the potential for high surf, dangerous rip currents,\nand beach erosion.\n\n&&\n\n.DISCUSSION...\n.KEY MESSAGE 1...\nHigh pressure trying to build in from the north will nudge a\nfrontal boundary south and east during the overnight hours. \nLight rain and drizzle still lingering primarily over the \nsouthern zones, but should end by daybreak in most areas.\n\nBehind the cold front, northerly winds increase late tonight \nwith the potential for gusts up to 20 mph. This will persist \nthrough the first half of Monday before briefly falling off. \nThere will be some partial clearing Monday, mainly across the \nLower Hudson Valley and Connecticut. Model time-height cross \nsections showing a fair amount of mid and high level clouds. \n\nLows tonight will be on the warmer side in the mid 50s to lower\n60s due to the cloud cover and winds picking up. Highs will \nthrough will be close to 5 degrees below normal in the mid 60s \nto lower 70s.\n\n\n.KEY MESSAGE 2...\nAn anomalously strong high north of the Great Lakes will build\neast through the week, bleeding south into the Northeast. At \nthe same time, another frontal wave will emerge from the Ohio \nValley Monday night, tracking to the south of the area. The \nquestion is the strength of the high and how far the rain shield\nwill get into the area. The timing for the rain would be late \nMonday night into Tuesday afternoon, the drying out from north \nto south. The best chance for rain will near the NYC/NJ metro, \nfalling off to the north and east. There is decent frontogenetic\nsupport. The GFS is the more aggressive of the models in \nbringing some moderate rain across southern portions of the \nforecast area with amounts around half an inch or so. There will\nbe a tight gradient from rain to nothing. Thus, this is a low \nconfidence forecast right now. \n\nA tight pressure gradient will reside across the area through\nthe week with a prolonged gusty NE flow. Expect mainly dry \nconditions from Tuesday night into Thursday with rain chances \ncoming up at the end of the week with the potential for a \ndeepening coastal low to approach the area.\n\n.KEY MESSAGE 3...\nAs previously discussed the area will reside between an \nanomalously strong high to the north and a broad area of low \npressure off the Mid Atlantic and Southeast coasts. Late in the\nweek, offshore low pressure interacts with mid latitude energy,\nrapidly deepening in the Thursday to Friday timeframe. The 06Z \noperational GFS which was an outlier with the other globals and \nits own ensemble, now is getting some support from the 12Z \nECMWF and EC-AIFS in retrograding the deepening low toward the \nforecast area. However, there is still little support from the \nensembles and the AIGFS at this time. It's complex with the \ninteraction of multiple streams in the polar jet. Definitely \nsomething to watch, especially with a prolonged period of NE \nflow and increasing astronomical tides. High surf, dangerous \nrips currents, beach erosion, and coastal flooding are all on \nthe table, but much too early to have specific details.\n\n&&\n\n.AVIATION /03Z MONDAY THROUGH FRIDAY/...\nHigh pressure slowly builds into the region from the north as a\nweak wave of low pressure departs east.\n\nLow confidence category forecast through at least the pre-dawn\nhours, but generally MVFR heading into the Monday morning push,\nbut VFR probably prevails at least in the city terminals by 12z.\nImproving flight categories elsewhere Monday morning with all\nterminals VFR by noon. Light rain during the pre-dawn hours \nmay temporarily reduce vsbys below 6sm. \n\nN winds increase to 10-15G20-25kt after about 12Z Mon, then \ndiminish late in the afternoon. \n\n ...NY Metro (KEWR/KLGA/KJFK/KTEB) TAF Uncertainty...\nChance that VFR prevails for the rest of the night, but also a\nchance that cigs are reduced at least temporarily to IFR before\n08-09z.\n\n\n.OUTLOOK FOR 00Z TUESDAY THROUGH THURSDAY...\n\nMonday night: VFR. \n\nTuesday through Thursday: Chance of MVFR or lower in showers. \nNE wind gusts 20-25 kt Tuesday and 20-30 kt Wednesday and \nThursday, highest at the coastal terminals.\n\nDetailed information, including hourly TAF wind component\nforecasts, can be found at: https:/www.weather.gov/zny/n90\n\n&&\n\n.MARINE...\nSCA is in effect for the ocean waters out to 20 nm from Monday\ninto Tuesday, followed by a gale watch Tue night. The gale watch\ngoes up on the outermost ocean zones (out 20 to 60 nm) beginning\nTue afternoon. \n\nAn anomalously strong high building across eastern Canada this\nweek and low pressure off the Mid Atlantic and Southeast \ncoasts will result in a prolonged period of strong NE flow from \nTuesday through the end of the week. There could be a prolonged \nperiod of gales on the ocean waters and possibly the eastern \nnon-ocean waters, especially late in the week depending on the \nmagnitude and track of a coastal low. There is even a small \nchance at this time for storm force gusts. Preference at this \ntime was to back off on the higher wind gusts of the NBM based \non latest model soundings and model consensus absent the NBM \nbias correction. \n\nRip Currents: The rip current risk should remain moderate \nthrough Monday. Combined seas will build to near 5 ft on Monday,\nwith some long period 2-ft SE swell. \n\nStrengthening NE flow and building seas will likely produce a\nhigh rip current risk and high surf, possibly as early as Tue\nand definitely from Wed through at least Sat. As ocean swells \ngradually increase to 10-15 ft with periods of about 10-11 \nseconds, would expect surf heights to become at least half that\nhigh given a more longshore current vs direct \nonshore trajectory.\n\n&&\n\n.OKX WATCHES/WARNINGS/ADVISORIES...\nCT...None.\nNY...None.\nNJ...None.\nMARINE...Small Craft Advisory from 6 AM Monday to 6 PM EDT Tuesday for \n     ANZ350-353-355.\n     Gale Watch from Tuesday evening through Thursday afternoon for \n     ANZ350-353-355.\n     Gale Watch from Tuesday afternoon through Thursday afternoon \n     for ANZ380-383-385.\n\n&&\n\n$$\n\nDISCUSSION...JC/DW/Goodman \nAVIATION...JC/Goodman \nMARINE...Goodman/DW\n",
+    "product_url": "https://api.weather.gov/products/03ddb9b6-98f5-4753-9417-4f07fa2f36c8"
+  }
+}

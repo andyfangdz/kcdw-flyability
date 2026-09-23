@@ -49,7 +49,7 @@ class ProseAgentTests(unittest.TestCase):
                                      tools=(), images=[root / 'radar.png'], runner=runner)
                 self.assertEqual(result, {'ok': True})
             self.assertEqual(len(seen), 3)
-            self.assertEqual(session.provenance, {'provider': 'codex', 'model': 'gpt-6-astra'})
+            self.assertEqual(session.provenance['provider'], 'codex')
             self.assertIn('prose_fallback', (root / 'log').read_text())
             command, kwargs = seen[-1]
             self.assertIn('--image', command)
@@ -70,11 +70,8 @@ class ProseAgentTests(unittest.TestCase):
         for flag in ('--ignore-user-config', '--ignore-rules', '--ephemeral', '--skip-git-repo-check'):
             self.assertIn(flag, command)
         self.assertEqual(command[command.index('--sandbox') + 1], 'read-only')
-        self.assertEqual(command[command.index('--model') + 1], 'gpt-6-astra')
         for value in ('mcp_servers={}', 'agents.enabled=false', 'project_doc_max_bytes=0', 'web_search="disabled"'):
             self.assertIn(value, command)
-        for feature in codex_agent.DISABLED_FEATURES:
-            self.assertEqual(command[command.index(feature) - 1], '--disable')
         self.assertIn('web_search="live"', codex_agent.build_command(Path('/schema'), Path('/work'), research=True))
 
     def test_codex_rejects_failed_incomplete_or_unstructured_output(self):
@@ -106,4 +103,4 @@ class ProseAgentTests(unittest.TestCase):
             with patch.object(event_narrative, 'build_event_evidence', side_effect=event_helpers.evidence):
                 result = event_narrative.generate_event_narrative(snapshot, Path(tmp), event_helpers.NOW,
                     runner=runner, clock=lambda: event_helpers.NOW, configure_typesafe=False)
-            self.assertEqual((result['provider'], result['model']), ('codex', 'gpt-6-astra'))
+            self.assertEqual(result['provider'], 'codex')

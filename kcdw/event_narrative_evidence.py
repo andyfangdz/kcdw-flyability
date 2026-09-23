@@ -264,6 +264,17 @@ def build_event_evidence(snapshot, now) -> dict:
         except ERRORS:
             pass
         result['sources'].append(source)
+    if 'wn3_hourly' in snapshot:
+        from .wn3_hourly import event_evidence
+        source = dict(id='wn3_hourly', label='WeatherNext 3 interim hourly run (48h)',
+                      url='https://developers.google.com/weathernext/guides/bigquery',
+                      status='unavailable', evidence={'reason':'Hourly guidance unavailable; no favorable inference.'})
+        try:
+            source['evidence'] = event_evidence(snapshot, now)
+            source['status'] = 'available' if source['evidence']['coverage'] != 'none' else 'unavailable'
+        except ERRORS:
+            pass
+        result['sources'].append(source)
     # Optional per-office sources keep older snapshot evidence hashes stable.
     if 'event_afds' in snapshot:
         try:

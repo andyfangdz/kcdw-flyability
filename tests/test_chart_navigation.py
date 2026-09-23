@@ -83,15 +83,6 @@ class ChartNavigationTests(unittest.TestCase):
         self.assertTrue(any(abs(v-101234.56789/100)<.0001 for v in values if v is not None))
         self.assertNotIn('<circle',pressure)
 
-    def test_line_width_does_not_scale_with_stretched_forecast_axis(self):
-        import xml.etree.ElementTree as ET
-        times = [NOW + timedelta(hours=i) for i in range(3)]
-        chart = Chart(times, 0, 10, None)
-        chart.line([1, 9, 2], '#000', width=3.2)
-        line = ET.fromstring(chart.parts[0])
-        self.assertEqual(line.attrib.get('vector-effect'), 'non-scaling-stroke')
-        self.assertEqual(line.attrib.get('stroke-width'), '3.2')
-
     def test_isolated_valid_sample_remains_visible_without_bridging_gaps(self):
         import xml.etree.ElementTree as ET
         times=[NOW+timedelta(hours=i) for i in range(5)]

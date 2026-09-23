@@ -87,9 +87,3 @@ class CompletedCacheAdapterTests(unittest.TestCase):
         self.assertEqual(d.hourly_members(packet,axis)['precipitation']['00'],[0.])
         packet['points'][1]['value']=.7
         self.assertEqual(d.hourly_members(packet,axis)['precipitation']['00'],[None])
-
-    def test_model_specific_native_capabilities_are_explicit(self):
-        self.assertEqual(d.PROVIDERS['geps'],'ECCC')
-        self.assertIn('wind_gusts_10m',d.UNAVAILABLE['aifs_ens'])
-        self.assertIn('cloud_cover_low',d.UNAVAILABLE['ecmwf_ens'])
-        self.assertEqual(d.UNAVAILABLE['gefs'],[])

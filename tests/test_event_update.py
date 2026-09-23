@@ -15,6 +15,7 @@ from test_event_timing import TIMING
 # Every external collector is isolated here. Individual source contracts live
 # beside their collectors; these tests cover orchestration and persistence.
 SOURCES = {
+    'collect_wn3_hourly': 'wn3_hourly',
     'collect_wn3_100m_wind': 'wn3_100m_wind',
     'collect_wind': 'event_wind',
     'collect_native_wind': 'native_wind',

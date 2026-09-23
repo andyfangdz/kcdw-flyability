@@ -137,6 +137,13 @@ def day_evidence(snapshot, date, ranking=None, *, prepared=None):
     if start <= collected < end:
         end = max(end, collected + timedelta(hours=2))
     evidence = _day_slice(evidence, date, start, end)
+    hourly = snapshot.get('sources', {}).get('weather_next3_hourly', {})
+    if hourly.get('ok'):
+        # This supplemental run ends after 48 hours. Recompute day-specific
+        # coverage instead of carrying a whole-run label into later dates.
+        from .wn3_hourly import summarize
+        evidence['sources']['weather_next3_hourly']['data'] = summarize(
+            hourly['data'], collected, min(max(start, collected), end), end)
     if 'synoptic_context' in snapshot:
         evidence['synoptic_context'] = _period_context(snapshot, start, end, collected)
         if any(p.get('source') == 'spc' for p in evidence['synoptic_context']['products']):

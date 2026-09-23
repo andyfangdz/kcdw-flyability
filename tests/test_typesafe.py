@@ -227,6 +227,19 @@ class TypeSafeTests(unittest.TestCase):
         self.assertIsInstance(self.requests[0]['state'], str)
         self.assertEqual(json.loads(self.requests[0]['state']), state)
 
+    def test_timestamp_references_preserve_offsets_precision_and_uncompressed_claims(self):
+        timestamps = ['2026-09-21T12:00:00Z', '2026-09-21T08:00:00-04:00',
+                      '2026-09-21T12:00:00.123Z', '2026-09-21T08:00']
+        state = {'weather': {'times': timestamps * 4, 'values': [0, None, 27, 2] * 4},
+                 'claims': [{'at': timestamps[0]}]}
+        original = copy.deepcopy(state)
+        packed = compact_state(state)
+        recovered = [packed['text_dictionary'][value['text_ref']] for value in packed['weather']['times']]
+        self.assertEqual(recovered, timestamps * 4)
+        self.assertEqual(packed['weather']['values'], state['weather']['values'])
+        self.assertEqual(packed['claims'], state['claims'])
+        self.assertEqual(state, original)
+
     def test_ranked_passages_retain_verbatim_text_context_and_timestamps(self):
         source = self.snapshot['sources']['okx_afd']['data']
         source['excerpt'] = '.AVIATION...\n\nClouds persist through Monday morning.\n\nClearing follows late Monday.'
@@ -356,7 +369,7 @@ class TypeSafeTests(unittest.TestCase):
             seen.append((command, kwargs))
             value = self.draft if len(seen) == 1 else self.written(json.loads((self.client.artifacts / 'weekly-decisions.json').read_text()))
             return subprocess.CompletedProcess(command, 0, stdout=json.dumps({
-                'type': 'result', 'is_error': False, 'modelUsage': {'claude-fable-5-1': {}}, 'structured_output': value}))
+                'type': 'result', 'is_error': False, 'modelUsage': {'claude-opus-5-5': {}}, 'structured_output': value}))
 
         result = assessment_agent.generate(self.snapshot, 'Weather prompt', json.loads((ROOT / 'schema/analysis.schema.json').read_text()),
                                            self.root / 'analysis.json', self.root / 'log', self.client.artifacts,
@@ -377,7 +390,7 @@ class TypeSafeTests(unittest.TestCase):
         def runner(command, **kwargs):
             calls.append(1)
             return subprocess.CompletedProcess(command, 0, stdout=json.dumps({
-                'type': 'result', 'is_error': False, 'modelUsage': {'claude-fable-5-1': {}}, 'structured_output': self.draft}))
+                'type': 'result', 'is_error': False, 'modelUsage': {'claude-opus-5-5': {}}, 'structured_output': self.draft}))
 
         with patch.object(assessment_agent, 'assess_week', side_effect=api.TypeSafeError('unavailable')):
             with self.assertRaises(api.TypeSafeError):
@@ -392,7 +405,7 @@ class TypeSafeTests(unittest.TestCase):
 
         def runner(command, **kwargs):
             return subprocess.CompletedProcess(command, 0, stdout=json.dumps({
-                'type': 'result', 'is_error': False, 'modelUsage': {'claude-fable-5-1': {}}, 'structured_output': event_helpers.output()}))
+                'type': 'result', 'is_error': False, 'modelUsage': {'claude-opus-5-5': {}}, 'structured_output': event_helpers.output()}))
 
         with patch.object(event_narrative, 'build_event_evidence', side_effect=event_helpers.evidence), \
              patch.object(review, 'review_briefing', side_effect=api.TypeSafeError('unavailable')):

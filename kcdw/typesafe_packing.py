@@ -4,6 +4,7 @@ from copy import deepcopy
 import json
 import re
 
+TIMESTAMP = re.compile(r'\d{4}-\d\d-\d\dT\d\d:\d\d(?::\d\d(?:\.\d+)?)?(?:Z|[+-]\d\d:\d\d)?')
 
 def _size(value):
     return len(json.dumps(value, ensure_ascii=False, separators=(',', ':')).encode())
@@ -47,7 +48,7 @@ def compact_state(state):
     counts = Counter()
 
     def count(value):
-        if isinstance(value, str) and len(value) >= 120:
+        if isinstance(value, str) and (len(value) >= 120 or TIMESTAMP.fullmatch(value)):
             counts[value] += 1
             for part in re.split(r'(\n\s*\n)', value):
                 if part != value and len(part) >= 120:
@@ -60,7 +61,11 @@ def compact_state(state):
                 count(item)
 
     count(selected)
-    shared = {text: f't{i}' for i, (text, n) in enumerate(counts.items()) if n > 1}
+    # Repeated ISO timestamps consume many tokens despite their short byte
+    # length. Preserve their exact strings through the same dictionary used
+    # for repeated prose, including timezone offsets and fractional seconds.
+    shared = {text: f't{i}' for i, (text, n) in enumerate(counts.items())
+              if n > 1 and (len(text) >= 120 or n >= 3)}
 
     def replace(value):
         if isinstance(value, str) and value in shared:
