@@ -110,20 +110,20 @@ class RunHistoryTests(unittest.TestCase):
         import test_event_comparison as comparison
         snapshot=comparison.ComparisonTests().snapshot()
         data=fixture()
+        from contextlib import ExitStack
+        from test_event_update import SOURCES
         with tempfile.TemporaryDirectory() as tmp:
-            with patch.object(event_update,'upcoming_events',return_value=[configured]), \
-                 patch.object(event_update,'collect_event',return_value=snapshot), \
-                 patch.object(event_update,'collect_wind',return_value=None), \
-                 patch.object(event_update,'collect_native_wind',return_value=None), \
-                 patch.object(event_update,'build_wind_trends',return_value=None), \
-                 patch.object(event_update, 'collect_wn2_members', return_value=None), \
-                 patch.object(event_update, 'collect_model_matrix', return_value=None), \
-                 patch.object(event_update, 'collect_afds', return_value=None), \
-                 patch.object(event_update, 'collect_ceiling', return_value=None), \
-                 patch.object(event_update, 'collect_layer_signals', return_value=None), \
-                 patch.object(event_update,'generate_event_narrative',return_value=None), \
-                 patch.object(event_update,'load_run_history',return_value=data,create=True) as load, \
-                 patch.object(event_update,'render',return_value=('<html>backfill</html>',{})):
+            with ExitStack() as stack:
+                # Every external collector is stubbed via the shared list in test_event_update.
+                for name in SOURCES:
+                    if name != 'load_run_history':
+                        stack.enter_context(patch.object(event_update, name, return_value=None))
+                stack.enter_context(patch.object(event_update,'upcoming_events',return_value=[configured]))
+                stack.enter_context(patch.object(event_update,'collect_event',return_value=snapshot))
+                stack.enter_context(patch.object(event_update,'generate_event_narrative',return_value=None))
+                stack.enter_context(patch('kcdw.event_personal.load_event_personal', return_value=None))
+                load=stack.enter_context(patch.object(event_update,'load_run_history',return_value=data,create=True))
+                stack.enter_context(patch.object(event_update,'render',return_value=('<html>backfill</html>',{})))
                 self.assertEqual(event_update.update(Path(tmp),None,NOW),0)
             load.assert_called_once_with(Path(tmp)/'events'/configured.slug/'backfill.json',snapshot['event'],NOW)
             saved=json.loads((Path(tmp)/'events'/configured.slug/'current'/'snapshot.json').read_text())

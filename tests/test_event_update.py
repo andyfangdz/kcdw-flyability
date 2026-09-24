@@ -25,6 +25,9 @@ SOURCES = {
     'collect_layer_signals': 'cloud_layer_signals',
     'collect_wn2_members': 'weathernext2_members',
     'collect_model_matrix': 'model_matrix',
+    'collect_event_gusts': 'event_gusts',
+    'collect_synoptic_pattern': 'synoptic_pattern',
+    'collect_event_climatology': 'event_climatology',
     'build_trends': 'ensemble_trends',
     'build_forecast_history': 'forecast_history',
     'build_event_changes': 'event_changes',
@@ -51,6 +54,7 @@ class EventUpdateTests(unittest.TestCase):
                 path.write_text(json.dumps(maps))
             stack.enter_context(patch.object(event_update, 'upcoming_events', return_value=[EVENT]))
             stack.enter_context(patch.object(event_update, 'load_event_timing', return_value=TIMING))
+            stack.enter_context(patch('kcdw.event_personal.load_event_personal', return_value=None))
             collect = stack.enter_context(patch.object(event_update, 'collect_event', return_value=snapshot))
             for name, key in SOURCES.items():
                 stack.enter_context(patch.object(

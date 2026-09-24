@@ -79,6 +79,14 @@ def collect_synoptic_pattern(client, snapshot, now):
     return collect(client, snapshot, now)
 
 
+def collect_event_climatology(client, snapshot, cache_path, now, var):
+    from .ecmwf_archive import cache_path as ecmwf_cache
+    from .event_climatology import collect_climatology as collect, window
+    from .wn3_climatology import cache_path as wn3_cache
+    start = window(snapshot)['label'][:5]
+    return collect(client, snapshot, cache_path, now, ecmwf_cache(var, start), wn3_cache(var, start))
+
+
 def collect_wn3_100m_wind(snapshot, now):
     from .wn3_surface_context import collect_wind as collect
     return collect(snapshot, now)
@@ -172,6 +180,8 @@ def update(var: Path, cloud_config: Path | None, now: datetime | None = None, ev
             if not any(source["ok"] for source in snapshot["models"].values()):
                 raise RuntimeError("no ensemble model was usable after full-range recovery")
             snapshot["event_timing"] = load_event_timing(event, events_path)
+            from .event_personal import load_event_personal
+            snapshot["event_personal"] = load_event_personal(event, events_path)
             snapshot["initialization_provenance_version"] = 1
             snapshot["narrative_sampling_dictionary_version"] = 1
             snapshot["native_ensemble_evidence_version"] = 1
@@ -183,6 +193,7 @@ def update(var: Path, cloud_config: Path | None, now: datetime | None = None, ev
                 ("event_gusts", lambda: collect_event_gusts(HttpClient(timeout=12, retries=0, direct_native=True), snapshot, var / "events" / event.slug / "gust-guidance-cache.json", now)),
                 ("native_wind", lambda: collect_native_wind(snapshot, var / "events" / event.slug / "native-wind-cache", now)),
                 ("wind_trends", lambda: build_wind_trends(snapshot, var / "events" / event.slug / "runs", now)),
+                ("event_climatology", lambda: collect_event_climatology(HttpClient(timeout=90, retries=1), snapshot, var / "events" / event.slug / "climatology-cache.json", now, var)),
                 ("synoptic_pattern", lambda: collect_synoptic_pattern(HttpClient(timeout=10, retries=1), snapshot, now)),
                 ("event_afds", lambda: collect_afds(HttpClient(timeout=10, retries=1), snapshot, now)),
                 ("cloud_ceiling", lambda: collect_ceiling(snapshot, var / "events" / event.slug / "native-ceiling-cache", now)),
