@@ -40,7 +40,9 @@ RRFS_ROOT = 'https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.'
 RRFS_HORIZON = 84  # hours; 00/06/12/18Z runs
 PYTHON = Path(__file__).resolve().parents[1] / 'var/native-weather-venv/bin/python'
 NWS_COLOR = '#e34948'
-FIELDS = ('wind_speed_10m', 'wind_direction_10m', 'wind_gusts_10m')
+FIELDS = ('wind_speed_10m', 'wind_direction_10m', 'wind_gusts_10m', 'pressure_msl', 'precipitation', 'cloud_cover_low')
+# Optional context for the week-ahead timeline; absent (older cache, RRFS, NBM low cloud) is unknown.
+EXTRAS = (('pressure_msl', 'pressure', 1100), ('precipitation', 'rain', 500), ('cloud_cover_low', 'low_cloud', 100))
 MAX_RUN_AGE = timedelta(hours=36)
 DEADLINE_SECONDS = 60
 MAX_WORKERS = 2
@@ -100,6 +102,10 @@ def _series(raw, hours):
         column = hourly.get(field)
         _require(isinstance(column, list) and len(column) == len(hourly['time']))
         out[name] = [_number(column[axis[t]], high) if t in axis else None for t in hours]
+    for field, name, high in EXTRAS:
+        column = hourly.get(field)
+        if isinstance(column, list) and len(column) == len(hourly['time']):
+            out[name] = [_number(column[axis[t]], high) if t in axis else None for t in hours]
     return out
 
 
@@ -188,7 +194,7 @@ def collect_model(client, spec, snapshot, now, deadline, cached):
     row = {'key': key, 'label': label, 'model_id': model_id, 'ok': False}
     if known and now - parse_time(known['run']) <= MAX_RUN_AGE and cached.get('raw_series', {}).get('domain_start') == iso_z(start):
         cached['entry'] = known
-        series = {k: cached['raw_series'][k] for k in ('wind', 'gust', 'direction')}
+        series = {k: v for k, v in cached['raw_series'].items() if k != 'domain_start'}
         if _covers(series, hours, window):
             row.update(ok=True, **known, **series)
             return row
@@ -244,6 +250,10 @@ def validate_gusts(packet, snapshot) -> dict:
             values = row.get(name)
             _require(isinstance(values, list) and len(values) == len(hours))
             _require(all(v is None or _number(v, high) is not None for v in values))
+        for _, name, high in EXTRAS:
+            if name in row:
+                _require(isinstance(row[name], list) and len(row[name]) == len(hours))
+                _require(all(v is None or _number(v, high) is not None for v in row[name]))
         _require(_covers(row, hours, (start, end, kind)))
     _require(any(row['ok'] for row in rows))
     return packet

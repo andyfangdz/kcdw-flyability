@@ -39,7 +39,7 @@ ERRORS = (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowE
 # Least to most important when whole sources must be omitted for size.
 # Unlisted sources go first; protected cloud/RH/change sources are never listed.
 EVICTION_ORDER = ('cpc_wpc', 'nhc', 'wn3_cyclones', 'wn3_hourly', 'geps', 'aifs_ens', 'gfs',
-                  'gefs', 'ecmwf_ens', 'run_history', 'wind_native', 'synoptic_pattern', 'afd_aly', 'wind_trends',
+                  'gefs', 'ecmwf_ens', 'run_history', 'wind_native', 'synoptic_pattern', 'week_ahead', 'afd_aly', 'wind_trends',
                   'wn3_point', 'afd_phi', 'wind_deterministic', 'afd_okx', 'wind_surface')
 
 
@@ -301,6 +301,13 @@ def build_event_evidence(snapshot, now) -> dict:
         result['sources'].append({'id': 'synoptic_pattern', 'label': 'WPC surface analysis and forecast centers',
             'url': 'https://www.wpc.ncep.noaa.gov/html/sfc-zoom.php', 'status': 'available' if packet else 'unavailable',
             'evidence': packet if packet else {'reason': 'WPC coded surface products unavailable; no favorable inference.'}})
+    if 'event_gusts' in snapshot or 'synoptic_pattern' in snapshot:
+        from .week_ahead import week_evidence
+        packet = week_evidence(snapshot, now)
+        url = 'https://kcdw-flyability.andyfang.workers.dev' + event.path() + '#week-ahead'
+        result['sources'].append({'id': 'week_ahead', 'label': 'Week ahead · WPC days 3-7 and each model through the flight',
+            'url': url, 'status': 'available' if packet else 'unavailable',
+            'evidence': packet if packet else {'reason': 'Week-ahead context unavailable; no favorable inference.'}})
     # Prospective supplemental sources: legacy evidence digests stay unchanged.
     from .event_wind_view import wind_sources, SOURCES as WIND_SOURCES
     for alias, packet in wind_sources(snapshot, now).items():

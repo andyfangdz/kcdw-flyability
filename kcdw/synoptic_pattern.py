@@ -21,7 +21,11 @@ from .events import TZ, Event
 
 VERSION = 1
 ROOT = 'https://api.weather.gov/products'
-LISTINGS = {'analysis': ROOT + '/types/COD/locations/SUS', 'forecast': ROOT + '/types/COD/locations/SRP'}
+LISTINGS = {'analysis': ROOT + '/types/COD/locations/SUS', 'forecast': ROOT + '/types/COD/locations/SRP',
+            'extended': ROOT + '/types/PMD/locations/EPD'}
+MAX_EXTENDED_TEXT = 20_000
+MAX_EXTENDED_AGE = timedelta(hours=36)
+REGIONAL = re.compile(r'Northeast|Mid-Atlantic|New England|East Coast|the East\b|coastal|Appalachian|Atlantic', re.I)
 MAX_TEXT = 12_000
 MAX_FORECAST_PRODUCTS = 4
 RADIUS_KM = 1500
@@ -189,7 +193,7 @@ def collect_pattern(client, snapshot, now):
         _require(re.fullmatch(r'[0-9a-f-]{36}', entry['id']) is not None)
         url = f'{ROOT}/{entry["id"]}'
         raw = client.get(url)
-        _require(len(raw['productText']) <= MAX_TEXT)
+        _require(len(raw['productText']) <= (MAX_EXTENDED_TEXT if raw.get('productCode') == 'PMD' else MAX_TEXT))
         return {'id': entry['id'], 'url': url, 'fetched_at': fetched,
                 **{k: raw[k] for k in ('productCode', 'issuingOffice', 'issuanceTime', 'productText')}}
 
@@ -203,8 +207,37 @@ def collect_pattern(client, snapshot, now):
     envelope = {'version': VERSION, 'snapshot_collected_at': snapshot['collected_at'],
                 'event': {k: snapshot['event'][k] for k in ('slug', 'date')},
                 'analysis': analysis, 'forecasts': forecasts}
+    try:
+        # Optional days 3-7 discussion; its absence never invalidates the surface analysis.
+        envelope['extended'] = detail(client.get(LISTINGS['extended'])['@graph'][0])
+        extended_discussion(envelope, now)
+    except Exception:
+        envelope.pop('extended', None)
     validate_pattern(envelope, snapshot, now)
     return envelope
+
+
+def extended_discussion(envelope, now):
+    """Verbatim WPC days 3-7 overview plus regional paragraphs; raise ValueError if invalid."""
+    record = envelope['extended']
+    _require(isinstance(record, dict) and re.fullmatch(r'[0-9a-f-]{36}', record['id']) is not None)
+    _require(record['url'] == f'{ROOT}/{record["id"]}' and record['productCode'] == 'PMD')
+    _require(record['issuingOffice'] in ('KWNH', 'KWBC'))
+    issued, fetched = parse_time(record['issuanceTime']), parse_time(record['fetched_at'])
+    _require(issued <= fetched + timedelta(minutes=5) and fetched <= now.astimezone(UTC) + timedelta(minutes=5))
+    _require(now.astimezone(UTC) - issued <= MAX_EXTENDED_AGE)
+    text = record['productText']
+    _require(isinstance(text, str) and len(text) <= MAX_EXTENDED_TEXT and 'PMDEPD' in text[:200])
+    valid = re.search(r'Valid (\d{2}Z \w{3} \w{3} \d{1,2} \d{4}) - (\d{2}Z \w{3} \w{3} \d{1,2} \d{4})', text)
+    sections = re.split(r'\n\.\.\.([A-Za-z/ ]+)\.\.\.\n', text)
+    named = {sections[i].strip(): sections[i + 1] for i in range(1, len(sections) - 1, 2)}
+    paragraphs = lambda body: [' '.join(p.split()) for p in re.split(r'\n\s*\n', body or '') if p.strip()]
+    overview = paragraphs(named.get('Overview'))[:2]
+    regional = [(name, p) for name in ('Guidance/Predictability Assessment', 'Weather/Hazards Highlights')
+                for p in paragraphs(named.get(name)) if REGIONAL.search(p)][:4]
+    _require(overview or regional)
+    return {'issued_at': iso_z(issued), 'url': record['url'], 'valid': valid.group(0) if valid else None,
+            'overview': overview, 'regional': [{'section': n, 'text': p} for n, p in regional]}
 
 
 def _key_messages(snapshot, now):

@@ -190,3 +190,6 @@
 .weather-pattern tr[data-flight]{background:rgba(232,184,74,.22)}
 .weather-pattern blockquote{max-width:950px;font-size:13px;line-height:1.6;margin:10px 0;padding-left:12px;border-left:2px solid var(--line)}
 .weather-pattern details{margin-top:12px;font-size:12px}
+.week-table td{white-space:nowrap;min-width:92px}
+.week-table td.empty{color:var(--muted)}
+.week-table thead th small{display:block;font-weight:normal;color:var(--muted);font-size:10px}

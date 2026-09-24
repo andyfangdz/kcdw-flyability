@@ -612,6 +612,9 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
     from .synoptic_pattern import render_pattern
     pattern_html = render_pattern(snapshot, now)
     pattern_link = '<a href="#weather-pattern">Weather pattern</a>' if pattern_html else ''
+    from .week_ahead import render_week
+    week_html = render_week(snapshot, now)
+    pattern_link += '<a href="#week-ahead">Week ahead</a>' if week_html else ''
     from .event_wind_view import render_wind
     wind_html = render_wind(snapshot, now)
     wind_link = '<a href="#wind-analysis">Wind &amp; runways</a>' if wind_html else ''
@@ -666,7 +669,7 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
 <header class="event-header"><div><p class="eyebrow">KCDW / Dated event briefing</p><h1>{esc(event.title)}</h1>{timing_header(snapshot, event)}</div><div class="event-meta"><p>{days} days out · {len(models)} of {len(MODELS)} systems</p><p class="freshness"><strong>{freshness}</strong><br><time datetime="{esc(snapshot['collected_at'])}">{esc(collected.astimezone(TZ).strftime('%b %-d, %H:%M %Z'))}</time> · {age // 3600}h {(age % 3600) // 60}m old at render</p></div></header>
 <nav class="section-nav" aria-label="Briefing sections"><a href="#briefing">Flight brief</a>{pattern_link}<a href="#low-cloud-analysis">Cloud &amp; ceiling</a>{wind_link}<a href="#model-guidance">Model comparison</a>{coastal_link}<a href="#regional-guidance">Regional context</a><a href="#notes-sources">Sources</a></nav>
 <section id="briefing" class="operational-briefing" data-tone="{esc(briefing['tone'])}" aria-label="Flight brief">{brief_html}</section>
-{pattern_html}{cloud_html}{wind_html}
+{pattern_html}{week_html}{cloud_html}{wind_html}
 <div id="model-guidance" class="evidence-group">{matrix_html}{comparison}{model_detail}</div>
 {coastal_html}
 <details id="regional-guidance" class="report-detail"><summary>Regional outlooks &amp; tropical context</summary>{context_html}</details>
