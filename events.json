@@ -3,22 +3,22 @@
     {
       "slug": "commercial-checkride",
       "title": "Commercial checkride",
-      "date": "2026-09-24",
-      "window": "08-17",
-      "nav_label": "Checkride · Sep 24",
-      "description": "Commercial pilot practical test at KCDW, September 24, 2026. Confirmed appointment 08:00 EDT; expected flight around 10:00–12:00 EDT (2 hours). The 08:00–17:00 window is forecast context, not flight duration or scheduling flexibility. Prioritize maneuvering room throughout the expected flight."
+      "date": "2026-10-01",
+      "window": "12-19",
+      "nav_label": "Checkride · Oct 1",
+      "description": "Commercial pilot practical test at KCDW. Oral portion completed September 24, 2026; flight portion rebooked for October 1, 2026 at 14:00 EDT (confirmed), expected around 14:00–16:00 EDT (2 hours). The 12:00–19:00 window is forecast context, not flight duration or scheduling flexibility. Prioritize maneuvering room and landing-window gusts throughout the expected flight."
     }
   ],
   "timings": {
     "commercial-checkride": {
       "slug": "commercial-checkride",
-      "date": "2026-09-24",
+      "date": "2026-10-01",
       "timezone": "America/New_York",
-      "appointment_start": "08:00",
+      "appointment_start": "14:00",
       "appointment_status": "confirmed",
-      "flight_start": "10:00",
+      "flight_start": "14:00",
       "flight_status": "expected",
-      "flight_end": "12:00",
+      "flight_end": "16:00",
       "flight_duration_minutes": 120
     }
   }

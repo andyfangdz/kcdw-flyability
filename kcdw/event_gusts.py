@@ -37,6 +37,7 @@ MODELS = (
 )
 DASHED = {'rrfs'}
 RRFS_ROOT = 'https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.'
+RRFS_HORIZON = 84  # hours; 00/06/12/18Z runs
 PYTHON = Path(__file__).resolve().parents[1] / 'var/native-weather-venv/bin/python'
 NWS_COLOR = '#e34948'
 FIELDS = ('wind_speed_10m', 'wind_direction_10m', 'wind_gusts_10m')
@@ -121,12 +122,15 @@ def load_cache(path, key):
 
 
 def _rrfs_series(snapshot, run, hours, now):
-    """Native RRFS via the isolated ecCodes worker: every hour from now through the event day (~5 MB each)."""
+    """Native RRFS via the isolated ecCodes worker: every hour from now through the event day or the
+    84-hour horizon (~5 MB each). Runs that cannot reach the flight window are skipped."""
     import subprocess
     last = datetime.combine(Event(**snapshot['event']).day + timedelta(days=1), datetime.min.time(), TZ).astimezone(UTC)
     first = max(run, now.replace(minute=0, second=0, microsecond=0))
-    leads = [int((t - run).total_seconds() // 3600) for t in hours if first <= t < last]
-    if not leads or max(leads) > 84:
+    if flight_window(snapshot)[1] > run + timedelta(hours=RRFS_HORIZON):
+        return None  # this run can never reach the flight
+    leads = [int((t - run).total_seconds() // 3600) for t in hours if first <= t < last and t <= run + timedelta(hours=RRFS_HORIZON)]
+    if not leads:
         return None
     result = subprocess.run([str(PYTHON), str(Path(__file__).with_name('rrfs_worker.py'))],
                             input=json.dumps({'init': iso_z(run), 'leads': leads}), text=True,

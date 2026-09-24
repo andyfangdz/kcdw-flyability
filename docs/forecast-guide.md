@@ -123,8 +123,9 @@ The event page includes four synchronized RH charts: 2 m, 1000 hPa, 925 hPa and 
 ## Confirmed appointment versus forecast context
 
 `events.json` may contain a `timings` map bound to each event's slug/date. The
-September 24 checkride starts at **08:00 EDT (confirmed)**, with flight expected
-**around 10:00–12:00 EDT**, with an expected duration of **2 hours**. Start and end remain approximate, not confirmed. Each hourly snapshot archives its own
+commercial checkride's oral portion was completed September 24; the flight portion
+starts at **14:00 EDT on October 1 (confirmed)**, with flight expected
+**around 14:00–16:00 EDT**, with an expected duration of **2 hours**. Start and end remain approximate, not confirmed. Each hourly snapshot archives its own
 validated timing; older snapshots do not inherit newly confirmed times.
 The page header and narrative evidence distinguish those statuses. Narration focuses
 on expected departure and the flight, without assuming late-afternoon flexibility.
@@ -396,7 +397,7 @@ High confidence requires a consistent controlling scenario; medium reflects unce
 
 ## Dated checkride outlook
 
-[Commercial checkride · September 24, 2026](https://kcdw-flyability.andyfang.workers.dev/events/commercial-checkride) · [Event history](https://kcdw-flyability.andyfang.workers.dev/events/commercial-checkride/history)
+[Commercial checkride · October 1, 2026](https://kcdw-flyability.andyfang.workers.dev/events/commercial-checkride) · [Event history](https://kcdw-flyability.andyfang.workers.dev/events/commercial-checkride/history)
 
 `events.json` defines dated pages. The checkride's **08:00–17:00 Eastern window is forecast context**, separate from the confirmed 08:00 appointment and expected 10:00–12:00 EDT flight. The independent deterministic `kcdw.event_update` pipeline collects GEFS (31), ECMWF ENS (51), AIFS-ENS (51), and GEPS (21) individual-member distributions plus WeatherNext 3 **mean/p10/p90** statistics and separate run-bound WeatherNext 2 member wind/rain diagnostics from BigQuery. Fresh WN3 is preferred beyond 48 hours, with AIFS-ENS the independent comparator/fallback. WN2 native diagnostics use all 64 individual members; archived mean/spread packets are never converted to member counts or percentiles. Each source can fail independently.
 

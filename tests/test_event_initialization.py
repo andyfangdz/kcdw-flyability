@@ -132,10 +132,7 @@ class InitializationsTests(unittest.TestCase):
         from tests.test_cloud_ceiling import snapshot as native_snapshot, worker, NOW as native_now
         from kcdw.cloud_ceiling import _context, NOTES
         from kcdw.common import iso_z
-        from kcdw.events import Event
-        event_fixture = Event(slug='commercial-checkride', title='Checkride', date='2026-09-24', window='08-17', nav_label='Checkride', description='Test.')
-        with patch('tests.test_cloud_ceiling.find_event', return_value=event_fixture):
-            s = native_snapshot()
+        s = native_snapshot()
         init, event, leads = _context(s, native_now)
         s['cloud_ceiling'] = dict(version=1, model='gfs_native_025', model_init=iso_z(init), fetched_at=iso_z(native_now), snapshot_collected_at=s['collected_at'], event=event, notes=NOTES, samples=worker({'leads': leads}))
         r = row(s, 'gfs_native', native_now)

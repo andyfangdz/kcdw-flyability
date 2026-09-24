@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 BUCKET = 'https://noaa-rrfs-ops-pds.s3.amazonaws.com'
 KCDW = (40.8752, 285.7186)
 MAX_FIELD = 4_000_000
-MAX_LEADS = 72
+MAX_LEADS = 85
 KNOTS = 3600 / 1852
 FIELDS = {'gust': ('GUST', 'surface', 260065, 'surface', 0),
           'u': ('UGRD', '10 m above ground', 165, 'heightAboveGround', 10),

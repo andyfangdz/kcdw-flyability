@@ -9,9 +9,12 @@ from unittest.mock import patch
 
 from kcdw.cloud_ceiling import collect_ceiling, validate_ceiling, _context, _source_url
 from kcdw.gfs_guidance import collect_gfs, UNITS, VARIABLES
-from kcdw.events import find_event
+from kcdw.events import Event
 
 NOW = datetime(2026, 9, 15, 22, tzinfo=timezone.utc)
+# A fixed event keeps these fixtures independent of the live events.json date.
+EVENT = Event(slug='commercial-checkride', title='Commercial checkride', date='2026-09-24', window='08-17',
+              nav_label='Checkride · Sep 24', description='Fixture checkride.')
 INIT = NOW.replace(hour=12)
 
 class Client:
@@ -31,7 +34,7 @@ class Client:
                     hourly_units=UNITS, hourly=dict(time=times, **{k:[v]*len(times) for k,v in zip(VARIABLES,[1010,0,10,15,100,20])}))
 
 def snapshot():
-    return {'event':find_event('commercial-checkride').as_dict(), 'collected_at':'2026-09-15T22:00:00Z',
+    return {'event':EVENT.as_dict(), 'collected_at':'2026-09-15T22:00:00Z',
             'gfs':collect_gfs(Client(), datetime(2026,9,24,4,tzinfo=timezone.utc), datetime(2026,9,25,4,tzinfo=timezone.utc), NOW)}
 
 def discovery(model, start, end, now, *, kind):
