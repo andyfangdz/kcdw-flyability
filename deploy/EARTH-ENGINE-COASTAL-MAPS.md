@@ -132,3 +132,16 @@ Sources: [WeatherNext 3](https://developers.google.com/weathernext/guides/earth-
 [NOAA GFS pressure](https://www.nco.ncep.noaa.gov/pmb/products/gfs/),
 [Earth Engine GeoTIFF inputs](https://developers.google.com/earth-engine/apidocs/ee-image-loadgeotiff).
 The IFS adapter verifies the live `mean_sea_level_pressure_sfc` band.
+
+## Catalog georeferencing correction
+
+The GRIB-imported Earth Engine catalogs `ECMWF/NRT_FORECAST/IFS/OPER` and
+`NOAA/GFS0P25` place each row one 0.25-degree row north of the GRIB grid. This was
+checked on 2026-09-24 three ways: ecCodes on ECMWF's own files and the land-sea
+mask along 73°W (Long Island at 40.75°N, the Sound at 41.0°N, Connecticut at
+41.25°N); Earth Engine's 41.25°N cell matching native ECMWF 41.0°N values on 322
+dates to 0.005 kt; and Earth Engine GFS 41.25°N matching the page's native GFS
+decode at 41.0°N. `source_image` therefore moves IFS and GFS catalog rows back one
+row with `changeProj` before any geometry. The separately imported GFS pressure
+GeoTIFF is correctly placed and is not shifted. Maps rendered before this change
+show those two models about 28 km north. WeatherNext collections were not checked.

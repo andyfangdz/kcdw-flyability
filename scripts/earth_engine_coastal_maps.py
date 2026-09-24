@@ -81,6 +81,14 @@ def source_image(model, run, valid, pressure_dir=None):
         if b['crs_transform'] != expected_transform or b['crs'] != native['crs'] or b['dimensions'] != [round(360/spacing), round(180/spacing)+1]:
             raise ValueError(f'{model}: unexpected native grid')
     source = ee.Image(info['id']).select(spec['bands'])
+    if model in ('ifs', 'gfs'):
+        # The GRIB-imported ECMWF/NRT_FORECAST/IFS/OPER and NOAA/GFS0P25 catalogs are georeferenced one
+        # 0.25-degree row north of their GRIB grids (checked 2026-09-24 against ecCodes, native GFS and the
+        # land-sea mask along 73W; see kcdw/ecmwf_ee_worker.py). Move rows back before any geometry.
+        # Our own GFS pressure GeoTIFF is placed correctly and is not shifted.
+        shifted = list(native['crs_transform'])
+        shifted[5] -= spacing
+        source = source.changeProj(ee.Projection(native['crs'], native['crs_transform']), ee.Projection(native['crs'], shifted))
     if model == 'ifs':
         pressure, u, v = [source.select(b) for b in spec['bands']]
         source = ee.Image.cat([pressure, u.hypot(v), u, v])
