@@ -12,11 +12,31 @@ from pathlib import Path
 ENDPOINT = 'https://api.typesafe.ai/v1/systemone'
 MODEL = 'jev-1.13.0'
 MAX_REQUEST_BYTES = 180_000
+SHRINK_FACTORS = (0.85, 0.72, 0.6)
 MAX_RESPONSE_BYTES = 1_000_000
 
 
 class TypeSafeError(ValueError):
     """Safe to log: never contains credentials or service response bodies."""
+
+
+class TypeSafeContextError(TypeSafeError):
+    """The request exceeded the model context; the caller may split its questions."""
+
+
+def _error_type(response):
+    """Only a short error_type token from a 400 body; nothing else is kept or logged."""
+    try:
+        body = b''
+        for chunk in response.iter_content(1024):
+            body += chunk
+            if len(body) >= 4096:
+                return None  # a context error is a tiny body; anything larger is not one
+        detail = json.loads(body).get('detail')
+        value = detail.get('error_type') if isinstance(detail, dict) else None
+        return value if isinstance(value, str) and re.fullmatch(r'[a-z_]{1,40}', value) else None
+    except (ValueError, AttributeError, TypeError):
+        return None
 
 
 def encoded(value):
@@ -113,6 +133,38 @@ class Client:
         self.calls = 0
 
     def evaluate(self, purpose, state, questions):
+        """Evaluate questions; when the service reports its context is exceeded, split them.
+
+        The same state goes to each half, so no evidence is dropped; answers are merged
+        and token usage summed. A single question that still overflows is an error.
+        """
+        try:
+            return self._evaluate_once(purpose, state, questions)
+        except TypeSafeContextError:
+            pass
+        # Token density varies with content, so a byte target cannot be exact. Shorten
+        # long prose further (never data) before splitting the question set.
+        from .typesafe_budget import _size, fit
+        size = _size(state, questions)
+        for step, factor in enumerate(SHRINK_FACTORS, 1):
+            smaller = fit(state, questions, int(size * factor))
+            if smaller is state or _size(smaller, questions) >= size:
+                break  # nothing left to shorten
+            try:
+                return dict(self._evaluate_once(f'{purpose}-fit{step}'[:80], smaller, questions), shortened=factor)
+            except TypeSafeContextError:
+                continue
+        if len(questions) < 2:
+            raise TypeSafeContextError('TypeSafe max_tokens_exceeded after shortening prose')
+        keys = list(questions)
+        halves = [dict((k, questions[k]) for k in keys[:len(keys) // 2]), dict((k, questions[k]) for k in keys[len(keys) // 2:])]
+        results = [self.evaluate(f'{purpose}-{part}'[:80], state, half) for part, half in zip('ab', halves)]
+        return {'model': self.model, 'answers': {k: v for r in results for k, v in r['answers'].items()},
+                'usage': {k: sum(r['usage'].get(k, 0) for r in results) for k in ('input_tokens', 'output_tokens')},
+                'request_sha256': digest([r['request_sha256'] for r in results]),
+                'elapsed_seconds': round(sum(r['elapsed_seconds'] for r in results), 3), 'split': len(results)}
+
+    def _evaluate_once(self, purpose, state, questions):
         if not re.fullmatch(r'[a-z0-9_-]{1,80}', purpose) or not questions:
             raise TypeSafeError('Invalid TypeSafe request purpose/questions')
         from .typesafe_packing import compact_state
@@ -137,6 +189,8 @@ class Client:
                     if response.status_code in (429, 529) and attempt == 0:
                         self.sleep(2)
                         continue
+                    if response.status_code == 400 and _error_type(response) == 'max_tokens_exceeded':
+                        raise TypeSafeContextError('TypeSafe max_tokens_exceeded')
                     if response.status_code != 200:
                         raise TypeSafeError(f'TypeSafe HTTP status {response.status_code}')
                     chunks, size = [], 0
@@ -163,7 +217,7 @@ class Client:
             # Service error bodies and transport exception messages can echo headers/state.
             message = str(exc) if isinstance(exc, TypeSafeError) else 'TypeSafe transport or JSON failure'
             private_json(stem.with_suffix('.error.json'), {'error': message, 'request_sha256': digest(request)})
-            raise TypeSafeError(message) from None
+            raise (TypeSafeContextError if isinstance(exc, TypeSafeContextError) else TypeSafeError)(message) from None
 
 
 def configured_client(artifacts, *, var=None):

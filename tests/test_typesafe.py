@@ -86,6 +86,95 @@ class TypeSafeTests(unittest.TestCase):
         self.client = api.Client('private-test-key', self.root / 'typesafe', transport=transport, sleep=lambda _: None)
         self.snapshot, self.draft = fixture()
 
+    def test_distant_sigmets_and_alert_plumbing_are_trimmed(self):
+        from kcdw import typesafe_assessment as ta
+        near = {'type': 'Polygon', 'coordinates': [[[-75.0, 41.0], [-74.0, 41.5], [-74.5, 40.5], [-75.0, 41.0]]]}
+        far = {'type': 'Polygon', 'coordinates': [[[-101.5, 36.5], [-101.1, 33.9], [-104.6, 30.8], [-101.5, 36.5]]]}
+        self.assertLess(ta._nearest_nm(near), 40)
+        self.assertGreater(ta._nearest_nm(far), 1000)
+        self.assertIsNone(ta._nearest_nm(None))
+        alert = {'id': 'x', 'properties': {'event': 'Wind Advisory', 'description': 'Gusts to 55 mph.', 'affectedZones': ['z'] * 50,
+                                           'geocode': {'SAME': ['1'] * 50}, 'onset': '2026-09-25T14:00:00-04:00'}}
+        kept = {k: alert['properties'][k] for k in ta.ALERT_FIELDS if k in alert['properties']}
+        self.assertEqual(set(kept), {'event', 'description', 'onset'})
+
+    def test_budget_shortens_prose_in_order_without_touching_callers(self):
+        from kcdw import typesafe_budget as budget
+        text = lambda k: ''.join(f'{k} sentence {i} about the pattern. ' for i in range(200))  # distinct, so not deduplicated
+        evidence = {'sources': {k: {'ok': True, 'data': {'discussion_excerpt': text(k[:3]), 'aviation_excerpt': 'VFR.'}}
+                                for k in ('okx_afd', 'phi_afd')},
+                    'synoptic_context': {'products': [{'source': 'cpc', 'text': text('cpc')}]}}
+        original = copy.deepcopy(evidence)
+        state = {'evidence': evidence}
+        steps = []
+        full = budget._size(state, {'q': {'type': 'choice'}})
+        for target in (full - 500, full // 2, 10):
+            fitted = budget.fit(state, {'q': {'type': 'choice'}}, target)
+            steps.append(fitted['evidence'])
+        self.assertEqual(evidence, original)  # the caller's (possibly hashed) evidence is never modified
+        first = steps[0]
+        self.assertTrue(first['sources']['phi_afd']['data'].get('discussion_truncated'))  # other offices go first
+        self.assertNotIn('discussion_truncated', first['sources']['okx_afd']['data'])     # local OKX last
+        last = steps[-1]
+        self.assertTrue(last['synoptic_context']['products'][0]['text'].endswith(budget.SHORTENED))
+        self.assertTrue(all(v['data']['aviation_excerpt'] == 'VFR.' for v in last['sources'].values()))
+        self.assertIs(budget.fit(state, {'q': {}}, 10**9), state)  # already fits: returned unchanged
+
+    def test_preflight_measures_every_day_and_fails_before_drafting(self):
+        from kcdw import typesafe_assessment as ta
+        sizes = ta.preflight(self.snapshot)
+        self.assertEqual(set(sizes), set(self.snapshot['report_dates']))
+        with patch.object(ta, 'PREFLIGHT_LIMIT_BYTES', 100):
+            with self.assertRaises(api.TypeSafeError):
+                ta.preflight(self.snapshot)
+
+    def test_context_overflow_splits_questions_and_merges(self):
+        def transport(url, **kwargs):
+            request = json.loads(kwargs['data'])
+            self.requests.append(request)
+            if len(request['questions']) > 2:  # this fake context fits at most two questions
+                return Response({'detail': {'error_type': 'max_tokens_exceeded'}}, status=400)
+            return Response(response_for(request))
+        client = api.Client('private-test-key', self.root / 'split', transport=transport, sleep=lambda _: None)
+        questions = {f'q{i}': {'type': 'choice', 'instructions': 'Question?', 'criteria': {'yes': 'Yes', 'no': 'No'}} for i in range(5)}
+        result = client.evaluate('weekly-2026-10-01', {'text': 'evidence'}, questions)
+        self.assertEqual(set(result['answers']), set(questions))
+        self.assertEqual(result['usage']['input_tokens'], 123 * 3)  # three successful parts: 2 + 1 + 2 questions
+        self.assertTrue(all(r['state'] == self.requests[0]['state'] for r in self.requests))  # no evidence dropped
+        self.assertEqual(result['split'], 2)
+
+    def test_context_overflow_shortens_prose_before_splitting(self):
+        prose = ''.join(f'Discussion sentence {i} about the coastal low. ' for i in range(400))
+        def transport(url, **kwargs):
+            request = json.loads(kwargs['data'])
+            self.requests.append(request)
+            if len(kwargs['data']) > 12_000:  # this fake context fits only shortened prose
+                return Response({'detail': {'error_type': 'max_tokens_exceeded'}}, status=400)
+            return Response(response_for(request))
+        client = api.Client('private-test-key', self.root / 'shrink', transport=transport, sleep=lambda _: None)
+        questions = {f'q{i}': {'type': 'choice', 'instructions': 'Question?', 'criteria': {'yes': 'Yes', 'no': 'No'}} for i in range(3)}
+        state = {'sources': {'phi_afd': {'evidence': {'discussion_excerpt': prose}}}}
+        result = client.evaluate('weekly-summary-claims-0', state, questions)
+        self.assertEqual(set(result['answers']), set(questions))
+        self.assertIn('shortened', result)
+        self.assertNotIn('split', result)
+        self.assertEqual(state['sources']['phi_afd']['evidence']['discussion_excerpt'], prose)  # caller untouched
+
+    def test_other_400s_and_single_question_overflow_are_not_split(self):
+        def transport(url, **kwargs):
+            self.requests.append(json.loads(kwargs['data']))
+            return Response({'detail': {'error_type': 'max_tokens_exceeded'}}, status=400)
+        client = api.Client('private-test-key', self.root / 'one', transport=transport, sleep=lambda _: None)
+        one = {'q': {'type': 'choice', 'instructions': 'Question?', 'criteria': {'yes': 'Yes', 'no': 'No'}}}
+        with self.assertRaises(api.TypeSafeError):
+            client.evaluate('single', {'text': 'evidence'}, one)
+        self.assertEqual(len(self.requests), 1)
+        other = api.Client('private-test-key', self.root / 'other', sleep=lambda _: None,
+                           transport=lambda url, **kw: Response({'detail': {'error_type': 'invalid_request'}}, status=400))
+        with self.assertRaises(api.TypeSafeError) as caught:
+            other.evaluate('bad', {'text': 'evidence'}, dict(one, r=one['q']))
+        self.assertNotIsInstance(caught.exception, api.TypeSafeContextError)
+
     def test_http_contract_private_artifacts_and_exact_model(self):
         result = self.client.evaluate('contract', {'text': 'evidence'}, {'q': {'type': 'choice', 'instructions': 'Question?',
                                                                             'criteria': {'yes': 'Yes', 'no': 'No'}}})

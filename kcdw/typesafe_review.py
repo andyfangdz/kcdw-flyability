@@ -21,6 +21,9 @@ RELATION = {
 }
 
 
+from .typesafe_budget import fit  # noqa: E402  (keeps review requests inside the model context)
+
+
 def source_packets(evidence):
     """Use stable source IDs in both the rolling and dated-event evidence formats."""
     sources = evidence.get('sources', {})
@@ -132,7 +135,7 @@ def review_briefing(client, evidence, narrative, *, purpose='briefing', previous
                         'When source_ids are supplied, evaluate those citations. Otherwise use all available sources. '
                         'For a recommendation, check whether the evidence warrants it, without treating it as an observed fact.',
             'rules': DATA_RULES}, 'criteria': RELATION} for i in range(len(batch))}
-        response = client.evaluate(purpose + f'-claims-{start}', state, questions)
+        response = client.evaluate(purpose + f'-claims-{start}', fit(state, questions), questions)
         records += [{**claim, 'answer': response['answers'][f'claim{i}']} for i, claim in enumerate(batch)]
     change_state = {'evidence': evidence, 'narrative': narrative, 'previous_assessment': previous}
     questions = {
@@ -151,7 +154,7 @@ def review_briefing(client, evidence, narrative, *, purpose='briefing', previous
                 'unknown': 'The evidence does not permit a comparable change assessment.',
             }},
     }
-    changes = client.evaluate(purpose + '-changes', change_state, questions)
+    changes = client.evaluate(purpose + '-changes', fit(change_state, questions), questions)
     result = {'version': 1, 'mode': 'observe', 'model': client.model, 'evidence_sha256': digest(evidence),
               'narrative_sha256': digest(narrative), 'previous_sha256': digest(previous),
               'claims': records, 'changes': changes['answers'],

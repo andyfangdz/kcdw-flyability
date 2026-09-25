@@ -128,6 +128,29 @@ def _latest_metars(source):
                       'review_detail_omitted': 'Older METARs are in near-term daily reviews. These observations alone cannot establish trends or future-day weather.'}
 
 
+SIGMET_NEAR_NM = 300
+ALERT_FIELDS = ('event', 'headline', 'severity', 'certainty', 'urgency', 'status', 'messageType', 'areaDesc',
+                'effective', 'onset', 'ends', 'expires', 'senderName', 'description', 'instruction')
+
+
+def _nearest_nm(geometry):
+    """Great-circle distance from KCDW to the nearest polygon vertex, or None if unknown."""
+    import math
+    try:
+        rings = geometry['coordinates'] if geometry['type'] == 'Polygon' else [r for poly in geometry['coordinates'] for r in poly]
+        points = [(float(lon), float(lat)) for ring in rings for lon, lat in ring]
+    except (KeyError, TypeError, ValueError):
+        return None
+    if not points:
+        return None
+    lat0, lon0 = math.radians(40.8752), math.radians(-74.2814)
+    def nm(lon, lat):
+        lat, lon = math.radians(lat), math.radians(lon)
+        h = math.sin((lat - lat0) / 2) ** 2 + math.cos(lat0) * math.cos(lat) * math.sin((lon - lon0) / 2) ** 2
+        return 2 * 3440.065 * math.asin(math.sqrt(h))
+    return min(nm(lon, lat) for lon, lat in points)
+
+
 def day_evidence(snapshot, date, ranking=None, *, prepared=None):
     evidence = deepcopy(prepared if prepared is not None else prepare(snapshot))
     tz = ZoneInfo(snapshot['airport']['timezone'])
@@ -204,7 +227,7 @@ def day_evidence(snapshot, date, ranking=None, *, prepared=None):
         _latest_metars(evidence.get('sources', {}).get('awc_metars', {}))
     sigmets = evidence.get('sources', {}).get('awc_convective_sigmets', {})
     if sigmets.get('ok') and isinstance(sigmets.get('data'), list):
-        relevant, outside = [], []
+        relevant, outside, distant = [], [], []
         for row in sigmets['data']:
             props = row.get('properties', {})
             try:
@@ -212,13 +235,23 @@ def day_evidence(snapshot, date, ranking=None, *, prepared=None):
                 overlaps = first < end and last > start
             except (KeyError, ValueError, TypeError):
                 overlaps = True  # Unknown validity remains visible.
-            if overlaps:
-                relevant.append(row)
+            summary = {k: props[k] for k in ('airSigmetType', 'hazard', 'validTimeFrom', 'validTimeTo') if k in props}
+            nearest = _nearest_nm(row.get('geometry'))
+            if not overlaps:
+                outside.append(summary)
+            elif not row.get('contains_kcdw') and nearest is not None and nearest > SIGMET_NEAR_NM:
+                distant.append(dict(summary, nearest_nm=round(nearest)))
             else:
-                outside.append({k: props[k] for k in ('airSigmetType', 'hazard', 'validTimeFrom', 'validTimeTo') if k in props})
-        if outside:
+                relevant.append(row)  # near, containing KCDW, or unknown geometry keeps full detail
+        if outside or distant:
             sigmets['data'] = {'overlapping_or_unknown_validity': relevant, 'outside_period': outside,
-                               'selection_note': 'Out-of-period advisory details omitted. Current advisories do not provide future hazard coverage; empty overlap is not a forecast of no convection.'}
+                               f'beyond_{SIGMET_NEAR_NM}_nm': distant,
+                               'selection_note': 'Out-of-period and distant advisory details omitted (distance is to the nearest polygon vertex). Current advisories do not provide future hazard coverage; empty overlap is not a forecast of no convection.'}
+    alerts = evidence.get('sources', {}).get('nws_alerts', {})
+    if alerts.get('ok') and isinstance(alerts.get('data'), list):
+        # Keep what was issued, where, when and its full text; drop zone lists, geocodes and API plumbing.
+        alerts['data'] = [{'properties': {k: row['properties'][k] for k in ALERT_FIELDS if k in row.get('properties', {})}}
+                          if isinstance(row, dict) and isinstance(row.get('properties'), dict) else row for row in alerts['data']]
     # Point metadata is location/URL plumbing; chart prose duplicates numerical sources.
     evidence.get('sources', {}).pop('nws_points', None)
     evidence.pop('weekly_guidance', None)
@@ -231,6 +264,49 @@ def day_evidence(snapshot, date, ranking=None, *, prepared=None):
     return evidence
 
 
+def day_questions(snapshot, date):
+    """The TypeSafe questions for one report day (outlook, confidence and each planning window)."""
+    questions = {
+        'outlook': {'type': 'choice', 'instructions': {'question':
+            f'Which broad planning category best describes the actionable daytime weather on {date} at KCDW? '
+            'For a varied day, reflect whether a useful normal session exists and retain the controlling limitations.',
+            'rules': WEATHER_RULES}, 'criteria': FLYABILITY},
+        'weather_confidence': {'type': 'score', 'instructions': {'question':
+            f'How well does the evidence constrain the weather planning outcome for {date} at KCDW? '
+            'Assess forecast reliability from relevant spread, disagreement, missing fields, freshness and horizon. '
+            'This is separate from whether the weather is good, and separate from your own classification confidence.',
+            'rules': WEATHER_RULES}, 'criteria': CONFIDENCE_LEVELS},
+    }
+    for window in planning_windows(snapshot, date):
+        questions['window_' + window] = {'type': 'choice', 'instructions': {'question':
+            f'Which planning category fits a normal two-hour KCDW VFR session in {date} {window} Eastern, including return? '
+            'Apply the launch-now rule if this block has partly elapsed.', 'rules': WEATHER_RULES}, 'criteria': FLYABILITY}
+    return questions
+
+
+PREFLIGHT_LIMIT_BYTES = 100_000  # failures began near 108 KB; the last same-day success was ~99 KB
+PREFLIGHT_DRAFT = {'draft_interpretation': {'placeholder': 'x' * 2500}, 'draft_controlling_hazards': ['x' * 300]}
+
+
+def preflight(snapshot, ranking=None):
+    """Check each day's assessment request fits before paying for a draft; raise if it cannot.
+
+    Uses a placeholder draft of typical size and the same size guard as the real
+    request, so a failure here means no amount of prose shortening would fit.
+    """
+    from .typesafe_budget import _size, fit
+    prepared = prepare(snapshot)
+    sizes = {}
+    for date in snapshot['report_dates']:
+        state = {'weather': day_evidence(snapshot, date, ranking, prepared=prepared), **PREFLIGHT_DRAFT}
+        questions = day_questions(snapshot, date)
+        sizes[date] = _size(fit(state, questions), questions)
+    over = {date: size for date, size in sizes.items() if size > PREFLIGHT_LIMIT_BYTES}
+    if over:
+        raise TypeSafeError(f'TypeSafe evidence exceeds the model context before drafting: {over}')
+    return sizes
+
+
 def assess_week(client, snapshot, draft, ranking=None):
     from .validation import validate_analysis
     validate_analysis(draft, snapshot)
@@ -241,22 +317,9 @@ def assess_week(client, snapshot, draft, ranking=None):
         day = next(d for d in draft['days'] if d['date'] == date)
         state = {'weather': evidence, 'draft_interpretation': day,
                  'draft_controlling_hazards': draft['controlling_hazards']}
-        questions = {
-            'outlook': {'type': 'choice', 'instructions': {'question':
-                f'Which broad planning category best describes the actionable daytime weather on {date} at KCDW? '
-                'For a varied day, reflect whether a useful normal session exists and retain the controlling limitations.',
-                'rules': WEATHER_RULES}, 'criteria': FLYABILITY},
-            'weather_confidence': {'type': 'score', 'instructions': {'question':
-                f'How well does the evidence constrain the weather planning outcome for {date} at KCDW? '
-                'Assess forecast reliability from relevant spread, disagreement, missing fields, freshness and horizon. '
-                'This is separate from whether the weather is good, and separate from your own classification confidence.',
-                'rules': WEATHER_RULES}, 'criteria': CONFIDENCE_LEVELS},
-        }
-        for window in planning_windows(snapshot, date):
-            questions['window_' + window] = {'type': 'choice', 'instructions': {'question':
-                f'Which planning category fits a normal two-hour KCDW VFR session in {date} {window} Eastern, including return? '
-                'Apply the launch-now rule if this block has partly elapsed.', 'rules': WEATHER_RULES}, 'criteria': FLYABILITY}
-        response = client.evaluate('weekly-' + date, state, questions)
+        questions = day_questions(snapshot, date)
+        from .typesafe_budget import fit
+        response = client.evaluate('weekly-' + date, fit(state, questions), questions)
         answers = response['answers']
         confidence_score = round(50 * answers['weather_confidence']['score'], 1)
         score = CATEGORY_SCORES[answers['outlook']['choice']]

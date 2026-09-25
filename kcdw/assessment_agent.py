@@ -10,7 +10,7 @@ from . import claude_agent
 from .prose_agent import Session
 from .common import load_json
 from .evidence import prepare
-from .typesafe_assessment import apply_decisions, assess_week, fixed_schema, overview_evidence
+from .typesafe_assessment import apply_decisions, assess_week, fixed_schema, overview_evidence, preflight
 from .typesafe_client import configured_client, encoded, private_json
 from .typesafe_review import optional_feature, rank_afds, ranking_note, review_briefing
 
@@ -34,7 +34,9 @@ def generate(snapshot, prompt, schema, output, log, artifacts, *, images=None, r
     evidence = prepare(snapshot)
     ranking = optional_feature(client, 'afd-ranking', lambda: rank_afds(client, evidence))
     prompt += ranking_note(ranking)
-    private_json(artifacts / 'status.json', {'status': 'running', 'model': client.model})
+    # Fail before the paid draft if a day's evidence cannot fit TypeSafe's context.
+    request_bytes = preflight(snapshot, ranking)
+    private_json(artifacts / 'status.json', {'status': 'running', 'model': client.model, 'preflight_request_bytes': request_bytes})
     draft_path = artifacts / 'draft.json'
     private_json(draft_path, {})
     draft = prose.run(prompt, claude_agent.cli_schema(schema), draft_path, log, tools=tools,
