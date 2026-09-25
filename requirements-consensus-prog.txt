@@ -1,0 +1,2 @@
+-r requirements-charts.txt
+eccodes==2.48.0

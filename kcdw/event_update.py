@@ -79,6 +79,11 @@ def collect_synoptic_pattern(client, snapshot, now):
     return collect(client, snapshot, now)
 
 
+def collect_consensus_prog(snapshot, var, now, publisher):
+    from .consensus_charts import collect
+    return collect(snapshot, var, now, publisher)
+
+
 def collect_event_climatology(client, snapshot, cache_path, now, var):
     from .event_climatology import collect_climatology as collect
     return collect(client, snapshot, cache_path, now, var)
@@ -192,6 +197,7 @@ def update(var: Path, cloud_config: Path | None, now: datetime | None = None, ev
                 ("wind_trends", lambda: build_wind_trends(snapshot, var / "events" / event.slug / "runs", now)),
                 ("event_climatology", lambda: collect_event_climatology(HttpClient(timeout=90, retries=1), snapshot, var / "events" / event.slug / "climatology-cache.json", now, var)),
                 ("synoptic_pattern", lambda: collect_synoptic_pattern(HttpClient(timeout=10, retries=1), snapshot, now)),
+                ("consensus_prog", lambda: collect_consensus_prog(snapshot, var, now, client)),
                 ("event_afds", lambda: collect_afds(HttpClient(timeout=10, retries=1), snapshot, now)),
                 ("cloud_ceiling", lambda: collect_ceiling(snapshot, var / "events" / event.slug / "native-ceiling-cache", now)),
                 ("cloud_layer_signals", lambda: collect_layer_signals(HttpClient(timeout=15, retries=0, direct_native=True), snapshot, now)),

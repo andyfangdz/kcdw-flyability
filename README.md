@@ -64,6 +64,7 @@ The Worker has its own checks: `npm --prefix cloudflare run check` and `npm --pr
 - [Cloudflare hosting](cloudflare/README.md): R2 storage, routes, credentials, and deployment.
 - [WeatherNext 3 BigQuery](deploy/WN3-BIGQUERY.md) and [WeatherNext 2 BigQuery](deploy/WN2-BIGQUERY.md): access, query budgets, and caches.
 - [Earth Engine coastal-low maps](deploy/EARTH-ENGINE-COASTAL-MAPS.md): render and publish synchronized model/run comparisons on event pages.
+- [Consensus surface progs](deploy/CONSENSUS-PROG.md): AWC/WPC-style prog charts synthesized from GFS, IFS, AIFS and GDPS.
 - [Homeserver setup](deploy/HOMESERVER.md): runtime paths and systemd units.
 
 This is a planning aid. Obtain a current official briefing and apply aircraft and pilot limits before flight.

@@ -612,6 +612,9 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
     from .synoptic_pattern import render_pattern
     pattern_html = render_pattern(snapshot, now)
     pattern_link = '<a href="#weather-pattern">Weather pattern</a>' if pattern_html else ''
+    from .consensus_charts import render as render_consensus
+    consensus_html = render_consensus(snapshot.get('consensus_prog'), snapshot, now)
+    pattern_link += '<a href="#consensus-analysis">Surface analysis</a>' if consensus_html else ''
     from .week_ahead import render_week
     week_html = render_week(snapshot, now)
     pattern_link += '<a href="#week-ahead">Week ahead</a>' if week_html else ''
@@ -633,6 +636,9 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
     if coastal_html:
         navigation += '\n' + (Path(__file__).parent / 'assets/coastal-maps.js').read_text()
         css += (Path(__file__).parent / 'assets/coastal-maps.css').read_text()
+    if consensus_html:
+        navigation += '\n' + (Path(__file__).parent / 'assets/consensus-prog.js').read_text()
+        css += (Path(__file__).parent / 'assets/consensus-prog.css').read_text()
     script_hash = base64.b64encode(hashlib.sha256(navigation.encode()).digest()).decode()
     source_introduction = ('Direct native sources are preferred; fallback packets are labeled separately. '
                           'NOAA/NCEP native data are public domain; ECMWF native data and Open-Meteo fallback data are CC BY 4.0. '
@@ -672,7 +678,7 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
 <header class="event-header"><div><p class="eyebrow">KCDW / Dated event briefing</p><h1>{esc(event.title)}</h1>{timing_header(snapshot, event)}</div><div class="event-meta"><p>{days} days out · {len(models)} of {len(MODELS)} systems</p><p class="freshness"><strong>{freshness}</strong><br><time datetime="{esc(snapshot['collected_at'])}">{esc(collected.astimezone(TZ).strftime('%b %-d, %H:%M %Z'))}</time> · {age // 3600}h {(age % 3600) // 60}m old at render</p></div></header>
 <nav class="section-nav" aria-label="Briefing sections"><a href="#briefing">Flight brief</a>{pattern_link}<a href="#low-cloud-analysis">Cloud &amp; ceiling</a>{wind_link}<a href="#model-guidance">Model comparison</a>{coastal_link}<a href="#regional-guidance">Regional context</a><a href="#notes-sources">Sources</a></nav>
 <section id="briefing" class="operational-briefing" data-tone="{esc(briefing['tone'])}" aria-label="Flight brief">{brief_html}</section>
-{pattern_html}{week_html}{climatology_html}{cloud_html}{wind_html}
+{pattern_html}{consensus_html}{week_html}{climatology_html}{cloud_html}{wind_html}
 <div id="model-guidance" class="evidence-group">{matrix_html}{comparison}{model_detail}</div>
 {coastal_html}
 <details id="regional-guidance" class="report-detail"><summary>Regional outlooks &amp; tropical context</summary>{context_html}</details>
