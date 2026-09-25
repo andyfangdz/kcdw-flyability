@@ -1,7 +1,7 @@
-"""WeatherNext 3 7-day forecasts for a flight window, from BigQuery, one run per query.
+"""WeatherNext 3 forecasts issued N days ahead for a flight window, from BigQuery, one run per query.
 
 WN3 has no gust, but it adds sustained wind with spread and low cloud, which no
-other archive keeps. For each past date the 12Z run seven days earlier is read at
+other archive keeps. For each past date the 12Z run N days earlier (7 by default) is read at
 the flight-window hours for the grid point nearest KCDW. A multi-run query dry-runs
 at hundreds of petabytes, so only the per-run pattern proven in production is used,
 with a cost guard: stop when any query bills more than MAX_QUERY_BYTES or the run
@@ -40,12 +40,14 @@ def window_utc(day, start_local, end_local):
     return [start + timedelta(hours=h) for h in range(int((end - start).total_seconds() // 3600) + 1)]
 
 
-def run_for(day):
-    return datetime.combine(day - timedelta(days=LEAD_DAYS), datetime.min.time(), UTC).replace(hour=12)
+def run_for(day, lead_days=LEAD_DAYS):
+    """The 12Z run issued ``lead_days`` before ``day``."""
+    return datetime.combine(day - timedelta(days=lead_days), datetime.min.time(), UTC).replace(hour=12)
 
 
-def cache_path(var, start_local):
-    return Path(var) / 'wn3-climatology' / f'kcdw-{start_local.replace(":", "")}.json'
+def cache_path(var, start_local, lead_days=LEAD_DAYS):
+    suffix = '' if lead_days == LEAD_DAYS else f'-d{lead_days}'  # the original 7-day cache keeps its name
+    return Path(var) / 'wn3-climatology' / f'kcdw-{start_local.replace(":", "")}{suffix}.json'
 
 
 def load(path):
@@ -87,7 +89,7 @@ ORDER BY f.hours"""
     return result['rows'], int(result['statistics'].get('totalBytesBilled') or 0)
 
 
-def update(path, start_local, end_local, first, last, now, limit=None, runner=None):
+def update(path, start_local, end_local, first, last, now, limit=None, runner=None, lead_days=LEAD_DAYS, deadline=None):
     """Fill missing dates newest first. ``runner(run, hours) -> (rows, billed_bytes)``."""
     if runner is None:
         import google.auth
@@ -99,9 +101,12 @@ def update(path, start_local, end_local, first, last, now, limit=None, runner=No
     cache = load(path)
     days, spent, done = cache['days'], 0, 0
     d = last
-    while d >= max(first, FIRST_RUN + timedelta(days=LEAD_DAYS)) and (limit is None or done < limit):
+    import time
+    while d >= max(first, FIRST_RUN + timedelta(days=lead_days)) and (limit is None or done < limit):
+        if deadline is not None and time.monotonic() > deadline:
+            break  # resumable: cached dates are kept and the rest are filled next time
         key = d.isoformat()
-        run = run_for(d)
+        run = run_for(d, lead_days)
         if key not in days and run + timedelta(hours=8) <= now:
             hours = [int((t - run).total_seconds() // 3600) for t in window_utc(d, start_local, end_local)]
             rows, billed = runner(run, hours)

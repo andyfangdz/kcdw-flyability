@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily lead-matched forecast archive build for KCDW events
+
+[Timer]
+OnCalendar=*-*-* 07:40:00 UTC
+Persistent=true
+RandomizedDelaySec=5min
+Unit=kcdw-flyability-climatology.service
+
+[Install]
+WantedBy=timers.target

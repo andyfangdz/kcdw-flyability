@@ -22,6 +22,11 @@ class WN3ClimatologyTests(unittest.TestCase):
         run = wn3.run_for(date(2026, 10, 1))
         self.assertEqual(run, datetime(2026, 9, 24, 12, tzinfo=UTC))
 
+    def test_run_and_cache_follow_lead(self):
+        self.assertEqual(wn3.run_for(date(2026, 10, 1), 2), datetime(2026, 9, 29, 12, tzinfo=UTC))
+        self.assertEqual(wn3.cache_path('var', '14:00').name, 'kcdw-1400.json')
+        self.assertEqual(wn3.cache_path('var', '14:00', 2).name, 'kcdw-1400-d2.json')
+
     def test_summary_units_and_rows(self):
         s = wn3.summarize(rows(None, [174, 175, 176]), [174, 175, 176])
         self.assertAlmostEqual(s['sust_kt'], 3.0 * wn3.KNOTS, places=1)

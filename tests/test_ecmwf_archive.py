@@ -27,6 +27,12 @@ class ArchiveTests(unittest.TestCase):
         self.assertEqual(arch.sample_time(date(2026, 12, 1), '14:00'), datetime(2026, 12, 1, 18, tzinfo=UTC))  # 19Z EST floors to 18Z
         self.assertEqual(arch.seven_day_item(date(2026, 9, 24), '10:00'), {'init': '2026-09-17T12:00:00Z', 'lead': 168})
 
+    def test_item_for_any_lead(self):
+        self.assertEqual(arch.item_for(date(2026, 10, 1), '14:00', 6), {'init': '2026-09-25T12:00:00Z', 'lead': 150})
+        self.assertEqual(arch.item_for(date(2026, 10, 1), '14:00', 1), {'init': '2026-09-30T12:00:00Z', 'lead': 30})
+        self.assertEqual(arch.cache_path('var', '14:00', 7).name, 'kcdw-1400.json')
+        self.assertEqual(arch.cache_path('var', '14:00', 3).name, 'kcdw-1400-d3.json')
+
     def test_update_fills_newest_first_and_retries_errors_later(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / 'c.json'

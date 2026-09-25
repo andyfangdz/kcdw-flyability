@@ -37,7 +37,7 @@ def hourly(days=400, suffix='_previous_day7', gust=True, start='2024-09-01'):
 
 class Client:
     def __init__(self):
-        self.urls = []
+        self.urls, self.leads = [], []
 
     def get_text(self, url, maximum):
         self.urls.append(url)
@@ -46,7 +46,10 @@ class Client:
     def get(self, url):
         self.urls.append(url)
         if 'previous-runs' in url:
-            return {'hourly': hourly(gust='ecmwf' not in url)}
+            import re
+            lead = re.search(r'_previous_day(\d)', url).group(1)
+            self.leads.append(int(lead))
+            return {'hourly': hourly(suffix=f'_previous_day{lead}', gust='ecmwf' not in url)}
         h = {'time': [f'2026-09-24T{h:02d}:00' for h in range(24)]}
         for _, _, model in clim.ARCHIVE_MODELS:
             h |= {k.replace('_x', '_' + model): v for k, v in hourly(1, '_x', start='2026-09-24').items() if k != 'time'}
@@ -110,6 +113,22 @@ class ClimatologyTests(unittest.TestCase):
             self.assertIsNone(m['within_year'])
             self.assertEqual(m['low_cloud_year'], 80)
             self.assertIn('20% · 80', clim.render_climatology(s, NOW))
+
+    def test_archive_lead_follows_the_event_and_rebuilds_when_it_changes(self):
+        s = self.snapshot()  # flight 2026-09-24 14Z
+        self.assertEqual(clim.lead_days(s, datetime(2026, 9, 18, 21, 30, tzinfo=UTC)), 6)
+        self.assertEqual(clim.lead_days(s, datetime(2026, 9, 23, 20, tzinfo=UTC)), 1)
+        self.assertEqual(clim.lead_days(s, datetime(2026, 9, 10, tzinfo=UTC)), 7)
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp) / 'c.json'
+            first = Client()
+            packet = clim.collect_climatology(first, s, cache, NOW)
+            self.assertEqual((packet['lead_days'], set(first.leads)), (6, {6}))
+            later = Client()
+            packet = clim.collect_climatology(later, s, cache, datetime(2026, 9, 21, 12, tzinfo=UTC))
+            self.assertEqual((packet['lead_days'], set(later.leads)), (3, {3}))  # lead changed: archives rebuilt
+            s['event_climatology'] = packet
+            self.assertIn('3-day forecasts', clim.render_climatology(s, datetime(2026, 9, 21, 12, tzinfo=UTC)))
 
     def test_validation_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:

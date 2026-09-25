@@ -39,14 +39,25 @@ def sample_time(day, start_local):
     return local.replace(hour=local.hour - local.hour % 6, minute=0, second=0, microsecond=0)
 
 
-def seven_day_item(day, start_local):
+def item_for(day, start_local, lead_days=7):
+    """The 00/12Z run issued ``lead_days`` before ``day``'s six-hourly flight time.
+
+    The run is the latest 00/12Z cycle at or before T0 - lead_days, so the lead is
+    lead_days x 24 h plus 0-6 h (for seven days and a 2 p.m. flight: 12Z, 174 h).
+    """
     t0 = sample_time(day, start_local)
-    lead = 174 if t0.hour in (6, 18) else 168
-    return {'init': iso_z(t0 - timedelta(hours=lead)), 'lead': lead}
+    target = t0 - timedelta(days=lead_days)
+    init = target.replace(hour=target.hour - target.hour % 12)
+    return {'init': iso_z(init), 'lead': int((t0 - init).total_seconds() // 3600)}
 
 
-def cache_path(var, start_local):
-    return Path(var) / 'ecmwf-archive' / f'kcdw-{start_local.replace(":", "")}.json'
+def seven_day_item(day, start_local):
+    return item_for(day, start_local, 7)
+
+
+def cache_path(var, start_local, lead_days=7):
+    suffix = '' if lead_days == 7 else f'-d{lead_days}'  # the original 7-day cache keeps its name
+    return Path(var) / 'ecmwf-archive' / f'kcdw-{start_local.replace(":", "")}{suffix}.json'
 
 
 def load(path):
@@ -63,16 +74,16 @@ def _run(items):
     return json.loads(result.stdout)
 
 
-def update(path, start_local, first, last, now, limit=None, runner=_run, retry_errors=False):
+def update(path, start_local, first, last, now, limit=None, runner=_run, retry_errors=False, lead_days=7):
     """Fill missing dates newest first; errors are retried after RETRY_AFTER."""
     cache = load(path)
     days = cache['days']
     todo = []
     d = last
-    while d >= max(first, FIRST_GUST_RUN + timedelta(days=8)):
+    while d >= max(first, FIRST_GUST_RUN + timedelta(days=lead_days + 1)):
         key = d.isoformat()
         entry = days.get(key)
-        item = seven_day_item(d, start_local)
+        item = item_for(d, start_local, lead_days)
         stale_error = entry and 'error' in entry and (retry_errors or now - parse_time(entry['checked_at']) >= RETRY_AFTER)
         if (entry is None or stale_error) and parse_time(item['init']) + AVAILABLE_AFTER <= now:
             todo.append((key, item))
@@ -97,7 +108,7 @@ def update(path, start_local, first, last, now, limit=None, runner=_run, retry_e
 
 EE_PYTHON = ROOT / 'var/gfs-earth-engine-venv/bin/python'
 EE_WORKER = Path(__file__).with_name('ecmwf_ee_worker.py')
-EE_MIN_OVERLAP = 20
+EE_MIN_OVERLAP = 15
 EE_TOLERANCE_KT = 0.05
 KNOTS = 3600 / 1852
 
@@ -108,7 +119,7 @@ def _run_ee(request):
     return json.loads(result.stdout)
 
 
-def fill_from_earth_engine(path, start_local, first, last, now, runner=_run_ee):
+def fill_from_earth_engine(path, start_local, first, last, now, runner=_run_ee, lead_days=7):
     """Fill missing or failed dates from Earth Engine after it matches native GRIB on overlap.
 
     Returns the number of dates filled; raises ValueError when the cross-check fails.
@@ -116,9 +127,9 @@ def fill_from_earth_engine(path, start_local, first, last, now, runner=_run_ee):
     cache = load(path)
     days = cache['days']
     wanted = {}
-    d = max(first, FIRST_GUST_RUN + timedelta(days=8))
+    d = max(first, FIRST_GUST_RUN + timedelta(days=lead_days + 1))
     while d <= last:
-        item = seven_day_item(d, start_local)
+        item = item_for(d, start_local, lead_days)
         wanted.setdefault((parse_time(item['init']).hour, item['lead']), {})[item['init']] = d.isoformat()
         d += timedelta(days=1)
     samples = {}

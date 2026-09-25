@@ -1,11 +1,13 @@
-"""How the event's forecast compares with past afternoons at KCDW and with each model's 7-day forecasts.
+"""How the event's forecast compares with past afternoons at KCDW and with each model's forecasts at the same lead.
 
 Two reference sets, both summarized for the event's flight window (local hours):
 - observed: KCDW METARs (Iowa Environmental Mesonet), max sustained wind, max
   reported gust (a missing gust counts as the sustained wind), gust spread,
   best-runway crosswind and whether the window stayed VFR (ceiling >= 3,000 ft,
   visibility >= 5 SM) and dry;
-- forecast: Open-Meteo's archive of runs issued about 7 days before each date
+- forecast: Open-Meteo's archive of runs issued N days before each date, where N
+  (1-7) matches how far ahead the event now is, so a 2-day forecast is ranked
+  against 2-day forecasts rather than smoother 7-day ones
   (168-191 h lead) for GFS, NBM and ECMWF IFS.
 The large archives refresh at most daily into a cache; each snapshot keeps only
 compact per-day rows so rendering never fetches. Percentiles are "share of days
@@ -45,7 +47,7 @@ ERRORS = (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowE
 NOTES = [
     'Percentile = share of days less favorable than the forecast (ties split). Higher is better.',
     'Observed gusts appear in METARs only when the wind varies about 10 kt, so a light gusty day often shows no gust; rank by gust understates a forecast, rank by sustained overstates it.',
-    'Forecast archives are runs issued about 7 days before each date; 7-day forecasts are smoother than reality.',
+    'Forecast archives are each model\'s runs issued the same number of days ahead as the current forecast (the lead shown above); longer-lead forecasts are smoother than reality.',
     'ECMWF comes from native open data (AWS mirror, runs since 2024-11-12; gaps filled from Earth Engine after it matches the GRIB values): 10 m wind at the flight start rounded to six hours and the maximum gust over the following six hours, for past dates and for this event alike.',
     'Season = days within 30 days of the event date in any year. Low cloud is ranked only for WN3, the one archive that keeps it (since January 2026, so no past-season days yet); ceilings are in the observed tiers only.',
 ]
@@ -126,20 +128,28 @@ def model_rows(hourly, suffix, hours, use_gust=True):
     return rows
 
 
-def refresh_cache(client, snapshot, cache_path, now, ecmwf=None, wn3=None):
-    """Rebuild the archive summaries at most daily; keep a recent cache on failure."""
+def lead_days(snapshot, now):
+    """Whole days from now to the flight start, 1-7: the archive lead to compare against."""
+    from .event_model_matrix import flight_window
+    start, _, _ = flight_window(snapshot)
+    return min(7, max(1, round((start - now.astimezone(UTC)).total_seconds() / 86400)))
+
+
+def refresh_cache(client, snapshot, cache_path, now, var=None):
+    """Rebuild the archive summaries at most daily, and whenever the lead changes; keep a recent cache on failure."""
     win = window(snapshot)
+    lead = lead_days(snapshot, now)
     cache = None
     try:
         cache = json.loads(Path(cache_path).read_text(encoding='utf-8'))
-        if cache.get('version') != VERSION or cache.get('window') != win:
+        if cache.get('version') != VERSION or cache.get('window') != win or cache.get('lead_days', 7) != lead:
             cache = None
     except (OSError, ValueError, AttributeError, TypeError):
         cache = None
     if cache and now - parse_time(cache['built_at']) < CACHE_MAX_AGE:
         return cache
     today = now.astimezone(TZ).date()
-    fresh = {'version': VERSION, 'window': win, 'built_at': iso_z(now), 'models': {}}
+    fresh = {'version': VERSION, 'window': win, 'lead_days': lead, 'built_at': iso_z(now), 'models': {}}
     try:
         start = today - timedelta(days=365 * OBS_YEARS)
         query = [('station', 'CDW'), *[('data', k) for k in ('sknt', 'gust', 'drct', 'vsby', 'skyc1', 'skyc2', 'skyc3', 'skyl1', 'skyl2', 'skyl3', 'wxcodes')],
@@ -152,38 +162,39 @@ def refresh_cache(client, snapshot, cache_path, now, ecmwf=None, wn3=None):
                              'rows': [r for r in observed_rows(client.get_text(url, 12_000_000), win) if r[0] < today.isoformat()]}
         for key, label, model in ARCHIVE_MODELS:
             begin = today - timedelta(days=365 * MODEL_YEARS)
-            fields = ','.join(f'{v}_previous_day7' for v in ('wind_speed_10m', 'wind_gusts_10m', 'wind_direction_10m', 'precipitation'))
+            fields = ','.join(f'{v}_previous_day{lead}' for v in ('wind_speed_10m', 'wind_gusts_10m', 'wind_direction_10m', 'precipitation'))
             url = PREVIOUS + '?' + urlencode(dict(latitude=LATLON[0], longitude=LATLON[1], hourly=fields, models=model,
                                                    start_date=begin.isoformat(), end_date=(today - timedelta(days=1)).isoformat(),
                                                    timezone='America/New_York', wind_speed_unit='kn'))
             hourly = client.get(url)['hourly']
             fresh['models'][key] = {'label': label, 'model': model, 'source_url': url, 'period': [begin.isoformat(), (today - timedelta(days=1)).isoformat()],
-                                    'rows': model_rows(hourly, '_previous_day7', win['hours'])}
-        if ecmwf is not None:
-            _native_ifs(fresh, ecmwf, win, today, now)
-        if wn3 is not None:
-            _wn3(fresh, wn3, win, today, now)
+                                    'rows': model_rows(hourly, f'_previous_day{lead}', win['hours'])}
+        if var is not None:
+            _native_ifs(fresh, var, win, today, now, lead)
+            _wn3(fresh, var, win, today, now, lead)
         _require(len(fresh['observed']['rows']) > 300 and all(len(m['rows']) > MIN_ROWS.get(k, 300) for k, m in fresh['models'].items()))
     except Exception:
         if cache and now - parse_time(cache['built_at']) < CACHE_STALE:
-            return cache
+            return cache  # only reachable for the same window and lead
         raise
     atomic_write(cache_path, json.dumps(fresh, separators=(',', ':'), allow_nan=False) + '\n')
     return fresh
 
 
-def _native_ifs(fresh, path, win, today, now):
+def _native_ifs(fresh, var, win, today, now, lead):
     """Replace Open-Meteo's gust-less ECMWF rows with native open data when enough dates exist."""
     from . import ecmwf_archive
     start = win['label'][:5]
+    path = ecmwf_archive.cache_path(var, start, lead)
+    path.parent.mkdir(parents=True, exist_ok=True)
     first, last = today - timedelta(days=365 * MODEL_YEARS), today - timedelta(days=1)
     try:
-        ecmwf_archive.update(path, start, first, last, now, limit=20)
+        ecmwf_archive.update(path, start, first, last, now, limit=20, lead_days=lead)
     except Exception:
         pass
     try:
         # Earth Engine fills what the throttled AWS mirror could not, after matching native GRIB.
-        ecmwf_archive.fill_from_earth_engine(path, start, first, last, now)
+        ecmwf_archive.fill_from_earth_engine(path, start, first, last, now, lead_days=lead)
     except Exception:
         pass
     cache = ecmwf_archive.load(path)
@@ -195,12 +206,17 @@ def _native_ifs(fresh, path, win, today, now):
                                   'period': [native[0][0], native[-1][0]], 'rows': native}
 
 
-def _wn3(fresh, path, win, today, now):
-    """WN3 7-day forecasts from BigQuery (archive since 2026-01); adds a few new dates per day."""
+def _wn3(fresh, var, win, today, now, lead):
+    """WN3 forecasts at this lead from BigQuery (archive since 2026-01); adds a few dates per day.
+
+    A new lead's full archive is built by scripts/climatology_backfill.py (daily timer).
+    """
     from . import wn3_climatology
     start, end = win['label'][:5], win['label'][-5:]
+    path = wn3_climatology.cache_path(var, start, lead)
+    path.parent.mkdir(parents=True, exist_ok=True)
     try:
-        wn3_climatology.update(path, start, end, today - timedelta(days=365 * MODEL_YEARS), today - timedelta(days=1), now, limit=3)
+        wn3_climatology.update(path, start, end, today - timedelta(days=365 * MODEL_YEARS), today - timedelta(days=1), now, limit=3, lead_days=lead)
     except Exception:
         pass
     rows = wn3_climatology.rows(wn3_climatology.load(path))
@@ -209,10 +225,10 @@ def _wn3(fresh, path, win, today, now):
                                   'period': [rows[0][0], rows[-1][0]], 'rows': rows}
 
 
-def collect_climatology(client, snapshot, cache_path, now, ecmwf=None, wn3=None):
+def collect_climatology(client, snapshot, cache_path, now, var=None):
     """Cached archives plus one request for the archive models' current forecast of the event day."""
     now = now.astimezone(UTC)
-    cache = refresh_cache(client, snapshot, cache_path, now, ecmwf, wn3)
+    cache = refresh_cache(client, snapshot, cache_path, now, var)
     day = snapshot['event']['date']
     url = FORECAST + '?' + urlencode(dict(latitude=LATLON[0], longitude=LATLON[1],
                                           hourly='wind_speed_10m,wind_gusts_10m,wind_direction_10m,precipitation',
@@ -231,7 +247,8 @@ def collect_climatology(client, snapshot, cache_path, now, ecmwf=None, wn3=None)
         current = {}
     if cache['models'].get('ifs', {}).get('model') == 'ecmwf-open-data':
         from . import ecmwf_archive
-        native = ecmwf_archive.current(Event(**snapshot['event']).day, cache['window']['label'][:5], now, path=ecmwf)
+        native = ecmwf_archive.current(Event(**snapshot['event']).day, cache['window']['label'][:5], now,
+                                       path=ecmwf_archive.cache_path(var, cache['window']['label'][:5], cache['lead_days']))
         rain = current.get('ifs', [None, None, None, 0])[3]
         current.pop('ifs', None)
         if native:
@@ -245,7 +262,7 @@ def collect_climatology(client, snapshot, cache_path, now, ecmwf=None, wn3=None)
         if wn3_now:
             current['wn3'] = wn3_now
     packet = {'version': VERSION, 'snapshot_collected_at': snapshot['collected_at'],
-              'event': {k: snapshot['event'][k] for k in ('slug', 'date', 'window')}, 'window': cache['window'],
+              'event': {k: snapshot['event'][k] for k in ('slug', 'date', 'window')}, 'window': cache['window'], 'lead_days': cache['lead_days'],
               'built_at': cache['built_at'], 'observed': cache['observed'], 'models': cache['models'],
               'current': {'fetched_at': iso_z(now), 'source_url': url, 'rows': current}}
     return validate_climatology(packet, snapshot)
@@ -256,6 +273,7 @@ def validate_climatology(packet, snapshot):
     _require(packet['snapshot_collected_at'] == snapshot['collected_at'])
     _require(packet['event'] == {k: snapshot['event'][k] for k in ('slug', 'date', 'window')})
     _require(packet['window'] == window(snapshot))
+    _require(packet.get('lead_days', 7) in range(1, 8))
     num = lambda v, hi: type(v) in (int, float) and math.isfinite(v) and 0 <= v <= hi
     obs = packet['observed']['rows']
     _require(isinstance(obs, list) and len(obs) > 300)
@@ -365,6 +383,7 @@ def climatology_evidence(snapshot, now):
         return None
     keep = ('name', 'kind', 'sust', 'gust', 'obs_sust_year', 'obs_gust_year', 'obs_sust_season', 'obs_gust_season')
     return {'window_local': a['packet']['window']['label'], 'gust_limit_kt': a['limit'], 'tiers_percent': a['tiers'],
+            'model_archive_lead_days': a['packet'].get('lead_days', 7),
             'forecast_vs_observed': [{k: p[k] for k in keep} for p in a['points']],
             'forecast_vs_model_7day': a['models'], 'notes': NOTES}
 
@@ -419,6 +438,7 @@ def render_climatology(snapshot, now):
     from .event_personal import personal
     refs = (personal(snapshot) or {}).get('references', [])
     p, limit, t = a['packet'], a['limit'], a['tiers']
+    lead = p.get('lead_days', 7)
     event_day = Event(**snapshot['event']).day
     fmt = lambda v: '—' if v is None else f'{v}'
     tier_rows = ''.join(f'<tr><th scope="row">{escape(label)}</th><td>{t["year"][k]}%</td><td>{t["season"][k]}%</td></tr>' for k, label in (
@@ -441,18 +461,18 @@ def render_climatology(snapshot, now):
     for key in SCATTER_MODELS:
         m = p['models'].get(key)
         if m and sum(1 for r in m['rows'] if r[2] is not None) > 300:
-            panels.append(_scatter(f'{m["label"]} 7-day forecasts', f'What {m["label"]} predicted about 7 days ahead, {m["period"][0][:7]} to {m["period"][1][:7]}.',
+            panels.append(_scatter(f'{m["label"]} {lead}-day forecasts', f'What {m["label"]} predicted about {lead} day{"s" if lead > 1 else ""} ahead, {m["period"][0][:7]} to {m["period"][1][:7]}.',
                                    [(r[1], r[2]) for r in m['rows'] if r[2] is not None], a['points'], refs, limit))
     return (f'<section id="climatology" class="weather-pattern climatology" aria-labelledby="climatology-title">'
             f'<p class="eyebrow">How this day compares · {escape(a["packet"]["window"]["label"])} local</p>'
-            f'<h2 id="climatology-title">Against past afternoons and each model\'s 7-day forecasts</h2>'
+            f'<h2 id="climatology-title">Against past afternoons and each model\'s {lead}-day forecasts</h2>'
             f'<p>Percentile is the share of days less favorable than the forecast; higher is better. "Season" is the {a["season_days"]} observed days within {SEASON_DAYS} days of {event_day:%b %-d} in past years.</p>'
             f'<div class="table-wrap"><table><caption>Observed KCDW afternoons by tier (your {limit}-kt gust limit).</caption>'
             f'<thead><tr><th scope="col">Tier</th><th scope="col">All year ({t["year"]["days"]} days)</th><th scope="col">Season ({t["season"]["days"]} days)</th></tr></thead><tbody>{tier_rows}</tbody></table></div>'
             f'<div class="table-wrap"><table><caption>Each current forecast ranked against observed afternoons: by gust / by sustained wind. The true rank is between the two.</caption>'
             f'<thead><tr><th scope="col">Forecast</th><th scope="col">Wind kt</th><th scope="col">All year</th><th scope="col">Season</th></tr></thead><tbody>{point_rows}</tbody></table></div>'
-            f'<div class="table-wrap"><table><caption>Each model\'s current forecast ranked against its own 7-day forecasts (season in parentheses).</caption>'
-            f'<thead><tr><th scope="col">Model</th><th scope="col">Now</th><th scope="col">Sustained</th><th scope="col">Gust</th><th scope="col">Crosswind</th><th scope="col">Low cloud · pct</th><th scope="col">Its 7-day forecasts dry and within limit</th></tr></thead><tbody>{model_rows_html}</tbody></table></div>'
+            f'<div class="table-wrap"><table><caption>Each model\'s current forecast ranked against its own forecasts issued {lead} day{"s" if lead > 1 else ""} ahead (season in parentheses). This lead follows the event: it shortens as the flight approaches.</caption>'
+            f'<thead><tr><th scope="col">Model</th><th scope="col">Now</th><th scope="col">Sustained</th><th scope="col">Gust</th><th scope="col">Crosswind</th><th scope="col">Low cloud · pct</th><th scope="col">Its {lead}-day forecasts dry and within limit</th></tr></thead><tbody>{model_rows_html}</tbody></table></div>'
             f'<h3>Sustained wind against gust</h3><p class="small">Gray dots are days, sized by count. Blue dots are this event\'s current forecasts (hollow: ensemble 90th percentile); orange are your reference flights. Hover a dot for its value.</p>'
             f'<div class="clim-panels">{"".join(panels)}</div>'
             f'<details><summary>Climatology sources &amp; limits</summary><ul>{"".join("<li>" + escape(n) + "</li>" for n in NOTES)}</ul>'

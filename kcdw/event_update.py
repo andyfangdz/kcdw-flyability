@@ -80,11 +80,8 @@ def collect_synoptic_pattern(client, snapshot, now):
 
 
 def collect_event_climatology(client, snapshot, cache_path, now, var):
-    from .ecmwf_archive import cache_path as ecmwf_cache
-    from .event_climatology import collect_climatology as collect, window
-    from .wn3_climatology import cache_path as wn3_cache
-    start = window(snapshot)['label'][:5]
-    return collect(client, snapshot, cache_path, now, ecmwf_cache(var, start), wn3_cache(var, start))
+    from .event_climatology import collect_climatology as collect
+    return collect(client, snapshot, cache_path, now, var)
 
 
 def collect_wn3_100m_wind(snapshot, now):

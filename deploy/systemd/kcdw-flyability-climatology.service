@@ -1,0 +1,21 @@
+[Unit]
+Description=Build lead-matched ECMWF and WN3 forecast archives for upcoming KCDW events
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Environment=PATH=/home/andy/projects/kcdw-flyability/var/runtime-venv/bin:/home/andy/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=GOOGLE_APPLICATION_CREDENTIALS=/home/andy/.config/kcdw-flyability/google-adc.json
+Environment=WN3_BIGQUERY_PROJECT=aviation-486817
+Environment=PYTHONPATH=/home/andy/projects/kcdw-flyability
+UMask=0077
+Type=oneshot
+WorkingDirectory=/home/andy/projects/kcdw-flyability
+Environment=HOME=/home/andy
+ExecStart=/usr/bin/flock -n var/climatology-backfill.lock /home/andy/projects/kcdw-flyability/var/runtime-venv/bin/python scripts/climatology_backfill.py --var var --minutes 50
+TimeoutStartSec=70min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/andy/projects/kcdw-flyability/var
