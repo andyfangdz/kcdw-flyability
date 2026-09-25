@@ -11,7 +11,7 @@ from .prose_agent import Session
 from .common import load_json
 from .evidence import prepare
 from .typesafe_assessment import apply_decisions, assess_week, fixed_schema, overview_evidence, preflight
-from .typesafe_client import configured_client, encoded, private_json
+from .typesafe_client import TypeSafeBillingError, configured_client, encoded, private_json
 from .typesafe_review import optional_feature, rank_afds, ranking_note, review_briefing
 
 
@@ -32,7 +32,16 @@ def generate(snapshot, prompt, schema, output, log, artifacts, *, images=None, r
         return prose.run(prompt, claude_agent.cli_schema(schema), output, log, tools=tools,
                                 images=images, timeout=timeout, runner=runner)
     evidence = prepare(snapshot)
-    ranking = optional_feature(client, 'afd-ranking', lambda: rank_afds(client, evidence))
+    try:
+        ranking = rank_afds(client, evidence)
+    except TypeSafeBillingError:
+        # Every later required TypeSafe step would fail too: stop before paying for the draft.
+        private_json(artifacts / 'status.json', {'status': 'failed', 'error_type': 'TypeSafeBillingError',
+                                                 'reason': 'TypeSafe has no available API credits; stopped before drafting.'})
+        raise
+    except Exception as exc:  # any other ranking failure stays optional, as before
+        private_json(artifacts / 'afd-ranking-unavailable.json', {'status': 'unavailable', 'error_type': type(exc).__name__})
+        ranking = None
     prompt += ranking_note(ranking)
     # Fail before the paid draft if a day's evidence cannot fit TypeSafe's context.
     request_bytes = preflight(snapshot, ranking)

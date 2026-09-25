@@ -489,6 +489,25 @@ class TypeSafeTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertFalse((self.root / 'analysis.json').exists())
 
+    def test_billing_error_stops_before_the_paid_draft(self):
+        calls = []
+        def runner(command, **kwargs):
+            calls.append(1)
+            raise AssertionError('the draft must not be requested')
+        with patch.object(assessment_agent, 'rank_afds', side_effect=api.TypeSafeBillingError('no credits')):
+            with self.assertRaises(api.TypeSafeBillingError):
+                assessment_agent.generate(self.snapshot, 'Weather prompt', json.loads((ROOT / 'schema/analysis.schema.json').read_text()),
+                                           self.root / 'analysis.json', self.root / 'log', self.client.artifacts,
+                                           runner=runner, client=self.client, configure=False)
+        self.assertEqual(calls, [])
+        self.assertEqual(json.loads((self.client.artifacts / 'status.json').read_text())['error_type'], 'TypeSafeBillingError')
+
+    def test_http_402_is_a_billing_error(self):
+        client = api.Client('private-test-key', self.root / 'billing', sleep=lambda _: None,
+                            transport=lambda url, **kw: Response({'detail': {'error_type': 'billing_error'}}, status=402))
+        with self.assertRaises(api.TypeSafeBillingError):
+            client.evaluate('probe', {'text': 'evidence'}, {'q': {'type': 'choice', 'instructions': 'Q?', 'criteria': {'y': 'Y', 'n': 'N'}}})
+
     def test_event_reviewer_failure_preserves_valid_narrative(self):
         snapshot = {'event': {'name': 'Checkride'}, 'collected_at': event_helpers.NOW.isoformat()}
 

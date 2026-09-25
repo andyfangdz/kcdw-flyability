@@ -20,6 +20,10 @@ class TypeSafeError(ValueError):
     """Safe to log: never contains credentials or service response bodies."""
 
 
+class TypeSafeBillingError(TypeSafeError):
+    """The organization has no TypeSafe credits; every further call in this run will fail too."""
+
+
 class TypeSafeContextError(TypeSafeError):
     """The request exceeded the model context; the caller may split its questions."""
 
@@ -191,6 +195,8 @@ class Client:
                         continue
                     if response.status_code == 400 and _error_type(response) == 'max_tokens_exceeded':
                         raise TypeSafeContextError('TypeSafe max_tokens_exceeded')
+                    if response.status_code == 402:
+                        raise TypeSafeBillingError('TypeSafe billing_error: no available API credits')
                     if response.status_code != 200:
                         raise TypeSafeError(f'TypeSafe HTTP status {response.status_code}')
                     chunks, size = [], 0
@@ -217,7 +223,8 @@ class Client:
             # Service error bodies and transport exception messages can echo headers/state.
             message = str(exc) if isinstance(exc, TypeSafeError) else 'TypeSafe transport or JSON failure'
             private_json(stem.with_suffix('.error.json'), {'error': message, 'request_sha256': digest(request)})
-            raise (TypeSafeContextError if isinstance(exc, TypeSafeContextError) else TypeSafeError)(message) from None
+            kind = next((k for k in (TypeSafeContextError, TypeSafeBillingError) if isinstance(exc, k)), TypeSafeError)
+            raise kind(message) from None
 
 
 def configured_client(artifacts, *, var=None):
