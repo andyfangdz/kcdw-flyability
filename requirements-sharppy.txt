@@ -1,0 +1,5 @@
+# Isolated SHARPpy analysis worker (var/sharppy-venv). The PyPI release pins numpy 1.15,
+# which does not build on Python 3.11, so SHARPpy is installed from a pinned commit with --no-deps.
+numpy==1.26.4
+python-dateutil==2.9.0.post0
+requests==2.32.5

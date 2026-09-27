@@ -30,6 +30,7 @@ SOURCES = {
     'collect_consensus_prog': 'consensus_prog',
     'collect_event_climatology': 'event_climatology',
     'collect_wind_profile': 'wind_profile',
+    'collect_model_soundings': 'model_soundings',
     'build_trends': 'ensemble_trends',
     'build_forecast_history': 'forecast_history',
     'build_event_changes': 'event_changes',

@@ -39,7 +39,7 @@ ERRORS = (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowE
 # Least to most important when whole sources must be omitted for size.
 # Unlisted sources go first; protected cloud/RH/change sources are never listed.
 EVICTION_ORDER = ('cpc_wpc', 'nhc', 'wn3_cyclones', 'wn3_hourly', 'geps', 'aifs_ens', 'gfs',
-                  'gefs', 'ecmwf_ens', 'run_history', 'wind_native', 'wind_profile', 'synoptic_pattern', 'climatology', 'week_ahead', 'afd_aly', 'wind_trends',
+                  'gefs', 'ecmwf_ens', 'run_history', 'wind_native', 'wind_profile', 'soundings', 'synoptic_pattern', 'climatology', 'week_ahead', 'afd_aly', 'wind_trends',
                   'wn3_point', 'afd_phi', 'wind_deterministic', 'afd_okx', 'wind_surface')
 
 
@@ -314,6 +314,12 @@ def build_event_evidence(snapshot, now) -> dict:
         result['sources'].append({'id': 'wind_profile', 'label': 'Wind by height at the flight hour · physics and AI models',
             'url': 'https://kcdw-flyability.andyfang.workers.dev' + event.path() + '#wind-profile', 'status': 'available' if packet else 'unavailable',
             'evidence': packet if packet else {'reason': 'Wind-by-height comparison unavailable; no favorable inference.'}})
+    if 'model_soundings' in snapshot:
+        from .soundings import sounding_evidence
+        packet = sounding_evidence(snapshot, now)
+        result['sources'].append({'id': 'soundings', 'label': 'Model soundings at the flight hour · SHARPpy mixing height and mixed-layer wind',
+            'url': 'https://kcdw-flyability.andyfang.workers.dev' + event.path() + '#soundings', 'status': 'available' if packet else 'unavailable',
+            'evidence': packet if packet else {'reason': 'Model soundings unavailable; no favorable inference.'}})
     if 'event_climatology' in snapshot:
         from .event_climatology import climatology_evidence
         packet = climatology_evidence(snapshot, now)
