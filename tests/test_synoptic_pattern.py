@@ -56,6 +56,22 @@ class PatternTests(unittest.TestCase):
         self.assertEqual([(b[0], b[1]) for b in blocks], [(datetime(2026, 9, 19, 6, tzinfo=UTC), 12),
                                                           (datetime(2026, 9, 24, 12, tzinfo=UTC), 24)])
 
+    def test_decodes_tenth_degree_analysis(self):
+        text = 'CODSUS\nVALID 092703Z\nHIGHS 1028 5300746 1019 3571119\nLOWS 991 6041089 989 3930716\n'
+        [(_, _, highs, lows)] = pattern.decode(text, datetime(2026, 9, 27, 3, tzinfo=UTC), True)
+        self.assertEqual(highs, [(1028, 53.0, -74.6), (1019, 35.7, -111.9)])
+        self.assertEqual(lows[-1], (989, 39.3, -71.6))
+        with self.assertRaises(ValueError):
+            pattern._position('530074')
+
+    def test_skips_malformed_centers_but_rejects_garbage(self):
+        text = 'CODSUS\nVALID 092700Z\nHIGHS 1022 47117 xxx 7438 1021 3249 1018 3711810\nLOWS 991 60110 1011 010178 0000 4073\n'
+        [(_, _, highs, lows)] = pattern.decode(text, datetime(2026, 9, 27, 1, 36, tzinfo=UTC), True)
+        self.assertEqual(highs, [(1022, 47, -117), (1021, 32, -49)])
+        self.assertEqual(lows, [(991, 60, -110)])
+        with self.assertRaises(ValueError):
+            pattern.decode(text.replace('7438', '74X8'), datetime(2026, 9, 27, 1, 36, tzinfo=UTC), True)
+
     def test_month_rollover(self):
         valid = pattern._valid('011200Z', datetime(2026, 9, 30, 17, tzinfo=UTC), False)
         self.assertEqual(valid, datetime(2026, 10, 1, 12, tzinfo=UTC))

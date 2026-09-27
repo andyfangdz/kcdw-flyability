@@ -34,7 +34,7 @@ MAX_FORECAST_AGE = timedelta(hours=30)
 KCDW = (40.8752, -74.2814)
 KEYWORDS = ('HIGHS', 'LOWS', 'COLD', 'WARM', 'STNRY', 'OCFNT', 'TROF', 'DRYLINE', 'SQLN')
 NOTES = [
-    'Pressure centers are WPC hand analyses/forecasts, decoded to whole degrees; distance, bearing and pressure difference are derived here.',
+    'Pressure centers are WPC hand analyses/forecasts, decoded to whole or tenth degrees as issued; distance, bearing and pressure difference are derived here.',
     'Only the strongest high and deepest low within 1,500 km of KCDW are listed; other centers and fronts are on WPC maps.',
     'A larger high–low difference over a shorter distance means a tighter pressure gradient, which generally drives stronger wind; it is not a KCDW wind or gust forecast.',
     'WPC 36/48-hour forecasts come from a separate product from the 12/24-hour forecasts; forecast times are fixed synoptic hours, not the flight hour.',
@@ -57,19 +57,32 @@ def _distance_bearing(a, b):
 
 
 def _position(code):
-    """WPC whole-degree code: two latitude digits, then west longitude (e.g. 4978 = 49N 78W)."""
-    _require(re.fullmatch(r'\d{4,5}', code) is not None)
-    lat, lon = int(code[:2]), int(code[2:])
+    """WPC position code, west longitude. Whole degrees: two latitude digits, then longitude
+    (4978 = 49N 78W). Tenths, used by the high-resolution analyses: three, then four
+    (5300746 = 53.0N 74.6W)."""
+    _require(re.fullmatch(r'\d{4,5}|\d{7}', code) is not None)
+    if len(code) == 7:
+        lat, lon = int(code[:3]) / 10, int(code[3:]) / 10
+    else:
+        lat, lon = int(code[:2]), int(code[2:])
     _require(0 < lat < 90 and 0 < lon < 180)
     return lat, -lon
 
 
 def _centers(tokens):
+    """(hPa, lat, lon) for each decodable center. The hand-coded products occasionally carry
+    one malformed entry (a missing "xxx" or "0000" pressure, a six-digit or dateline position);
+    that center is skipped, but anything that is not a numeric code rejects the product."""
     _require(len(tokens) % 2 == 0)
+    _require(all(re.fullmatch(r'\d+|[xX]{3,4}', p) and re.fullmatch(r'\d+', c) for p, c in zip(tokens[::2], tokens[1::2])))
     out = []
     for pressure, code in zip(tokens[::2], tokens[1::2]):
-        _require(re.fullmatch(r'\d{3,4}', pressure) is not None and 900 <= int(pressure) <= 1090)
-        out.append((int(pressure), *_position(code)))
+        try:
+            position = _position(code)
+            _require(re.fullmatch(r'\d{3,4}', pressure) is not None and 900 <= int(pressure) <= 1090)
+        except ValueError:
+            continue
+        out.append((int(pressure), *position))
     return out
 
 
