@@ -29,6 +29,7 @@ SOURCES = {
     'collect_synoptic_pattern': 'synoptic_pattern',
     'collect_consensus_prog': 'consensus_prog',
     'collect_event_climatology': 'event_climatology',
+    'collect_wind_profile': 'wind_profile',
     'build_trends': 'ensemble_trends',
     'build_forecast_history': 'forecast_history',
     'build_event_changes': 'event_changes',

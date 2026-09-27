@@ -624,6 +624,9 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
     from .event_wind_view import render_wind
     wind_html = render_wind(snapshot, now)
     wind_link = '<a href="#wind-analysis">Wind &amp; runways</a>' if wind_html else ''
+    from .wind_profile import render_profile
+    profile_html = render_profile(snapshot, now)
+    wind_link += '<a href="#wind-profile">Wind by height</a>' if profile_html else ''
     afd_html = render_afds(snapshot, now)
     from .event_model_matrix_view import render_matrix
     matrix_html = render_matrix(snapshot, now)
@@ -678,7 +681,7 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
 <header class="event-header"><div><p class="eyebrow">KCDW / Dated event briefing</p><h1>{esc(event.title)}</h1>{timing_header(snapshot, event)}</div><div class="event-meta"><p>{days} days out · {len(models)} of {len(MODELS)} systems</p><p class="freshness"><strong>{freshness}</strong><br><time datetime="{esc(snapshot['collected_at'])}">{esc(collected.astimezone(TZ).strftime('%b %-d, %H:%M %Z'))}</time> · {age // 3600}h {(age % 3600) // 60}m old at render</p></div></header>
 <nav class="section-nav" aria-label="Briefing sections"><a href="#briefing">Flight brief</a>{pattern_link}<a href="#low-cloud-analysis">Cloud &amp; ceiling</a>{wind_link}<a href="#model-guidance">Model comparison</a>{coastal_link}<a href="#regional-guidance">Regional context</a><a href="#notes-sources">Sources</a></nav>
 <section id="briefing" class="operational-briefing" data-tone="{esc(briefing['tone'])}" aria-label="Flight brief">{brief_html}</section>
-{pattern_html}{consensus_html}{week_html}{climatology_html}{cloud_html}{wind_html}
+{pattern_html}{consensus_html}{week_html}{climatology_html}{cloud_html}{wind_html}{profile_html}
 <div id="model-guidance" class="evidence-group">{matrix_html}{comparison}{model_detail}</div>
 {coastal_html}
 <details id="regional-guidance" class="report-detail"><summary>Regional outlooks &amp; tropical context</summary>{context_html}</details>

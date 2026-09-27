@@ -79,6 +79,11 @@ def collect_synoptic_pattern(client, snapshot, now):
     return collect(client, snapshot, now)
 
 
+def collect_wind_profile(client, snapshot, cache_path, now):
+    from .wind_profile import collect_profile as collect
+    return collect(client, snapshot, now, cache_path)
+
+
 def collect_consensus_prog(snapshot, var, now, publisher):
     from .consensus_charts import collect
     return collect(snapshot, var, now, publisher)
@@ -204,6 +209,7 @@ def update(var: Path, cloud_config: Path | None, now: datetime | None = None, ev
                 ("wn3_100m_wind", lambda: collect_wn3_100m_wind(snapshot, now)),
                 ("wn3_hourly", lambda: collect_wn3_hourly(now)),
                 ("weathernext2_members", lambda: collect_wn2_members(None, snapshot, now)),
+                ("wind_profile", lambda: collect_wind_profile(HttpClient(timeout=12, retries=0, direct_native=True), snapshot, var / "events" / event.slug / "wind-profile-cache.json", now)),
                 ("model_matrix", lambda: collect_model_matrix(HttpClient(timeout=12, retries=0, direct_native=True), snapshot, var / "events" / event.slug / "model-matrix-cache.json", now)),
             ):
                 try:
