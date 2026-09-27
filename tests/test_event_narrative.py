@@ -145,6 +145,25 @@ class NarrativeTests(unittest.TestCase):
         self.snapshot['event_narrative'] = result
         self.assertNotIn('unavailable', narrative.render_event_narrative(self.snapshot, completed_at))
 
+    def test_evidence_binds_after_collection_finishes(self):
+        seen = []
+        def record(snapshot, now):
+            seen.append(now)
+            return evidence(snapshot, now)
+        self.builder.stop()
+        with patch.object(narrative, 'build_event_evidence', side_effect=record):
+            bound = NOW + timedelta(seconds=40)  # live collectors stamp packets after collected_at
+            self.snapshot['evidence_bound_at'] = bound.isoformat()
+            self.generate()
+            self.assertEqual(seen[0], bound)
+            seen.clear()
+            self.assertNotIn('unavailable', narrative.render_event_narrative(self.snapshot, NOW + timedelta(minutes=2)))
+            self.assertEqual(seen[0], bound)  # the hash is recomputed at the same binding time
+            for invalid in (NOW - timedelta(seconds=1), NOW + timedelta(hours=1)):
+                self.snapshot['evidence_bound_at'] = invalid.isoformat()
+                self.assertIn('unavailable', narrative.render_event_narrative(self.snapshot, NOW + timedelta(minutes=2)))
+        self.builder.start()
+
     def test_failure_does_not_reuse_old_analysis(self):
         self.generate()
         def fail(*args, **kwargs):

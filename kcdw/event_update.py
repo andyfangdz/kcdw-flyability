@@ -226,6 +226,9 @@ def update(var: Path, cloud_config: Path | None, now: datetime | None = None, ev
                     record(f"event={event.slug} {key}=unavailable error={type(exc).__name__}")
             if live_clock:
                 now = datetime.now(UTC)
+            # Live collectors stamp their packets after collected_at; the narrative binds its
+            # evidence here, once every collector has finished, so none looks future-dated.
+            snapshot["evidence_bound_at"] = iso_z(now)
             try:
                 snapshot["ensemble_trends"] = build_trends(snapshot, var / "events" / event.slug / "runs", now)
             except Exception:
