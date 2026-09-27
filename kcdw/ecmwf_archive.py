@@ -1,9 +1,9 @@
-"""ECMWF IFS 7-day forecasts for a flight window, from the open-data archive on AWS.
+"""ECMWF IFS forecasts issued N days before a flight window, from the open-data archive.
 
 Open-Meteo's run archive has no ECMWF gust, so this reads native GRIB instead.
 For each past date the 00/12Z run about seven days earlier supplies 10 m wind
 at the flight's six-hourly time T0 (the flight start rounded down) and 10fg,
-the maximum gust over T0..T0+6 h. Results are cached per date permanently;
+the maximum gust over T0..T0+6 h (one to six native gust windows, by lead). Results are cached per date permanently;
 the one-time backfill runs from scripts/ecmwf_archive_backfill.py and each
 refresh only adds a few new dates. 10fg exists from the 2024-11-12 runs.
 """
@@ -21,7 +21,7 @@ from .events import TZ
 ROOT = Path(__file__).resolve().parents[1]
 PYTHON = ROOT / 'var/native-weather-venv/bin/python'
 WORKER = Path(__file__).with_name('ecmwf_archive_worker.py')
-BUCKET = 'https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com'
+BUCKET = 'https://storage.googleapis.com/ecmwf-open-data'  # ECMWF's Google Cloud mirror; the worker falls back to AWS
 FIRST_GUST_RUN = date(2024, 11, 12)
 BATCH = 20
 RETRY_AFTER = timedelta(days=2)
@@ -100,10 +100,19 @@ def update(path, start_local, first, last, now, limit=None, runner=_run, retry_e
             if out.get('init') != item['init'] or out.get('lead') != item['lead']:
                 continue
             days[key] = ({'error': out['error'], 'checked_at': iso_z(now)} if 'error' in out else
-                         {k: out[k] for k in ('init', 'lead', 'sust_kt', 'from_deg', 'gust_kt')})
+                         {k: out[k] for k in ('init', 'lead', 'sust_kt', 'from_deg', 'gust_kt', 'gust_hours') if k in out})
         cache.update(start_local=start_local, updated_at=iso_z(now))
         atomic_write(path, json.dumps(cache, separators=(',', ':'), sort_keys=True) + '\n')
     return cache
+
+
+# Earth Engine's gust band is "since last post-processing": a 6-hour window only once output is
+# 6-hourly (steps beyond 144 h). Shorter leads would silently give a 1- or 3-hour maximum.
+EE_MIN_GUST_STEP = 150
+
+
+def earth_engine_covers(lead):
+    return lead + 6 >= EE_MIN_GUST_STEP
 
 
 EE_PYTHON = ROOT / 'var/gfs-earth-engine-venv/bin/python'
@@ -124,6 +133,8 @@ def fill_from_earth_engine(path, start_local, first, last, now, runner=_run_ee, 
 
     Returns the number of dates filled; raises ValueError when the cross-check fails.
     """
+    if not earth_engine_covers(item_for(last, start_local, lead_days)['lead']):
+        return 0  # native GRIB only at this lead
     cache = load(path)
     days = cache['days']
     wanted = {}
@@ -157,6 +168,8 @@ def fill_from_earth_engine(path, start_local, first, last, now, runner=_run_ee, 
 
 def _earth_engine_item(init, lead, runner=_run_ee):
     """One run via Earth Engine in the worker's output shape, or an error item."""
+    if not earth_engine_covers(lead):
+        return {'init': iso_z(init), 'lead': lead, 'error': 'unavailable'}
     try:
         for row in runner({'creation_hour': init.hour, 'lead': lead, 'since': init.date().isoformat()}):
             if iso_z(datetime.fromtimestamp(row['created_ms'] / 1000, UTC)) == iso_z(init):
@@ -196,7 +209,7 @@ def current(day, start_local, now, runner=_run, path=None, ee_runner=_run_ee):
                 [out] = runner([{'init': iso_z(init), 'lead': lead}])
                 verified = (cache or {}).get('ee_verified_at')
                 if 'error' in out and verified and now - parse_time(verified) <= timedelta(days=7):
-                    # The AWS mirror throttles intermittently; Earth Engine matched GRIB this week.
+                    # Both mirrors failed; Earth Engine matched GRIB this week.
                     out = _earth_engine_item(init, lead, ee_runner)
                 if 'error' not in out:
                     result = {'init': iso_z(init), 'lead': lead, 'sust': out['sust_kt'], 'gust': out['gust_kt'],

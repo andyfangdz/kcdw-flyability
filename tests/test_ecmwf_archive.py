@@ -99,6 +99,19 @@ class ArchiveTests(unittest.TestCase):
             self.assertEqual(arch.fill_from_earth_engine(path, '14:00', first, last, NOW, runner=self.ee_runner()), 1)
             self.assertEqual(arch.load(path)['days']['2026-09-01']['source'], 'earth-engine')
 
+    def test_earth_engine_is_skipped_where_its_gust_window_is_short(self):
+        # Before 150 h Earth Engine's "since last post-processing" gust is a 1- or 3-hour maximum.
+        self.assertFalse(arch.earth_engine_covers(126))
+        self.assertTrue(arch.earth_engine_covers(150))
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'c.json'
+            first, last = date(2026, 8, 2), date(2026, 9, 10)
+            calls = []
+            self.assertEqual(arch.fill_from_earth_engine(path, '14:00', first, last, NOW, runner=calls.append, lead_days=5), 0)
+            self.assertEqual(calls, [])
+            self.assertEqual(arch._earth_engine_item(datetime(2026, 9, 24, 12, tzinfo=UTC), 126, runner=calls.append)['error'], 'unavailable')
+            self.assertEqual(calls, [])
+
     def test_current_falls_back_to_verified_earth_engine(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / 'c.json'
@@ -125,3 +138,36 @@ class ArchiveTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class WorkerGustWindowTests(unittest.TestCase):
+    """The worker tiles lead..lead+6 with the gust windows each open-data step carries."""
+
+    def setUp(self):
+        import sys
+        sys.path.insert(0, str(Path(arch.__file__).parent))
+        import ecmwf_archive_worker
+        self.w = ecmwf_archive_worker
+
+    def run_gust(self, lead, windows):
+        from unittest.mock import patch
+        init = datetime(2026, 9, 10, 12, tzinfo=UTC)
+        param = lambda end: '10fg3' if 93 <= end <= 144 else '10fg'
+        index = lambda _init, end: [{'param': param(end), 'date': '20260910', 'time': '1200', 'step': str(end), 'type': 'fc',
+                                     'stream': 'oper', 'levtype': 'sfc', '_offset': 0, '_length': 10}]
+        decode = lambda _content, name, _init, end: (windows[end][1], windows[end][0])
+        with patch.object(self.w, 'index', side_effect=index), patch.object(self.w, 'mirrored', return_value=b''), \
+                patch.object(self.w, 'decode', side_effect=decode):
+            return self.w.six_hour_gust(init, lead)
+
+    def test_windows_by_lead(self):
+        self.assertEqual(self.w.output_steps(150), [156])
+        self.assertEqual(self.run_gust(150, {156: (150, 9.0)}), (9.0, 6))
+        self.assertEqual(self.run_gust(102, {108: (105, 7.0), 105: (102, 11.0)}), (11.0, 6))
+        self.assertEqual(self.run_gust(78, {84: (83, 5.0), 81: (80, 6.0)}), (6.0, 2))  # last hour of each 3-hourly step
+
+    def test_windows_outside_the_span_are_rejected(self):
+        with self.assertRaises(ValueError):
+            self.run_gust(102, {108: (102, 7.0), 105: (102, 11.0)})  # overlapping windows
+        with self.assertRaises(ValueError):
+            self.run_gust(150, {156: (144, 9.0)})  # starts before the flight time

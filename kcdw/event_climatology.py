@@ -202,7 +202,10 @@ def _native_ifs(fresh, var, win, today, now, lead):
     rain = {r[0]: r[4] for r in fresh['models'].get('ifs', {}).get('rows', [])}
     native = [[d, s, g, x, rain[d]] for d, s, g, x in native if d in rain]
     if len(native) > 300:
-        fresh['models']['ifs'] = {'label': 'ECMWF IFS', 'model': 'ecmwf-open-data', 'source_url': ecmwf_archive.BUCKET,
+        # Within 90 h, open data keeps only the last hour of each 3-hourly gust window; say so.
+        hours = min((e.get('gust_hours', 6) for e in cache['days'].values() if 'error' not in e), default=6)
+        label = 'ECMWF IFS' if hours == 6 else f'ECMWF IFS · gust from {hours} of 6 h'
+        fresh['models']['ifs'] = {'label': label, 'model': 'ecmwf-open-data', 'source_url': ecmwf_archive.BUCKET,
                                   'period': [native[0][0], native[-1][0]], 'rows': native}
 
 

@@ -44,7 +44,8 @@ def main():
             path = ecmwf_archive.cache_path(args.var, start, lead)
             path.parent.mkdir(parents=True, exist_ok=True)
             try:
-                ecmwf_archive.update(path, start, first, last, now, limit=20, lead_days=lead)
+                # Google's mirror is not throttled: fill the whole lead natively (Earth Engine only covers leads past 144 h).
+                ecmwf_archive.update(path, start, first, last, now, lead_days=lead)
                 filled = ecmwf_archive.fill_from_earth_engine(path, start, first, last, now, lead_days=lead)
                 print(f'{event.slug} lead {lead}d ECMWF: {len(ecmwf_archive.rows(ecmwf_archive.load(path)))} dates ({filled} from Earth Engine)')
             except Exception as exc:
