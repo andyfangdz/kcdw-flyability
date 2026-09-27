@@ -34,6 +34,9 @@
           "gust_kt": 26,
           "note": "Observed about 10 a.m.–noon. Maneuvers were fine; gusty landings were not."
         }
+      ],
+      "crosswind_runways": [
+        "04/22"
       ]
     }
   }

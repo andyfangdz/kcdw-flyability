@@ -126,6 +126,17 @@ def _fresh(snapshot, now):
     return collected
 
 
+def _bound_at(snapshot, collected):
+    """When the narrative evidence is bound: after collection finished, or collected_at for
+    snapshots archived before evidence_bound_at existed (their hashes stay reproducible)."""
+    if 'evidence_bound_at' not in snapshot:
+        return collected
+    bound = _time(snapshot['evidence_bound_at'])
+    if not collected <= bound <= collected + timedelta(minutes=30):
+        raise ValueError('Invalid evidence binding time')
+    return bound
+
+
 def _private_file(path, content):
     # Refuse pre-existing symlinks; never follow an artifact outside work_dir.
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
@@ -143,8 +154,8 @@ def generate_event_narrative(snapshot: dict, work_dir: Path, now: datetime, *, r
     """
     now = _time(now)
     collected = _fresh(snapshot, now)
-    # ALWAYS bind at collection time: assessed_at/status may vary with the clock.
-    evidence = build_event_evidence(snapshot, collected)
+    # ALWAYS bind at a fixed collection time: assessed_at/status may vary with the clock.
+    evidence = build_event_evidence(snapshot, _bound_at(snapshot, collected))
     catalog = _catalog(evidence)
     work_dir = Path(work_dir).resolve()
     work_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -166,7 +177,7 @@ TIMING AND EVIDENCE:
 - Prefer fresh WeatherNext 3 model guidance beyond 48 hours, with independent comparisons. Official NWS reasoning leads for the periods it actually covers. Resolve named days from each bulletin's issuance date in America/New_York. OKX is local, PHI south and ALY north; geographic differences are not automatically disagreement or independent votes. AFD aviation excerpts are not a KCDW TAF, and omitted text does not rule out hazards.
 - Numbers must come from supplied evidence. Round wind, pressure and rainfall sensibly and cloud coverage to whole percent. Keep WN3 means distinct from conventional medians, member counts from probabilities, and hourly percentiles from event-total percentiles. Missing guidance is unknown.
 - Cloud fraction and temperature/dew-point base estimates are not ceilings. Use native GFS ceiling only as approximate height above model terrain. Assess moist-layer depth, thermal caps and actual member persistence when these explain the controlling cloud uncertainty. GFS ceiling and RH are one model. Surface drying does not prove an elevated layer clears. WN3 derived 2 m RH is from mean temperature/dew point, not ensemble-mean RH or pressure-level RH.
-- For wind, prioritize flight-window NWS guidance and separately validated ensemble/native evidence. Retain gust interval semantics and member-specific crosswind assumptions. Never infer wind direction from speed/cloud or assume runway availability or pilot limits. Native pressure-level winds are not exact AGL heights; surface/aloft differences alone do not establish turbulence, LLWS or mixing. WN3 100 m wind is elevated-wind context, not a gust or gust upper bound. Missing gusts do not imply calm conditions.
+- For wind, prioritize flight-window NWS guidance and separately validated ensemble/native evidence. Retain gust interval semantics and member-specific crosswind assumptions. Never infer wind direction from speed/cloud or assume runway availability or pilot limits beyond pilot_settings. When pilot_settings lists crosswind_runways, judge crosswind only on those runways; crosswind on any other runway is not a concern and must not appear in the headline, lead or conclusions. Compare gusts with pilot_settings.gust_limit_kt when present. Native pressure-level winds are not exact AGL heights; surface/aloft differences alone do not establish turbulence, LLWS or mixing. WN3 100 m wind is elevated-wind context, not a gust or gust upper bound. Missing gusts do not imply calm conditions.
 - When the flight is days away, use week_ahead (WPC days 3-7 reasoning and each model's 12-hourly evolution) to explain how the pattern evolves toward the flight and when approaching systems, wind shifts or fronts arrive; name the models that disagree on timing.
 - Use wind_profile (each model's wind at about 2,500 and 5,000 ft at the flight hour, including the AI models AIFS and AIGFS) to judge gust potential from mixing and whether a model's surface direction is tied to the flow aloft; treat it as gust potential, never as a gust forecast.
 - Use soundings (SHARPpy analysis of each model's profile at the flight hour) for how deep the afternoon mixes and the strongest wind inside the mixed layer, and for cloud bases and moist layers; the mixed-layer wind is gust potential, and coarse-level models place the mixing top less precisely than GFS.
@@ -234,7 +245,7 @@ def render_event_narrative(snapshot: dict, now: datetime) -> str:
             raise ValueError('Invalid narrative time')
         if envelope['snapshot_collected_at'] != snapshot['collected_at']:
             raise ValueError('Narrative belongs to a different snapshot')
-        evidence = build_event_evidence(snapshot, collected)
+        evidence = build_event_evidence(snapshot, _bound_at(snapshot, collected))
         if envelope['evidence_sha256'] != evidence_sha256(evidence):
             raise ValueError('Narrative evidence changed')
         catalog = _catalog(evidence)

@@ -1,6 +1,8 @@
 """Pilot-set limits and reference flights for one event, snapshot-bound like timing.
 
-Optional events.json metadata: {"personal": {slug: {slug, gust_limit_kt, references}}}.
+Optional events.json metadata: {"personal": {slug: {slug, gust_limit_kt, references[, crosswind_runways]}}}.
+``crosswind_runways`` names the runways whose crosswind matters to the pilot (from 04/22, 10/28);
+crosswind on the others is not a concern.
 Each snapshot archives its own validated copy; invalid config is absent, never guessed.
 """
 from __future__ import annotations
@@ -12,11 +14,17 @@ from .common import load_json
 from .events import DEFAULT_CONFIG
 
 MAX_REFERENCES = 5
+RUNWAYS = ('04/22', '10/28')
 
 
 def validate_personal(value, event):
-    if not isinstance(value, dict) or set(value) != {'slug', 'gust_limit_kt', 'references'} or value['slug'] != event.slug:
+    if not isinstance(value, dict) or not {'slug', 'gust_limit_kt', 'references'} <= set(value) <= {'slug', 'gust_limit_kt', 'references', 'crosswind_runways'} \
+            or value['slug'] != event.slug:
         raise ValueError('invalid personal settings')
+    runways = value.get('crosswind_runways')
+    if runways is not None and (not isinstance(runways, list) or not runways or len(set(runways)) != len(runways)
+                                or any(r not in RUNWAYS for r in runways)):
+        raise ValueError('invalid crosswind runways')
     limit = value['gust_limit_kt']
     if type(limit) is not int or not 5 <= limit <= 60:
         raise ValueError('invalid gust limit')
@@ -35,7 +43,10 @@ def validate_personal(value, event):
         if any(type(ref[k]) not in (int, float) or not 0 <= ref[k] <= 150 for k in ('sustained_kt', 'gust_kt')) or ref['gust_kt'] < ref['sustained_kt']:
             raise ValueError('invalid reference wind')
         clean.append(dict(ref))
-    return {'slug': value['slug'], 'gust_limit_kt': limit, 'references': clean}
+    out = {'slug': value['slug'], 'gust_limit_kt': limit, 'references': clean}
+    if runways is not None:
+        out['crosswind_runways'] = list(runways)
+    return out
 
 
 def load_event_personal(event, path=None):

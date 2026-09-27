@@ -148,9 +148,21 @@ class ClimatologyTests(unittest.TestCase):
         good = self.snapshot()['event_personal']
         self.assertEqual(validate_personal(good, event)['gust_limit_kt'], 20)
         for bad in ({**good, 'gust_limit_kt': 200}, {**good, 'slug': 'other'},
-                    {**good, 'references': [{**good['references'][0], 'gust_kt': 5}]}):
+                    {**good, 'references': [{**good['references'][0], 'gust_kt': 5}]},
+                    {**good, 'crosswind_runways': []}, {**good, 'crosswind_runways': ['09/27']},
+                    {**good, 'crosswind_runways': ['04/22', '04/22']}, {**good, 'extra': 1}):
             with self.assertRaises(ValueError):
                 validate_personal(bad, event)
+        self.assertNotIn('crosswind_runways', validate_personal(good, event))
+        self.assertEqual(validate_personal({**good, 'crosswind_runways': ['04/22']}, event)['crosswind_runways'], ['04/22'])
+
+    def test_pilot_settings_reach_the_narrative(self):
+        from kcdw.event_narrative_evidence import build_event_evidence
+        snapshot = self.snapshot()
+        snapshot['event_personal'] = dict(snapshot['event_personal'], crosswind_runways=['04/22'])
+        sources = {s['id']: s for s in build_event_evidence(snapshot, NOW)['sources']}
+        self.assertEqual(sources['pilot_settings']['evidence']['crosswind_runways'], ['04/22'])
+        self.assertEqual(sources['pilot_settings']['evidence']['gust_limit_kt'], 20)
 
 
 if __name__ == '__main__':

@@ -19,9 +19,10 @@ from .synoptic_context import context_evidence, _Text
 from .tropical_guidance import validate_wn3_cyclones
 
 MAX_BYTES = 60_000
-# Restored paired changes and flight-window wind need more room. The observe-only
-# TypeSafe change review sends the full packet: ~29k input tokens at this size.
-PRIORITY_MAX_BYTES = 72_000
+# Room for paired changes, flight-window wind, wind by height and soundings. The observe-only
+# TypeSafe reviews send the full packet (~92 KB requests at this size); typesafe_budget.fit
+# shortens AFD prose if a request grows past its 95 KB budget.
+PRIORITY_MAX_BYTES = 88_000
 MODEL_URL = 'https://open-meteo.com/en/docs/ensemble-api'
 WEATHERLAB_URL = 'https://storage.googleapis.com/weathernext3_statistics_spatial/weathernext_3_0_0_statistics/zarr/'
 SOURCES = {s.key: (s.name, MODEL_URL) for s in MODELS} | {
@@ -40,7 +41,7 @@ ERRORS = (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowE
 # Unlisted sources go first; protected cloud/RH/change sources are never listed.
 EVICTION_ORDER = ('cpc_wpc', 'nhc', 'wn3_cyclones', 'wn3_hourly', 'geps', 'aifs_ens', 'gfs',
                   'gefs', 'ecmwf_ens', 'run_history', 'wind_native', 'wind_profile', 'soundings', 'synoptic_pattern', 'climatology', 'week_ahead', 'afd_aly', 'wind_trends',
-                  'wn3_point', 'afd_phi', 'wind_deterministic', 'afd_okx', 'wind_surface')
+                  'wn3_point', 'afd_phi', 'wind_deterministic', 'afd_okx', 'wind_surface', 'pilot_settings')
 
 
 def _text(value, limit=6000):
@@ -295,6 +296,13 @@ def build_event_evidence(snapshot, now) -> dict:
                 'url': packet['product_url'] if packet else None,
                 'status': 'available' if packet else 'unavailable',
                 'evidence': packet if packet else {'reason': 'Current office discussion unavailable; no carry-forward or favorable inference.'}})
+    if snapshot.get('event_personal') is not None:
+        from .event_personal import personal
+        packet = personal(snapshot)
+        result['sources'].append({'id': 'pilot_settings', 'label': 'Pilot-set limits for this event',
+            'url': None, 'status': 'available' if packet else 'unavailable',
+            'evidence': {'gust_limit_kt': packet['gust_limit_kt'], 'crosswind_runways': packet.get('crosswind_runways'),
+                         'reference_flights': packet['references']} if packet else {'reason': 'Pilot settings invalid; use no pilot limits.'}})
     if 'synoptic_pattern' in snapshot:
         from .synoptic_pattern import pattern_evidence
         packet = pattern_evidence(snapshot, now)
