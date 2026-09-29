@@ -340,11 +340,27 @@ def _story(rows):
     return parts
 
 
+MID_CLOUD_NOTE = ('flight_mid_cloud is the model-matrix mean mid-level cloud fraction over the expected flight from the named run, '
+                  'which can differ from the sounding run; null when unavailable. It is coverage, not thickness or a ceiling.')
+
+
+def _mid_cloud(snapshot):
+    """Flight-window mid-level cloud by model key from the validated model matrix."""
+    from .event_model_matrix import validate_matrix
+    try:
+        rows = validate_matrix(snapshot.get('model_matrix'), snapshot)['models']
+    except ERRORS:
+        return {}
+    return {r['key']: {'pct': r['current']['values']['mid_cloud_pct'], 'run': r['current']['run']}
+            for r in rows if r['ok'] and r['current']['values'].get('mid_cloud_pct') is not None}
+
+
 def sounding_evidence(snapshot, now):
     try:
         packet = validate_soundings(snapshot.get('model_soundings'), snapshot)
     except ERRORS:
         return None
+    mid = _mid_cloud(snapshot)
     models = []
     for row in packet['models']:
         if row['ok']:
@@ -353,9 +369,10 @@ def sounding_evidence(snapshot, now):
             models.append({'model': row['label'] + (' (AI)' if row['ai'] else ''), 'run': row['runs'][0]['run'], **s,
                            'previous_run': None if previous is None else {
                                'run': row['runs'][1]['run'], 'mixing_height_ft': previous['mixing_height_ft'],
-                               'mixed_layer_max_wind': previous['mixed_layer_max_wind']}})
-    return {'sample_at': packet['sample_at'], 'summary': _story(packet['models']), 'models': models, 'notes': NOTES[:3],
-            'analysis': packet['analysis']}
+                               'mixed_layer_max_wind': previous['mixed_layer_max_wind']},
+                           'flight_mid_cloud': mid.get(row['key'])})
+    return {'sample_at': packet['sample_at'], 'summary': _story(packet['models']), 'models': models,
+            'notes': [*NOTES[:3], MID_CLOUD_NOTE], 'analysis': packet['analysis']}
 
 
 # Skew-T geometry: log-pressure height, 45-degree skew.

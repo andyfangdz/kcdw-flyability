@@ -149,6 +149,13 @@ class SoundingTests(unittest.TestCase):
         ukmo = next(m for m in evidence['models'] if m['model'] == 'UKMO Global')
         self.assertEqual((ukmo['mixing_height_ft'], ukmo['mixed_layer_max_wind']), (4900, '229° 23 kt'))
         self.assertEqual(ukmo['previous_run']['run'], '2026-09-18T12:00:00Z')
+        self.assertIsNone(ukmo['flight_mid_cloud'])
+        self.assertIn('flight_mid_cloud', evidence['notes'][-1])
+        mid = {'ukmo': {'pct': 78, 'run': '2026-09-18T12:00:00Z'}}
+        with patch.object(soundings, '_mid_cloud', return_value=mid):
+            evidence = soundings.sounding_evidence(snapshot, NOW)
+        self.assertEqual(next(m for m in evidence['models'] if m['model'] == 'UKMO Global')['flight_mid_cloud'], mid['ukmo'])
+        self.assertEqual(soundings._mid_cloud({'collected_at': snapshot['collected_at']}), {})
 
     def test_moist_layers_and_barbs(self):
         levels = copy.deepcopy(LEVELS)
