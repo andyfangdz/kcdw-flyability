@@ -31,6 +31,7 @@ SOURCES = {
     'collect_event_climatology': 'event_climatology',
     'collect_wind_profile': 'wind_profile',
     'collect_model_soundings': 'model_soundings',
+    'collect_calibrated_wind': 'calibrated_wind',
     'build_trends': 'ensemble_trends',
     'build_forecast_history': 'forecast_history',
     'build_event_changes': 'event_changes',

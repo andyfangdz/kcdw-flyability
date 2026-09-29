@@ -84,6 +84,11 @@ def collect_wind_profile(client, snapshot, cache_path, now):
     return collect(client, snapshot, now, cache_path)
 
 
+def collect_calibrated_wind(snapshot, path, now):
+    from .calibrated_wind import collect_calibrated as collect
+    return collect(snapshot, path, now)
+
+
 def collect_model_soundings(client, snapshot, cache_path, now):
     from .soundings import collect_soundings as collect
     return collect(client, snapshot, now, cache_path)
@@ -215,6 +220,7 @@ def update(var: Path, cloud_config: Path | None, now: datetime | None = None, ev
                 ("wn3_hourly", lambda: collect_wn3_hourly(now)),
                 ("weathernext2_members", lambda: collect_wn2_members(None, snapshot, now)),
                 ("wind_profile", lambda: collect_wind_profile(HttpClient(timeout=12, retries=0, direct_native=True), snapshot, var / "events" / event.slug / "wind-profile-cache.json", now)),
+                ("calibrated_wind", lambda: collect_calibrated_wind(snapshot, var / "mos" / "forecast.json", now)),
                 ("model_soundings", lambda: collect_model_soundings(HttpClient(timeout=20, retries=0, direct_native=True), snapshot, var / "events" / event.slug / "soundings-cache.json", now)),
                 ("model_matrix", lambda: collect_model_matrix(HttpClient(timeout=12, retries=0, direct_native=True), snapshot, var / "events" / event.slug / "model-matrix-cache.json", now)),
             ):
