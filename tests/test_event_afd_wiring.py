@@ -17,7 +17,7 @@ def packets() -> dict:
         'aviation_excerpt':'Monday: MVFR possible in showers.',
         'discussion_truncated':True,'aviation_truncated':True,
         'aviation_heading':'AVIATION /THROUGH MONDAY/'}
-        for office,name in [('OKX','New York/Upton'),('PHI','Mount Holly'),('ALY','Albany')]}
+        for office,name in [('OKX','New York/Upton'),('PHI','Mount Holly'),('BGM','Binghamton'),('ALY','Albany')]}
 
 
 class AfdWiringTests(unittest.TestCase):
@@ -26,12 +26,12 @@ class AfdWiringTests(unittest.TestCase):
         s['event_afds']={'collector_marker':True}
         return s
 
-    def test_three_independently_citable_offices_and_immutable_weather(self):
+    def test_four_independently_citable_offices_and_immutable_weather(self):
         s=self.snapshot();original=copy.deepcopy(s)
         with patch('kcdw.event_narrative_evidence.validated_afds',return_value=packets(),create=True):
             e=build_event_evidence(s,NOW)
         sources={x['id']:x for x in e['sources']}
-        for office in ('okx','phi','aly'):
+        for office in ('okx','phi','bgm','aly'):
             self.assertEqual(sources['afd_'+office]['status'],'available')
             self.assertEqual(sources['afd_'+office]['url'],packets()[office.upper()]['product_url'])
             self.assertIn('Monday through Wednesday',sources['afd_'+office]['evidence']['discussion_excerpt'])

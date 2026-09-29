@@ -3,12 +3,12 @@
 Public API:
     collect_afds(client, snapshot, now) -> envelope
     validate_afds(envelope, snapshot, now) -> sanitized envelope | None
-    afd_evidence(snapshot, now) -> {OKX: compact | None, PHI: ..., ALY: ...}
+    afd_evidence(snapshot, now) -> {OKX: compact | None, PHI: ..., BGM: ..., ALY: ...}
 
 Attach the envelope at snapshot['event_afds']. Envelope schema:
     {version: 1, snapshot_collected_at: str,
      event: {slug: str, date: str, window: str},
-     offices: {OKX: source | None, PHI: source | None, ALY: source | None}}
+     offices: {OKX: source | None, PHI: source | None, BGM: source | None, ALY: source | None}}
 Source schema:
     {office, name, id, productCode, issuingOffice, issuanceTime, productText,
      listing: {id, productCode, issuingOffice, issuanceTime},
@@ -26,7 +26,7 @@ or renewing any timestamps. Invalid outer binding returns None; independent
 invalid office records become None. Missing sections are empty strings, NOT
 claims that the event is covered. This module never changes flight readiness.
 
-Collection makes at most six client.get calls: one bounded listing scan (first
+Collection makes at most eight client.get calls: one bounded listing scan (first
 100 entries) and one selected detail per office. Client owns timeout, response
 byte bounds and retries. URLs are derived solely from pinned hosts/offices and
 canonical UUIDs; supplied @id values are never used. Products over 32,000 chars
@@ -48,7 +48,7 @@ from datetime import date, datetime, timedelta
 
 from .common import UTC, iso_z
 
-OFFICES = {'OKX': 'New York/Upton', 'PHI': 'Philadelphia/Mount Holly', 'ALY': 'Albany'}
+OFFICES = {'OKX': 'New York/Upton', 'PHI': 'Philadelphia/Mount Holly', 'BGM': 'Binghamton', 'ALY': 'Albany'}
 ROOT = 'https://api.weather.gov/products'
 MAX_TEXT = 32_000
 MAX_LIST_ENTRIES = 100

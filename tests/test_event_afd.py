@@ -9,7 +9,7 @@ from kcdw.event_afd import collect_afds, validate_afds, afd_evidence
 UTC = timezone.utc
 NOW = datetime(2026, 9, 17, 3, tzinfo=UTC)
 IDS = {office: f'00000000-0000-4000-8000-00000000000{i}'
-       for i, office in enumerate(('OKX', 'PHI', 'ALY'))}
+       for i, office in enumerate(('OKX', 'PHI', 'BGM', 'ALY'))}
 
 
 def stamp(at):
@@ -68,10 +68,10 @@ class AFDTests(unittest.TestCase):
         self.assertTrue(all(validate_afds(env, snap, NOW)['offices'].values()))
         return snap, env
 
-    def test_pinned_six_requests_and_bound_detached_envelope(self):
+    def test_pinned_eight_requests_and_bound_detached_envelope(self):
         client = FakeClient()
         snap, env = self.good(client)
-        self.assertEqual(len(client.urls), 6)
+        self.assertEqual(len(client.urls), 8)
         self.assertTrue(all(u.startswith('https://api.weather.gov/products/') for u in client.urls))
         self.assertNotIn('evil', json.dumps(env))
         self.assertEqual(env['version'], 1)
@@ -147,7 +147,7 @@ class AFDTests(unittest.TestCase):
             client = FakeClient(listing=mutate)
             env = collect_afds(client, snapshot(), NOW)
             self.assertIsNone(env['offices']['OKX'])
-            self.assertEqual(len(client.urls), 5)
+            self.assertEqual(len(client.urls), 7)
 
     def test_product_fetch_ttl_and_future_clock_limits(self):
         snap, env = self.good()
@@ -342,7 +342,7 @@ class AFDTests(unittest.TestCase):
         client = FakeClient(listing=listing)
         env = collect_afds(client, snapshot(), NOW)
         self.assertTrue(all(v is None for v in env['offices'].values()))
-        self.assertEqual(len(client.urls), 3)
+        self.assertEqual(len(client.urls), 4)
 
     def test_missing_envelope_and_malformed_inputs_fail_closed(self):
         self.assertEqual(afd_evidence(snapshot(), NOW), dict.fromkeys(IDS))

@@ -4,7 +4,8 @@ import re
 from .events import local_clock
 
 OFFICES = {'OKX': ('New York/Upton', 'Local'),
-           'PHI': ('Mount Holly', 'South'), 'ALY': ('Albany', 'North')}
+           'PHI': ('Mount Holly', 'South'), 'BGM': ('Binghamton', 'Northwest'),
+           'ALY': ('Albany', 'North')}
 
 
 def validated_afds(snapshot, now):

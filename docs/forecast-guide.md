@@ -304,7 +304,7 @@ old WN2 data is never relabeled WN3. See [WN2 BigQuery](../deploy/WN2-BIGQUERY.m
 ## Event NWS forecaster readings
 
 Hourly event updates independently collect the latest NWS AFDs from **OKX**
-(local), **PHI** (south) and **ALY** (north). The snapshot stores each actual
+(local), **PHI** (south), **BGM** (northwest) and **ALY** (north). The snapshot stores each actual
 product, issuance time and retrieval time. Bounded discussion/aviation excerpts
 are revalidated for narration and displayed under **Regional AFD readings**,
 with links to the exact issued products. Missing or stale offices remain

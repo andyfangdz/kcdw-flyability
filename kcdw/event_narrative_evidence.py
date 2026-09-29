@@ -40,7 +40,7 @@ ERRORS = (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowE
 # Least to most important when whole sources must be omitted for size.
 # Unlisted sources go first; protected cloud/RH/change sources are never listed.
 EVICTION_ORDER = ('cpc_wpc', 'nhc', 'wn3_cyclones', 'wn3_hourly', 'geps', 'aifs_ens', 'gfs',
-                  'gefs', 'ecmwf_ens', 'run_history', 'wind_native', 'wind_profile', 'soundings', 'synoptic_pattern', 'climatology', 'week_ahead', 'afd_aly', 'wind_trends',
+                  'gefs', 'ecmwf_ens', 'run_history', 'wind_native', 'wind_profile', 'soundings', 'synoptic_pattern', 'climatology', 'week_ahead', 'afd_bgm', 'afd_aly', 'wind_trends',
                   'wn3_point', 'afd_phi', 'wind_deterministic', 'calibrated_wind', 'afd_okx', 'wind_surface', 'pilot_settings')
 
 
@@ -293,7 +293,7 @@ def build_event_evidence(snapshot, now) -> dict:
             afds = validated_afds(snapshot, now)
         except ERRORS:
             afds = {}
-        for office, name in (('OKX', 'New York/Upton'), ('PHI', 'Mount Holly'), ('ALY', 'Albany')):
+        for office, name in (('OKX', 'New York/Upton'), ('PHI', 'Mount Holly'), ('BGM', 'Binghamton'), ('ALY', 'Albany')):
             packet = afds.get(office)
             result['sources'].append({'id': 'afd_' + office.lower(), 'label': f'NWS {office} · {name} AFD',
                 'url': packet['product_url'] if packet else None,
