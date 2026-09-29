@@ -1,0 +1,15 @@
+# Isolated calibrated-wind research/forecast environment (var/mos-venv, Python 3.12):
+#   uv venv -p 3.12 var/mos-venv && uv pip install -p var/mos-venv/bin/python -r requirements-mos.txt
+duckdb==1.5.6
+dynamical-catalog==1.0.1
+google-auth==2.59.0
+icechunk==2.2.2
+numpy==2.5.3
+pandas==3.0.6
+pyarrow==25.0.1
+requests==2.34.2
+scikit-learn==1.9.1
+scipy==1.18.1
+xarray==2026.7.0
+xgboost==3.4.1
+zarr==3.4.0

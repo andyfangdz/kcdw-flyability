@@ -1,0 +1,11 @@
+[Unit]
+Description=Calibrated KCDW wind forecast every six hours (retrain daily, re-score weekly)
+
+[Timer]
+OnCalendar=*-*-* 04,10,16,22:05:00 UTC
+Persistent=true
+RandomizedDelaySec=5min
+Unit=kcdw-flyability-mos.service
+
+[Install]
+WantedBy=timers.target

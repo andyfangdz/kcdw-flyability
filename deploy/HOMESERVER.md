@@ -8,10 +8,11 @@ Public hosting remains `https://kcdw-flyability.andyfang.workers.dev` (Cloudflar
 
 - Main Python: `var/runtime-venv/bin/python` (uv-managed Python 3.11; `requirements.txt`).
 - Native GRIB Python: `var/native-weather-venv/bin/python` (`eccodes==2.43.0`, `requests==2.32.5`). Virtual environments were rebuilt for x86_64, not copied from the ARM source host.
+- Calibrated-wind Python: `var/mos-venv/bin/python` (uv Python 3.12; `requirements-mos.txt`). `kcdw-flyability-mos.timer` runs `scripts/mos_update.sh` at 04, 10, 16 and 22 UTC: refreshes the recent model archives (dynamical.org Zarr, WN2/WN3 BigQuery, Open-Meteo), retrains daily, re-scores weekly and writes `var/mos/forecast.json` for the event page. Log: `var/mos/update.log`. See `research/mos/README.md`.
 - SHARPpy Python: `var/sharppy-venv/bin/python` (uv Python 3.11; `requirements-sharppy.txt`, then `uv pip install --no-deps "sharppy @ git+https://github.com/sharppy/SHARPpy.git@357a14e87b656723204dba03cb60be031201b141"` because the PyPI release pins numpy 1.15). The event update runs `kcdw/sharppy_worker.py` in it for the model soundings.
 - Chart Python: `var/charts-venv/bin/python` (`requirements-consensus-prog.txt`). The event update uses it for the consensus surface analysis; see [consensus progs](CONSENSUS-PROG.md).
 - Claude Code: `/home/andy/.local/bin/claude`, version 2.1.280, pinned to `claude-opus-5-5` at medium effort for report and event updates.
-- Installed units: `/home/andy/.config/systemd/user/kcdw-flyability-*`. The four active service/timer pairs are also saved under `deploy/systemd/` with the homeserver paths. The unused optional web-service template is not installed.
+- Installed units: `/home/andy/.config/systemd/user/kcdw-flyability-*`. The active service/timer pairs (update, events, native ensembles, run history, climatology, calibrated wind) are also saved under `deploy/systemd/` with the homeserver paths. The unused optional web-service template is not installed.
 - User linger is enabled, so the scheduler survives logout and starts at boot.
 
 ## Credentials (never commit)

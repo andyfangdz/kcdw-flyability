@@ -1,0 +1,20 @@
+[Unit]
+Description=Calibrated KCDW wind: refresh archives, retrain daily, forecast upcoming days
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Environment=GOOGLE_APPLICATION_CREDENTIALS=/home/andy/.config/kcdw-flyability/google-adc.json
+Environment=HOME=/home/andy
+Environment=XDG_CACHE_HOME=/home/andy/projects/kcdw-flyability/var/mos/cache
+UMask=0077
+Type=oneshot
+WorkingDirectory=/home/andy/projects/kcdw-flyability
+ExecStart=/usr/bin/flock -n var/mos/update.lock /home/andy/projects/kcdw-flyability/scripts/mos_update.sh
+TimeoutStartSec=100min
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/andy/projects/kcdw-flyability/var
