@@ -140,6 +140,7 @@ class SoundingTests(unittest.TestCase):
         snapshot, _ = collected()
         html = soundings.render_soundings(snapshot, NOW)
         self.assertIn('id="soundings"', html)
+        self.assertIn('How the mixing top is found', html)
         self.assertEqual(html.count('class="clim-panel skewt"'), 6)
         self.assertEqual(len(set(__import__('re').findall(r'id="(skewt-clip-\d+)"', html))), 6)
         self.assertIn('from 18 kt (NCEP GFS) to 23 kt (UKMO Global)', html)

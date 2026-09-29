@@ -59,6 +59,10 @@ NOTES = [
     'GFS comes natively from NOMADS at 25 hPa spacing near the ground. Open-Meteo\'s run archive keeps only 1000/925/850/700 hPa below about 10,000 ft for IFS, AIFS, ICON and UKMO, and AIGFS has the same levels. Every profile is interpolated every 10 hPa (linear in log pressure) before SHARPpy, which places the mixing top between levels but cannot recover structure the coarse models do not report.',
     'The dashed line is SHARPpy\'s surface parcel, drawn as virtual temperature as in SHARPpy\'s own skew-T.',
 ]
+MIXING_BLURB = ('How the mixing top is found: SHARPpy takes the model\'s 2 m afternoon air, adds 0.5 K, and lifts it dry-adiabatically '
+                'until the surrounding air is warmer (in virtual potential temperature). Below that height thermals keep stirring the air, so '
+                'wind there can reach the ground as gusts; above it they stop. A warmer surface or a weaker inversion raises it, and coarse '
+                'model levels make it approximate to a few hundred feet.')
 ERRORS = (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowError)
 
 
@@ -478,7 +482,7 @@ def render_soundings(snapshot, now):
     story = ''.join(f'<p>{escape(p)}</p>' for p in _story(rows))
     return (f'<section id="soundings" class="weather-pattern" aria-labelledby="soundings-title">'
             f'<p class="eyebrow">Model soundings · {escape(when)} · analysed with SHARPpy</p>'
-            f'<h2 id="soundings-title">How deep the afternoon mixes</h2>{story}'
+            f'<h2 id="soundings-title">How deep the afternoon mixes</h2>{story}<p class="small">{escape(MIXING_BLURB)}</p>'
             f'<div class="table-wrap"><table><caption>Heights above each model\'s ground. Mixed-layer wind is gust potential, not a gust forecast.</caption>'
             f'<thead><tr><th scope="col">Model · run</th><th scope="col">Mixing height</th><th scope="col">Strongest mixed-layer wind</th>'
             f'<th scope="col">Mean mixed-layer wind</th><th scope="col">Cloud base (surface parcel)</th><th scope="col">Surface CAPE</th>'
