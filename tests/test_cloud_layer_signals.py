@@ -21,7 +21,8 @@ class Client:
         self.urls.append(url)
         query = parse_qs(urlsplit(url).query)
         fields = query['hourly'][0].split(',')
-        times = [int(datetime(2026, 9, 24, hour, tzinfo=timezone.utc).timestamp()) for hour in range(12, 21)]
+        first, last = (datetime.fromisoformat(query[k][0]).replace(tzinfo=timezone.utc) for k in ('start_hour', 'end_hour'))
+        times = list(range(int(first.timestamp()), int(last.timestamp())+1, 3600))
         raw = {'latitude': 41.0, 'longitude': -74.5, 'timezone': 'GMT', 'utc_offset_seconds': 0,
                'hourly': {'time': times}, 'hourly_units': {'time': 'unixtime'}}
         ensemble = 'ensemble-api' in url
@@ -140,6 +141,39 @@ class LayerTests(unittest.TestCase):
         valid['profiles']['gfs']['data']['points'][0]['thermal']['925_850']['inversion'] = True
         self.assertFalse(layers.validate_layer_signals(valid, SNAPSHOT, NOW)['profiles']['gfs']['ok'])
         self.assertFalse(result['profiles']['gfs']['data']['points'][0]['thermal']['925_850']['inversion'])
+
+    def test_samples_expected_flight_start_middle_and_end(self):
+        snapshot = dict(SNAPSHOT, event_timing={'flight_start': '14:00', 'flight_end': '16:00'})
+        result = layers.collect_layer_signals(Client(), snapshot, NOW)
+        self.assertEqual(result['sample_times'], ['2026-09-24T18:00:00Z', '2026-09-24T19:00:00Z', '2026-09-24T20:00:00Z'])
+        self.assertTrue(result['ensembles']['gefs']['ok'])
+        self.assertIsNotNone(layers.validate_layer_signals(result, snapshot, NOW))
+        self.assertIsNone(layers.validate_layer_signals(result, SNAPSHOT, NOW))
+
+    def test_noon_opening_window_samples_distinct_hours(self):
+        snapshot = dict(SNAPSHOT, event=dict(SNAPSHOT['event'], window='12-19'))
+        result = layers.collect_layer_signals(Client(), snapshot, NOW)
+        self.assertEqual(result['sample_times'], ['2026-09-24T16:00:00Z', '2026-09-24T19:00:00Z', '2026-09-24T22:00:00Z'])
+
+    def test_member_low_cloud_quantiles(self):
+        def mutate(raw, query, ensemble):
+            if ensemble:
+                raw['hourly']['cloud_cover_low'] = [0] * len(raw['hourly']['time'])
+                raw['hourly']['cloud_cover_low_member01'] = [None] * len(raw['hourly']['time'])
+        data = self.collect(Client(mutate))['ensembles']['gefs']['data']
+        self.assertEqual(data['points'][0]['low_cloud_pct'], {'p10': 8.0, 'p50': 40.0, 'p90': 72.0})
+        def missing(raw, query, ensemble):
+            if ensemble:
+                for key in [k for k in raw['hourly'] if k.startswith('cloud_cover_low')]:
+                    raw['hourly'][key] = [None] * len(raw['hourly']['time'])
+        self.assertIsNone(self.collect(Client(missing))['ensembles']['gefs']['data']['points'][0]['low_cloud_pct'])
+        result = self.collect()
+        for spread in [{'p10': 90, 'p50': 80, 'p90': 95}, {'p10': 0, 'p50': 0, 'p90': 101}, None,
+                       {'p10': 0, 'p50': True, 'p90': 1}, {'p10': 0, 'p50': 0}]:
+            with self.subTest(spread=spread):
+                bad = copy.deepcopy(result)
+                bad['ensembles']['gefs']['data']['points'][1]['low_cloud_pct'] = spread
+                self.assertFalse(layers.validate_layer_signals(bad, SNAPSHOT, NOW)['ensembles']['gefs']['ok'])
 
     def test_profile_tampering_and_units(self):
         result = self.collect()

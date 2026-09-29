@@ -137,6 +137,8 @@ class EvidenceTests(unittest.TestCase):
         cloud = self.sources(data)['geps']['evidence']['low_cloud']
         self.assertIsNone(cloud['midday']['p50'])
         self.assertIsNone(cloud['window_mean'])
+        self.assertIn('low_cloud_analysis.layers.ensembles', cloud['unavailable'])
+        self.assertNotIn('unavailable', self.sources(snapshot())['geps']['evidence']['low_cloud'])
 
     def test_wn3_mean_units_no_rain_band(self):
         source = self.sources(snapshot())['wn3_point']

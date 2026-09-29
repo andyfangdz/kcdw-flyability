@@ -2,7 +2,9 @@
 
 Six independent explicit-model requests, with all fields for each model in the
 same fetch. No joins to previous snapshots and no claimed response-bound run.
-Only opening/noon/closing-minus-one-hour scalar points and member counts survive.
+Only three scalar sample points (the expected flight's start, middle and end, else
+the event window's opening, noon and last hour), member counts and member
+low-cloud quantiles survive.
 """
 from __future__ import annotations
 
@@ -15,7 +17,8 @@ from .common import UTC, iso_z
 from .events import TZ, _event
 from .event_moisture import MODELS as PROFILE_MODELS, ENDPOINT as PROFILE_ENDPOINT
 from .event_moisture_ensemble import MODELS as ENSEMBLE_MODELS, _number, _utc, _timestamp
-from .event_ensemble import ENDPOINT as ENSEMBLE_ENDPOINT, LAT, LON
+from .event_ensemble import ENDPOINT as ENSEMBLE_ENDPOINT, LAT, LON, _percentile
+from .event_model_matrix import flight_window
 
 LEVELS = (1000, 925, 850)
 SURFACE = ('temperature_2m', 'dew_point_2m', 'relative_humidity_2m',
@@ -57,14 +60,20 @@ def _context(snapshot, now):
     _shape(display, ('start', 'end'))
     start, end = (_timestamp(display[k]) for k in ('start', 'end'))
     _require(timedelta(0) < end-start <= timedelta(days=32))
-    midnight = datetime.combine(event.day, datetime.min.time(), TZ)
-    opening = midnight + timedelta(hours=event.start_hour)
-    closing = midnight + timedelta(hours=event.end_hour)
-    # For non-noon windows use the middle hour, keeping each point in-window.
-    middle = midnight + timedelta(hours=12)
-    if not opening <= middle < closing:
-        middle = opening + timedelta(hours=(event.end_hour-event.start_hour-1)//2)
-    times = [t.astimezone(UTC) for t in (opening, middle, closing-timedelta(hours=1))]
+    first, last, kind = flight_window(snapshot)
+    hours = int((last-first).total_seconds()//3600)
+    if kind == 'expected flight' and hours >= 2:
+        # Expected flight: start, middle and end (landing) hours.
+        times = [first, first+timedelta(hours=hours//2), last]
+    else:
+        midnight = datetime.combine(event.day, datetime.min.time(), TZ)
+        opening = midnight + timedelta(hours=event.start_hour)
+        closing = midnight + timedelta(hours=event.end_hour)
+        # Noon unless it coincides with an end sample; then the window's middle hour.
+        middle = midnight + timedelta(hours=12)
+        if not opening < middle < closing-timedelta(hours=1):
+            middle = opening + timedelta(hours=(event.end_hour-event.start_hour-1)//2)
+        times = [t.astimezone(UTC) for t in (opening, middle, closing-timedelta(hours=1))]
     _require(all(start <= t < end for t in times) and times == sorted(times))
     _require(now.replace(hour=0, minute=0, second=0, microsecond=0) <= times[0])
     return now, times
@@ -140,6 +149,20 @@ def _stats(eligible, passing):
     return {'count': len(passing) if eligible else None, 'denominator': len(eligible)}
 
 
+def _spread(values):
+    """Member low-cloud p10/p50/p90 at one sample; None without members."""
+    return {p: round(_percentile(values, n), 1) for p, n in (('p10', 10), ('p50', 50), ('p90', 90))} if values else None
+
+
+def _validate_spread(spread, denominator):
+    if denominator == 0:
+        _require(spread is None)
+        return
+    _shape(spread, ('p10', 'p50', 'p90'))
+    values = [_number(spread[p], 0, 100) for p in ('p10', 'p50', 'p90')]
+    _require(values == sorted(values))
+
+
 def _ensemble(raw, times):
     points, eligibility, passes = [], [], []
     for i, time in enumerate(times):
@@ -157,7 +180,8 @@ def _ensemble(raw, times):
                    'joint_surface_rh925': {m for m in eligible['joint_surface_rh925'] if surface[m] >= 90 and rh[m] >= 90}}
         eligibility.append(eligible)
         passes.append(passing)
-        points.append({'time': iso_z(time), 'screens': {s: _stats(eligible[s], passing[s]) for s in SCREENS}})
+        points.append({'time': iso_z(time), 'screens': {s: _stats(eligible[s], passing[s]) for s in SCREENS},
+                       'low_cloud_pct': _spread(list(cloud.values()))})
     return points, {s: _stats(set.intersection(*(e[s] for e in eligibility)),
                              set.intersection(*(p[s] for p in passes))) for s in SCREENS}
 
@@ -274,9 +298,10 @@ def _validate_source(source, spec, collected, times):
     if family == 'ensembles':
         _require(type(data['expected_members']) is int and data['expected_members'] == members)
         for point, time in zip(points, times):
-            _shape(point, ('time', 'screens'))
+            _shape(point, ('time', 'screens', 'low_cloud_pct'))
             _require(point['time'] == iso_z(time))
             _validate_screens(point['screens'], members)
+            _validate_spread(point['low_cloud_pct'], point['screens']['low_cloud']['denominator'])
         _validate_screens(data['all_three'], members)
         for screen in SCREENS:
             stat = data['all_three'][screen]

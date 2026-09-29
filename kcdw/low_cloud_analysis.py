@@ -72,13 +72,15 @@ def narrative_cloud_evidence(snapshot, now):
                           for level in ('925', '850')], cap['inversion'], cap['lapse_c_per_km']])
             compact['profiles'][key] = rows
         screens = ['low_cloud', 'rh925', 'joint_low_cloud_rh925', 'joint_surface_rh925']
-        compact['member_screen_columns'] = ['time_utc', *screens]
-        compact['member_count_format'] = '[passing_count, eligible_denominator]; [null, 0] is unavailable. all_three uses the same member IDs at the named three samples.'
+        compact['member_screen_columns'] = ['time_utc', *screens, 'low_cloud_pct_p10_p50_p90']
+        compact['member_count_format'] = ('[passing_count, eligible_denominator]; [null, 0] is unavailable. all_three uses the same member IDs at the named three samples. '
+                                          'low_cloud_pct_p10_p50_p90 is the member low-cloud fraction at that sample (null when no members); it is the only ECMWF ENS low-cloud figure, since ECMWF open data has no ENS low-cloud field.')
         compact['ensembles'] = {}
         for key, model in layer['ensembles'].items():
             rows = None
             if model:
-                rows = [[p['time'], *[[p['screens'][k]['count'], p['screens'][k]['denominator']] for k in screens]] for p in model['points']]
+                rows = [[p['time'], *[[p['screens'][k]['count'], p['screens'][k]['denominator']] for k in screens],
+                         None if p['low_cloud_pct'] is None else [p['low_cloud_pct'][q] for q in ('p10', 'p50', 'p90')]] for p in model['points']]
                 rows.append(['all_three', *[[model['all_three'][k]['count'], model['all_three'][k]['denominator']] for k in screens]])
             compact['ensembles'][key] = rows
         data['layers'] = compact
@@ -91,6 +93,10 @@ def _n(v, places=0):
 
 def _count(s):
     return 'Unavailable' if s['count'] is None else f"{s['count']}/{s['denominator']}"
+
+
+def _spread(s):
+    return 'Unavailable' if s is None else f"{_n(s['p50'])}% ({_n(s['p10'])}–{_n(s['p90'])})"
 
 
 def _table(headers, rows, label):
@@ -161,6 +167,12 @@ def render_low_cloud(snapshot, now):
             for screen, label in [('rh925', '925 RH ≥90%'), ('joint_surface_rh925', 'Surface + 925 RH ≥90%'), ('joint_low_cloud_rh925', 'Cloud ≥75% + 925 RH ≥90%')]:
                 moisture_rows.append([source['model']+' · '+label]+[_count(p['screens'][screen]) for p in source['points']]+[_count(source['all_three'][screen])])
         parts.append(_table(headers, rows, 'Low-cloud ensemble member screens'))
+        spread_rows = [[source['model']]+[_spread(p['low_cloud_pct']) for p in source['points']]
+                       for source in layer['ensembles'].values() if source is not None]
+        if spread_rows:
+            parts.append('<h3>Member low-cloud cover</h3><p>Median (10th–90th percentile) across members at each sample, from the same fetch. '
+                         'Low-layer cloud fraction, not a ceiling.</p>'
+                         + _table(headers[:-1], spread_rows, 'Ensemble member low-cloud cover'))
         parts.append('<details><summary>Moist-member cross-checks</summary>'+_table(headers, moisture_rows, 'Moist ensemble member screens')+'</details></details>')
     else:
         parts.append('<p>Independent profiles and member screens unavailable.</p>')

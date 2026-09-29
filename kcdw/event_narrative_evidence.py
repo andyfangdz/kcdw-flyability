@@ -108,6 +108,9 @@ def _current(snapshot, key, now, sample, rain_times):
                 raise ValueError('cloud window bounds')
             result['low_cloud']['window_mean'] = None if w is None else {'p10': w['p10'], 'p50': w['median'], 'p90': w['p90'], 'members': w['count']}
             result['low_cloud']['window_mean_sampling'] = 'Member means over opening-excluded, closing-included samples; quantiles across members, not mean hourly quantiles.'
+            if w is None and all(result['low_cloud'][label][q] is None for label in ('morning', 'midday', 'afternoon') for q in ('p10', 'p50', 'p90')):
+                result['low_cloud']['unavailable'] = ('This source publishes no low-cloud field. Member low-cloud quantiles for this model, '
+                                                      'from a separate rolling fetch, are in low_cloud_analysis.layers.ensembles.')
     result['rain_intervals'] = []
     for at in rain_times:
         i = times.index(at)
