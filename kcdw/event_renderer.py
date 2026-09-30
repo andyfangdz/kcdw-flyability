@@ -673,7 +673,8 @@ def render(snapshot: dict, now: datetime | None = None, events_path: Path | str 
                    f'<div class="brief-cards">{cards}</div><p class="brief-source">{esc(briefing["source"])}</p></details>')
     if afd_html:
         brief_html += '<details class="report-detail"><summary>NWS forecaster excerpts</summary>' + afd_html + '</details>'
-    cloud_html = ('<div class="evidence-group">' + render_low_cloud(snapshot, now)
+    from .hrrr_ceiling import render as render_hrrr_ceiling
+    cloud_html = ('<div class="evidence-group">' + render_low_cloud(snapshot, now) + render_hrrr_ceiling(snapshot, now)
                   + '<details class="report-detail"><summary>Humidity profiles &amp; charts</summary>' + moisture_html + '</details></div>')
     from .wn3_hourly import render_event as render_hourly_wn3
     model_detail = (render_hourly_wn3(snapshot, now)

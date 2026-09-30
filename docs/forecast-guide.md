@@ -301,6 +301,24 @@ The daily WN2 mean/spread feed and event hourly comparator are retired in favor
 of WN3. Legacy collectors/validators remain for tests and archived reports;
 old WN2 data is never relabeled WN3. See [WN2 BigQuery](../deploy/WN2-BIGQUERY.md).
 
+## HRRR ceiling within 100 nm
+
+Event pages show native HRRR cloud ceiling from two hours before the expected
+flight through its end. Each hourly event update checks the AWS HRRR archive for
+the newest run that reaches the flight's end (hourly runs reach 18 hours, the
+00/06/12/18Z runs 48 hours), decodes the ceiling, low cloud and terrain once per
+run in the native-weather environment (`kcdw/hrrr_ceiling_worker.py`), and
+renders map panels in the chart environment (`scripts/hrrr_ceiling_chart.py`).
+
+HRRR's ceiling is height above sea level; the page subtracts HRRR terrain to
+show feet above model ground. A missing value is no ceiling. The table gives the
+ceiling over KCDW, the range within 10 km, and how many 3 km cells have a
+ceiling below 3,000 ft within 25 km, 50 nm and 100 nm, plus the nearest such
+cell. Counts are spatial samples, not probabilities. Beyond about 18 hours HRRR
+places small low-cloud areas poorly. The map PNG is uploaded to the Worker's
+content-addressed event-map route; the first render downloads Natural Earth
+10 m layers (about 115 MB) into `var/charts/cartopy-data`.
+
 ## Event NWS forecaster readings
 
 Hourly event updates independently collect the latest NWS AFDs from **OKX**

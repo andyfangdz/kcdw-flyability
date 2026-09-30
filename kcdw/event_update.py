@@ -59,6 +59,11 @@ def collect_ceiling(snapshot, cache_dir, now):
     return collect(snapshot, cache_dir, now)
 
 
+def collect_hrrr_ceiling(snapshot, var, now, publisher):
+    from .hrrr_ceiling import collect
+    return collect(snapshot, var, now, publisher)
+
+
 def collect_layer_signals(client, snapshot, now):
     from .cloud_layer_signals import collect_layer_signals as collect
     return collect(client, snapshot, now)
@@ -215,6 +220,7 @@ def update(var: Path, cloud_config: Path | None, now: datetime | None = None, ev
                 ("consensus_prog", lambda: collect_consensus_prog(snapshot, var, now, client)),
                 ("event_afds", lambda: collect_afds(HttpClient(timeout=10, retries=1), snapshot, now)),
                 ("cloud_ceiling", lambda: collect_ceiling(snapshot, var / "events" / event.slug / "native-ceiling-cache", now)),
+                ("hrrr_ceiling", lambda: collect_hrrr_ceiling(snapshot, var, now, client)),
                 ("cloud_layer_signals", lambda: collect_layer_signals(HttpClient(timeout=15, retries=0, direct_native=True), snapshot, now)),
                 ("wn3_100m_wind", lambda: collect_wn3_100m_wind(snapshot, now)),
                 ("wn3_hourly", lambda: collect_wn3_hourly(now)),

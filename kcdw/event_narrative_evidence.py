@@ -41,7 +41,7 @@ ERRORS = (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowE
 # Unlisted sources go first; protected cloud/RH/change sources are never listed.
 EVICTION_ORDER = ('cpc_wpc', 'nhc', 'wn3_cyclones', 'wn3_hourly', 'geps', 'aifs_ens', 'gfs',
                   'gefs', 'ecmwf_ens', 'run_history', 'wind_native', 'wind_profile', 'soundings', 'synoptic_pattern', 'climatology', 'week_ahead', 'afd_bgm', 'afd_aly', 'wind_trends',
-                  'wn3_point', 'afd_phi', 'wind_deterministic', 'calibrated_wind', 'afd_okx', 'wind_surface', 'pilot_settings')
+                  'hrrr_ceiling', 'wn3_point', 'afd_phi', 'wind_deterministic', 'calibrated_wind', 'afd_okx', 'wind_surface', 'pilot_settings')
 
 
 def _text(value, limit=6000):
@@ -331,6 +331,12 @@ def build_event_evidence(snapshot, now) -> dict:
         result['sources'].append({'id': 'calibrated_wind', 'label': 'Calibrated KCDW wind · multi-model, trained on KCDW observations',
             'url': 'https://kcdw-flyability.andyfang.workers.dev' + event.path() + '#calibrated-wind', 'status': 'available' if packet else 'unavailable',
             'evidence': packet if packet else {'reason': 'Calibrated wind unavailable or stale; no favorable inference.'}})
+    if 'hrrr_ceiling' in snapshot:
+        from .hrrr_ceiling import ceiling_evidence
+        packet = ceiling_evidence(snapshot, now)
+        result['sources'].append({'id': 'hrrr_ceiling', 'label': 'HRRR native ceiling within 100 nm · hourly around the flight',
+            'url': 'https://kcdw-flyability.andyfang.workers.dev' + event.path() + '#hrrr-ceiling', 'status': 'available' if packet else 'unavailable',
+            'evidence': packet if packet else {'reason': 'HRRR ceiling unavailable; no favorable inference.'}})
     if 'model_soundings' in snapshot:
         from .soundings import sounding_evidence
         packet = sounding_evidence(snapshot, now)
