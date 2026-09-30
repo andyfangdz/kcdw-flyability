@@ -14,11 +14,16 @@ log "refresh from $since"
 $PY research/mos/fetch_obs.py
 $PY research/mos/fetch_metar.py
 for d in gfs gefs ifs_ens aifs aifs_ens hrrr; do $PY research/mos/extract_dynamical.py "$d" --start "$since" --threads 8 | tail -2; done
+# Newer cycles where the archives have them (GEFS and ECMWF ENS are 00Z-only; WN2's later cycles publish too late to use).
+for d in gfs aifs aifs_ens hrrr; do $PY research/mos/extract_dynamical.py "$d" --cycles 6 12 18 --start "$since" --threads 8 | tail -2; done
 $PY research/mos/extract_wn2.py "$since-01" | tail -2
 $PY research/mos/extract_wn3.py "$since-01" | tail -2
-$PY research/mos/fetch_openmeteo.py
+MOS_CYCLES=6,12,18 $PY research/mos/extract_wn3.py "$since-01" | tail -2
+# RRFS (NAM's replacement from 2026-10-14) is archived for all research stations but not yet a model input.
+$PY research/mos/extract_rrfs.py --start "$since" --procs 6 | tail -2 || log "RRFS archive refresh failed; continuing"
 $PY research/mos/build_targets.py | head -1
-$PY research/mos/build_features.py | tail -1
+# Issue-time rows: each update (04/11/16/22Z) uses every source's newest run published by then (build_issue.py).
+$PY research/mos/build_issue.py | tail -1
 age() { [ -f "$1" ] && echo $(( $(date +%s) - $(stat -c %Y "$1") )) || echo 999999999; }
 if [ "$(age var/mos/conformal.json)" -gt $((7 * 86400)) ]; then
   log "weekly cross-validation"

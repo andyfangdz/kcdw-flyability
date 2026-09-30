@@ -1,9 +1,13 @@
-"""Training table: one row per (local date, local hour 06-21, lead day 1-7) at KCDW.
+"""Training table: one row per (local date, local hour 06-21, lead day 0-7) at KCDW.
 
 Dynamical.org models use the 00Z run issued ``lead_day`` calendar days before the
-local date; their 1/3/6-hourly leads are linearly interpolated to the hour.
-Open-Meteo models (ICON, HRES, GEM) use their ``previous_dayN`` archive with
-N = lead_day. Missing models stay NaN (XGBoost handles them natively).
+local date; their 1/3/6-hourly leads are linearly interpolated to the hour. Lead day 0
+is the same day's 00Z runs, complete by the 10Z update (research/mos/day0_test.py: ~6%
+better than lead day 1 on identical hours, with no temporal leakage).
+Missing models stay NaN (XGBoost handles them natively). Open-Meteo's ICON, HRES
+and GEM were removed: its previous_dayN archive is "predicted N x 24 h before valid
+time", up to ~18 h newer than the 00Z run the other inputs use (a look-ahead), and
+once aligned to that run they added nothing (research/mos/leakage_audit.py).
 Targets from build_targets.py are joined on the valid UTC hour.
 """
 import glob
@@ -14,7 +18,7 @@ import pandas as pd
 
 TZ = 'America/New_York'
 HOURS = range(6, 22)
-LEADS = range(1, 8)
+LEADS = range(0, 8)
 MAX_LEAD = 199
 OUT = Path('var/mos/table.parquet')
 
@@ -84,17 +88,6 @@ def main():
         for key, value in cols.items():
             feats[f'{dataset}_{key}'] = value
         print(f'{dataset}: {len(cols)} features, coverage {np.mean(~np.isnan(cols[next(iter(cols))])):.0%}', flush=True)
-    for key in ('icon', 'hres', 'gem'):
-        path = Path(f'var/mos/models/om_{key}.parquet')
-        if not path.exists():
-            continue
-        om = pd.read_parquet(path).drop_duplicates(['valid', 'lead_day']).set_index(['valid', 'lead_day'])
-        joined = om.reindex(pd.MultiIndex.from_arrays([rows.valid, rows.lead_day]))
-        for var in om.columns:
-            feats[f'{key}_{var}'] = joined[var].to_numpy('float32')
-        rad = np.radians(joined['wind_direction_10m'].to_numpy())
-        feats[f'{key}_dir_sin'], feats[f'{key}_dir_cos'] = np.sin(rad).astype('float32'), np.cos(rad).astype('float32')
-        print(f'{key}: coverage {joined.wind_speed_10m.notna().mean():.0%}', flush=True)
     table = pd.concat([rows[['date', 'hour', 'lead_day', 'valid', 'init']], pd.DataFrame(feats)], axis=1)
     targets = pd.read_parquet('var/mos/targets.parquet').set_index('valid')
     table = table.join(targets, on='valid')

@@ -1,0 +1,134 @@
+{
+ "ABE": {
+  "name": "ALLENTOWN-BETHLEHEM",
+  "lat": 40.6508,
+  "lon": -75.4492,
+  "elev_m": 117.0
+ },
+ "BDR": {
+  "name": "Bridgeport/Sikorsky",
+  "lat": 41.1583,
+  "lon": -73.1289,
+  "elev_m": 5.0
+ },
+ "CDW": {
+  "name": "CALDWELL/ESSEX CO.",
+  "lat": 40.8764,
+  "lon": -74.2831,
+  "elev_m": 53.0
+ },
+ "DXR": {
+  "name": "DANBURY MUNICIPAL",
+  "lat": 41.37,
+  "lon": -73.48,
+  "elev_m": 139.0
+ },
+ "EWR": {
+  "name": "Newark Intl",
+  "lat": 40.6827,
+  "lon": -74.1693,
+  "elev_m": 2.0
+ },
+ "FRG": {
+  "name": "FARMINGDALE/REPUBLC",
+  "lat": 40.7288,
+  "lon": -73.4134,
+  "elev_m": 25.0
+ },
+ "FWN": {
+  "name": "SUSSEX_AIRPORT",
+  "lat": 41.2002,
+  "lon": -74.6231,
+  "elev_m": 128.0
+ },
+ "HPN": {
+  "name": "WHITE PLAINS",
+  "lat": 41.0669,
+  "lon": -73.7075,
+  "elev_m": 134.0
+ },
+ "HVN": {
+  "name": "NEW HAVEN/TWEED",
+  "lat": 41.2638,
+  "lon": -72.8868,
+  "elev_m": 4.0
+ },
+ "ILG": {
+  "name": "WILMINGTON AIRPORT",
+  "lat": 39.6728,
+  "lon": -75.6008,
+  "elev_m": 24.0
+ },
+ "ISP": {
+  "name": "ISLIP/MACARTHUR",
+  "lat": 40.7939,
+  "lon": -73.1017,
+  "elev_m": 30.0
+ },
+ "JFK": {
+  "name": "NEW YORK/JF KENNEDY",
+  "lat": 40.6386,
+  "lon": -73.7622,
+  "elev_m": 7.0
+ },
+ "LGA": {
+  "name": "New York/LaGuardia",
+  "lat": 40.7794,
+  "lon": -73.8803,
+  "elev_m": 9.0
+ },
+ "MGJ": {
+  "name": "ORANGE COUNTY AIRPORT",
+  "lat": 41.5092,
+  "lon": -74.265,
+  "elev_m": 111.0
+ },
+ "MIV": {
+  "name": "MILLVILLE MUNICIPAL",
+  "lat": 39.3661,
+  "lon": -75.0783,
+  "elev_m": 25.0
+ },
+ "PHL": {
+  "name": "Philadelphia Intl",
+  "lat": 39.8734,
+  "lon": -75.2266,
+  "elev_m": 2.0
+ },
+ "PNE": {
+  "name": "PHILADELPHIA NE",
+  "lat": 40.0789,
+  "lon": -75.0134,
+  "elev_m": 37.0
+ },
+ "POU": {
+  "name": "POUGHKEEPSIE",
+  "lat": 41.6266,
+  "lon": -73.8842,
+  "elev_m": 51.0
+ },
+ "RDG": {
+  "name": "READING/SPAATZ FLD",
+  "lat": 40.3785,
+  "lon": -75.9652,
+  "elev_m": 105.0
+ },
+ "SMQ": {
+  "name": "Somerville",
+  "lat": 40.6239,
+  "lon": -74.6694,
+  "elev_m": 32.0
+ },
+ "TEB": {
+  "name": "TETERBORO AIRPORT",
+  "lat": 40.859,
+  "lon": -74.0562,
+  "elev_m": 3.0
+ },
+ "TTN": {
+  "name": "TRENTON/MERCER CO.",
+  "lat": 40.2768,
+  "lon": -74.8159,
+  "elev_m": 65.0
+ }
+}

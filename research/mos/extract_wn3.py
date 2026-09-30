@@ -3,6 +3,7 @@
 Uses the per-run point pattern proven in kcdw.wn3_climatology (~50-70 MB billed per run).
 Writes var/mos/models/wn3/YYYY-MM.parquet in the extract_dynamical.py layout.
 """
+import os
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -43,10 +44,15 @@ def main(first='2026-01-01'):
     credentials, _ = google.auth.default(scopes=['https://www.googleapis.com/auth/cloud-platform'])
     session = AuthorizedSession(credentials)
     OUT.mkdir(parents=True, exist_ok=True)
-    inits = pd.date_range(first, datetime.now(timezone.utc).date(), freq='D', tz='UTC')
+    cycles = [int(c) for c in os.environ.get('MOS_CYCLES', '0').split(',')]
+    days = pd.date_range(first, datetime.now(timezone.utc).date(), freq='D', tz='UTC')
+    inits = pd.DatetimeIndex(sorted(d + pd.Timedelta(hours=c) for d in days for c in cycles))
+    inits = inits[inits <= pd.Timestamp.now(tz='UTC')]
+    out = OUT if cycles == [0] else OUT.parent / (OUT.name + '_c' + ''.join(f'{c:02d}' for c in cycles))  # extra cycles kept apart
+    out.mkdir(parents=True, exist_ok=True)
     current = pd.Timestamp.utcnow().strftime('%Y-%m')
     for month, group in pd.Series(inits, index=inits).groupby(inits.strftime('%Y-%m')):
-        path = OUT / f'{month}.parquet'
+        path = out / f'{month}.parquet'
         if path.exists() and month != current:
             continue
         records, billed_total, started = [], 0, time.time()

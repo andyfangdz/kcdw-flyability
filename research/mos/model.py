@@ -29,7 +29,7 @@ def features(table):
 
 def main():
     started = time.time()
-    t = pd.read_parquet('var/mos/table.parquet')
+    t = pd.read_parquet('var/mos/table_issue.parquet')
     feats = features(t)
     train = t[(t.date >= SINCE) & t.gust_peak.notna() & t.sust_mean.notna()]
     X = train[feats].to_numpy('float32')

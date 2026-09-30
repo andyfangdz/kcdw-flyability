@@ -26,7 +26,7 @@ AFTERNOON = range(13, 17)
 def raw_value(t, kind):
     """First available raw model value, in preference order."""
     order = {'sust': ['ifs_ens_speed_10m_mean', 'gefs_speed_10m_mean', 'gfs_10m_spd', 'hrrr_10m_spd'],
-             'gust': ['ifs_ens_wind_gust_10m_mean', 'gefs_wind_gust_surface_mean', 'hrrr_wind_gust_surface', 'icon_wind_gusts_10m']}[kind]
+             'gust': ['ifs_ens_wind_gust_10m_mean', 'gefs_wind_gust_surface_mean', 'hrrr_wind_gust_surface']}[kind]
     out = pd.Series(np.nan, index=t.index)
     for col in order:
         if col in t:
@@ -49,7 +49,7 @@ def main():
     parser.add_argument('--since', default='2021-06-01')
     parser.add_argument('--trees', type=int, default=500)
     args = parser.parse_args()
-    t = pd.read_parquet('var/mos/table.parquet')
+    t = pd.read_parquet('var/mos/table_issue.parquet')
     t = t[(t.date >= args.since) & t.gust_peak.notna() & t.sust_mean.notna()].reset_index(drop=True)
     features = [c for c in t.columns if c not in ID + TARGETS and t[c].notna().mean() > 0.02]
     X = t[features].to_numpy('float32')
@@ -145,7 +145,7 @@ def main():
     for (target, scope), r in results.items():
         print(f'\n{target} [{scope}]')
         print('  ' + ', '.join(f'{k} {v:.3f}' if isinstance(v, float) else f'{k} {v}' for k, v in r.items()))
-    oof = t[['date', 'hour', 'lead_day', 'valid']].copy()
+    oof = t[['date', 'hour', 'lead_day', 'valid', 'init']].copy()
     for target, q in preds.items():
         for i, a in enumerate(QUANTILES):
             oof[f'{target}_p{int(a * 100)}'] = q[:, i]

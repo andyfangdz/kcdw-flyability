@@ -14,7 +14,7 @@ UTC = timezone.utc
 def hour(h, lead=3):
     # SNAPSHOT: event 2026-09-24, flight 10:00-12:00 EDT (UTC-4).
     valid = datetime(2026, 9, 24, tzinfo=UTC) + timedelta(hours=h + 4)
-    init = datetime(2026, 9, 24 - lead, 0, tzinfo=UTC)
+    init = datetime(2026, 9, 24 - lead, 4, tzinfo=UTC)  # the midnight (04Z) issue, `lead` local days before
     return {'hour': h, 'valid_utc': valid.strftime('%Y-%m-%dT%H:%M:%SZ'), 'init_utc': init.strftime('%Y-%m-%dT%H:%M:%SZ'), 'lead_day': lead,
             'sust_kt': [4.9, 5.8, 6.8], 'gust_kt': [12.1, 14.1, 16.8], 'metar_peak_kt': [4.6, 6.9, 12.1], 'dir_deg': 242,
             'dir_confidence': 0.95, 'p_gust_ge20': 0.01, 'p_spread_ge10': 0.18, 'p_metar_gust': 0.13}
@@ -56,6 +56,20 @@ class CalibratedWindTests(unittest.TestCase):
         self.assertIn('&lt;1%', html)
         self.assertIn('from 242°, with a true peak gust around 14 kt (80% range 12–17)', html)
         self.assertIn('versus 4.2 kt for NBM', html)
+
+    def test_issue_times_are_accepted_and_described(self):
+        data = forecast()
+        data['days']['2026-09-24'] = [hour(h, lead=0) for h in range(6, 22)]
+        html = cw.render_calibrated(self.collect(data), NOW)
+        self.assertIn('Based on the newest runs available at 12 a.m. Thursday.', html)
+        data['days']['2026-09-24'] = [hour(h, lead=1) for h in range(6, 22)]
+        self.assertIn('Based on the newest runs available at 12 a.m. Wednesday.', cw.render_calibrated(self.collect(data), NOW))
+        for bad in (dict(hour(9, lead=0), lead_day=1),  # the lead must count local days from the issue
+                    dict(hour(9, lead=0), init_utc='2026-09-24T00:00:00Z')):  # 00Z is not an issue time
+            broken = forecast()
+            broken['days']['2026-09-24'][3] = bad
+            with self.assertRaises(ValueError):
+                self.collect(broken)
 
     def test_stale_missing_or_inconsistent_forecasts_are_not_shown(self):
         self.assertIsNone(self.collect(forecast(NOW - timedelta(hours=40)))['calibrated_wind'])

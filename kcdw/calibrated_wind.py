@@ -2,7 +2,7 @@
 
 The model is trained on KCDW's own 1-minute ASOS record and METARs against the
 archived forecasts of GFS, GEFS, ECMWF ENS, AIFS (single and ensemble), HRRR,
-WeatherNext 2/3, ICON, ECMWF HRES and GEM (NBM is deliberately excluded and used
+WeatherNext 2/3 (NBM is deliberately excluded and used
 only as the benchmark). A separate job (scripts/mos_update.sh) writes
 var/mos/forecast.json; this module only reads it, validates every value,
 binds the event day to the snapshot and renders it. Nothing here trains or
@@ -23,11 +23,12 @@ VERSION = 1
 MAX_AGE = timedelta(hours=36)
 HOURS = range(6, 22)
 TABLE_HOURS = range(9, 19)
+ISSUE_HOURS = (4, 11, 16, 22)  # UTC issue times of the calibrated forecast updates
 NOTES = [
     'Trained on every hour from 6 a.m. to 9 p.m. since mid-2021 (about 190,000 hours), comparing each model\'s archived forecast with what KCDW actually measured.',
     '"Peak gust" is the strongest 5-second gust in the hour from the ASOS 1-minute record, so it counts gusts too small for a METAR to report. "METAR peak" is what the hourly and special reports would show: the reported gust, or the wind when no gust is reported.',
     'Ranges are the 10th–90th percentiles, widened by conformal calibration so about 80% of hours fall inside them. Probabilities come from separate classifiers.',
-    'Each hour uses the shortest-lead 00Z runs already archived; lead day is how many days before the date those runs were issued.',
+    'Updated at about midnight, 7 a.m., noon and 6 p.m.: each update uses every model\'s newest run published by then, and lead day counts days from the update.',
     'NBM is not an input. It is NOAA\'s own station-calibrated guidance, so it serves as the benchmark this model has to beat.',
 ]
 ERRORS = (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowError)
@@ -48,8 +49,8 @@ def _check_hour(h, day):
     local = datetime.combine(day, datetime.min.time(), TZ) + timedelta(hours=h['hour'])
     _require(valid == local.astimezone(UTC))
     init = parse_time(h['init_utc'])
-    _require(init.hour == 0 and init < valid and type(h['lead_day']) is int and 1 <= h['lead_day'] <= 7)
-    _require((local.date() - init.astimezone(UTC).date()).days == h['lead_day'])
+    _require(init.hour in ISSUE_HOURS and init.minute == 0 and init < valid and type(h['lead_day']) is int and 0 <= h['lead_day'] <= 7)
+    _require((local.date() - init.astimezone(TZ).date()).days == h['lead_day'])  # local days from the issue time
     for key, high in (('sust_kt', 80), ('gust_kt', 120), ('metar_peak_kt', 120)):
         q = h[key]
         _require(isinstance(q, list) and len(q) == 3 and all(_num(v, 0, high) for v in q) and q[0] <= q[1] <= q[2])
@@ -153,7 +154,8 @@ def render_calibrated(snapshot, now):
     first, last = min(flight), max(flight) + 1
     clock = lambda h: datetime(2000, 1, 1, h).strftime('%-I %p').lower()
     dirs = s['direction_deg']
-    lead = 'tomorrow\'s' if s['lead_day'] == 1 else f'{s["lead_day"]}-day-ahead'
+    issued = parse_time(s['runs']).astimezone(TZ)
+    lead = f'the newest runs available at {issued.strftime("%-I %p").lower().replace("am", "a.m.").replace("pm", "p.m.")} {issued:%A}'
     heading = f'{min(dirs):03d}°' if min(dirs) == max(dirs) else f'{min(dirs):03d}–{max(dirs):03d}°'
     story = (f'<p>For {clock(first)}–{clock(last)}, the calibrated model expects about {s["sustained_kt"][1]:.0f} kt sustained from '
              f'{heading}, with a true peak gust around {s["peak_gust_kt"][1]:.0f} kt '
@@ -161,7 +163,7 @@ def render_calibrated(snapshot, now):
              f'{s["metar_peak_kt_median"]:.0f} kt; the chance it reports any gust is {_pct(s["max_p_metar_gust"])}. '
              f'Chance of a gust of 20 kt or more: {_pct(s["max_p_gust_ge20"])}'
              f'{"" if limit == 20 else f" (your limit is {limit} kt)"}; of a gust spread of 10 kt or more: {_pct(s["max_p_spread_ge10"])}. '
-             f'Based on {lead} 00Z runs.</p>')
+             f'Based on {lead}.</p>')
     body = ''.join(
         f'<tr{" data-flight" if h["hour"] in flight else ""}><th scope="row">{escape(clock(h["hour"]))}'
         f'{"<small>flight</small>" if h["hour"] in flight else ""}</th>'

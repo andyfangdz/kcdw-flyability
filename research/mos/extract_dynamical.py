@@ -84,27 +84,67 @@ def extract(ds, variables, init, selector, how, leads, member_dim):
     return frame
 
 
+def station_indices(ds, stations):
+    """Nearest grid indices for each station: {dim: DataArray(dims='station')} for pointwise isel."""
+    import xarray as xr
+    if 'latitude' in ds.dims:
+        lat, lon = ds.latitude.values, ds.longitude.values
+        iy = [int(np.abs(lat - s['lat']).argmin()) for s in stations.values()]
+        ix = [int(np.abs(((lon - s['lon']) + 180) % 360 - 180).argmin()) for s in stations.values()]
+        dims = ('latitude', 'longitude')
+    else:
+        lat2, lon2 = ds.latitude.values, ds.longitude.values
+        flat = [int(np.argmin((lat2 - s['lat']) ** 2 + ((lon2 - s['lon']) * np.cos(np.radians(s['lat']))) ** 2)) for s in stations.values()]
+        iy, ix = zip(*(np.unravel_index(f, lat2.shape) for f in flat))
+        dims = ('y', 'x')
+    return {dims[0]: xr.DataArray(list(iy), dims='station'), dims[1]: xr.DataArray(list(ix), dims='station')}
+
+
+def extract_points(ds, variables, init, indexers, names, leads, member_dim):
+    """All stations from one read: the tiles covering the region are loaded once."""
+    sub = ds[variables].sel(init_time=init).isel(lead_time=leads).isel(indexers).load()
+    frames = []
+    for i, station in enumerate(names):
+        one = sub.isel(station=i)
+        cols = reduce(one, member_dim) if member_dim else {k: one[k] for k in variables}
+        frame = pd.DataFrame({k: np.asarray(v.values, dtype='float32') for k, v in cols.items()})
+        frame.insert(0, 'lead_h', (one.lead_time.values / np.timedelta64(1, 'h')).astype('int16'))
+        frame.insert(0, 'init', pd.Timestamp(init))
+        frame.insert(0, 'station', station)
+        frames.append(frame)
+    return pd.concat(frames, ignore_index=True)
+
+
 def main():
     import dynamical_catalog as dc
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset', choices=sorted(DATASETS))
     parser.add_argument('--start', default=None, help='first month YYYY-MM')
     parser.add_argument('--threads', type=int, default=12)
+    parser.add_argument('--stations', default=None, help='stations.json for a multi-station extraction')
+    parser.add_argument('--out', default=str(OUT), help='output root (default var/mos/models)')
+    parser.add_argument('--cycles', type=int, nargs='+', default=[0], help='init hours; other than [0] they go to <dataset>_c<hours>')
     args = parser.parse_args()
     name, variables = DATASETS[args.dataset]
     ds = dc.open(name, chunks=None)
     variables = [v for v in variables if v in ds.data_vars]
     selector, grid, how = point_selector(ds)
+    if args.stations:
+        import json
+        stations = json.loads(Path(args.stations).read_text())
+        indexers, names = station_indices(ds, stations), list(stations)
+        grid = f'{len(names)} stations'
     member_dim = 'ensemble_member' if 'ensemble_member' in ds.dims else None
     leads = np.where(ds.lead_time.values / np.timedelta64(1, 'h') <= MAX_LEAD_H)[0]
     inits = pd.DatetimeIndex(ds.init_time.values)
-    inits = inits[inits.hour == 0]
+    inits = inits[inits.hour.isin(args.cycles)]
     if args.start:
         inits = inits[inits >= pd.Timestamp(args.start + '-01')]
-    out_dir = OUT / args.dataset
+    suffix = '' if args.cycles == [0] else '_c' + ''.join(f'{c:02d}' for c in args.cycles)
+    out_dir = Path(args.out) / (args.dataset + suffix)
     out_dir.mkdir(parents=True, exist_ok=True)
     print(f'{args.dataset}: {name} grid point {grid}, {len(variables)} variables, {len(leads)} leads, '
-          f'{len(inits)} 00Z runs {inits[0]:%Y-%m-%d}..{inits[-1]:%Y-%m-%d}', flush=True)
+          f'{len(inits)} runs (cycles {args.cycles}) {inits[0]:%Y-%m-%d}..{inits[-1]:%Y-%m-%d}', flush=True)
     current = pd.Timestamp.utcnow().tz_localize(None).strftime('%Y-%m')
     for month, group in pd.Series(inits, index=inits).groupby(inits.strftime('%Y-%m')):
         path = out_dir / f'{month}.parquet'
@@ -115,6 +155,8 @@ def main():
         def one(init):
             for attempt in range(4):
                 try:
+                    if args.stations:
+                        return extract_points(ds, variables, init, indexers, names, leads, member_dim)
                     return extract(ds, variables, init, selector, how, leads, member_dim)
                 except Exception as exc:
                     error = exc

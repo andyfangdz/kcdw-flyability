@@ -1,15 +1,11 @@
-"""Calibrated hourly KCDW wind for the next days, from the newest runs; writes var/mos/forecast.json.
+"""Calibrated hourly KCDW wind for the next days from the latest issue time; writes var/mos/forecast.json.
 
-For each local date from today to today+7 and each local hour 06-21, uses the
-training-table row with the shortest lead whose 00Z runs are already extracted
-(at least MIN_MODEL_FEATURES present, the same row construction as training).
-ICON, ECMWF HRES and GEM come from a past-only archive in training, so for
-future hours their values are filled from that same 00Z run via Open-Meteo's
-single-runs API. Ranges are widened by the conformal widths per lead day.
+Uses the issue-time table (build_issue.py): for the latest issue time already reached (the 04, 11, 16
+and 22Z updates), every local hour 06-21 after it, out to 7 days, with each source's newest run
+published by then under the same publication-delay rule as training. Ranges are widened by the
+conformal widths per lead day (local days from the issue).
 """
 import json
-import urllib.parse
-import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -20,54 +16,21 @@ import xgboost as xgb
 ARTIFACTS = Path('var/mos/artifacts')
 OUT = Path('var/mos/forecast.json')
 MIN_MODEL_FEATURES = 10
-OPEN_METEO = {'icon': 'icon_global', 'hres': 'ecmwf_ifs025', 'gem': 'gem_global'}
-OM_VARS = ('wind_speed_10m', 'wind_direction_10m', 'wind_gusts_10m', 'temperature_2m', 'dew_point_2m', 'cloud_cover')
 TZ = 'America/New_York'
-
-
-def single_run(model, init):
-    params = dict(latitude=40.8752, longitude=-74.2814, models=model, hourly=','.join(OM_VARS), wind_speed_unit='kn',
-                  timezone='UTC', forecast_days=9, run=init.strftime('%Y-%m-%dT%H:%M'))
-    url = 'https://single-runs-api.open-meteo.com/v1/forecast?' + urllib.parse.urlencode(params)
-    data = json.load(urllib.request.urlopen(url, timeout=60))
-    hourly = data['hourly']
-    frame = pd.DataFrame({v: hourly[v] for v in OM_VARS}, index=pd.to_datetime(hourly['time']), dtype='float32')
-    return frame
-
-
-def fill_open_meteo(rows):
-    cache = {}
-    for i, row in rows.iterrows():
-        for key, model in OPEN_METEO.items():
-            if f'{key}_wind_speed_10m' in rows and not np.isnan(row[f'{key}_wind_speed_10m']):
-                continue
-            if (model, row.init) not in cache:
-                try:
-                    cache[(model, row.init)] = single_run(model, row.init)
-                except Exception:
-                    cache[(model, row.init)] = None
-            frame = cache[(model, row.init)]
-            if frame is None or row.valid not in frame.index:
-                continue
-            values = frame.loc[row.valid]
-            for var in OM_VARS:
-                rows.at[i, f'{key}_{var}'] = values[var]
-            rad = np.radians(values['wind_direction_10m'])
-            rows.at[i, f'{key}_dir_sin'], rows.at[i, f'{key}_dir_cos'] = np.sin(rad), np.cos(rad)
-    return rows
 
 
 def main():
     meta = json.loads((ARTIFACTS / 'meta.json').read_text())
     conformal = json.loads(Path('var/mos/conformal.json').read_text())
     feats = meta['features']
-    t = pd.read_parquet('var/mos/table.parquet')
+    t = pd.read_parquet('var/mos/table_issue.parquet')
     today = pd.Timestamp.now(tz=TZ).normalize().tz_localize(None)
-    t = t[(t.date >= today) & (t.date <= today + pd.Timedelta(days=7))].copy()
-    model_cols = [c for c in feats if c.split('_')[0] in ('gfs', 'gefs', 'ifs', 'aifs', 'hrrr', 'wn2', 'wn3')]
-    t['present'] = t[model_cols].notna().sum(axis=1)
-    rows = t[t.present >= MIN_MODEL_FEATURES].sort_values(['date', 'hour', 'lead_day']).groupby(['date', 'hour']).head(1).reset_index(drop=True)
-    rows = fill_open_meteo(rows)
+    # The latest issue time (04/11/16/22Z) already reached: build_issue.py chose each source's newest run published by then
+    # (falling back to its previous run when late), exactly as for the training rows.
+    issue = t.init[t.init <= pd.Timestamp.now(tz='UTC').tz_localize(None)].max()
+    t = t[(t.init == issue) & (t.date <= today + pd.Timedelta(days=7))].copy()
+    model_cols = [c for c in feats if not c.startswith(('hour_', 'doy_', 'lead_', 'slot')) and not c.endswith('_age_h')]
+    rows = t[t[model_cols].notna().sum(axis=1) >= MIN_MODEL_FEATURES].sort_values(['date', 'hour']).reset_index(drop=True)
     X = rows.reindex(columns=feats).to_numpy('float32')
     out = rows[['date', 'hour', 'lead_day', 'valid', 'init']].copy()
     for target in ('sust_mean', 'gust_peak', 'metar_peak'):

@@ -26,15 +26,15 @@ def width(scores, alpha=ALPHA):
 
 def main():
     oof = pd.read_parquet('var/mos/oof.parquet')
-    obs = pd.read_parquet('var/mos/table.parquet', columns=['valid', 'lead_day', *TARGETS])
-    d = oof.merge(obs, on=['valid', 'lead_day'])
+    obs = pd.read_parquet('var/mos/table_issue.parquet', columns=['valid', 'lead_day', 'init', *TARGETS])
+    d = oof.merge(obs, on=['valid', 'lead_day', 'init'])
     month = d.valid.dt.year * 12 + d.valid.dt.month
     out = {'alpha': ALPHA, 'targets': {}}
     for target in TARGETS:
         lo, hi, y = d[f'{target}_p10'], d[f'{target}_p90'], d[target]
         score = np.maximum(lo - y, y - hi).to_numpy()
         out['targets'][target] = {}
-        for lead in range(1, 8):
+        for lead in sorted(d.lead_day.unique()):
             m = (d.lead_day == lead).to_numpy() & ~np.isnan(score)
             c = width(score[m])
             half = (month % 2 == 0).to_numpy()

@@ -6,11 +6,13 @@ blend, so beating it is the meaningful bar. Its archive starts 2024-10.
 import numpy as np
 import pandas as pd
 
-t = pd.read_parquet('var/mos/table.parquet')
+t = pd.read_parquet('var/mos/table_issue.parquet')
 oof = pd.read_parquet('var/mos/oof.parquet')
+# One issue per day (11Z, the morning update) so each valid hour and lead day is scored once, as NBM's day-ahead archive is.
+t, oof = t[t.init.dt.hour == 11], oof[oof.init.dt.hour == 11]
 nbm = pd.read_parquet('var/mos/benchmark_nbm.parquet').drop_duplicates(['valid', 'lead_day']).set_index(['valid', 'lead_day'])
 d = oof.merge(t[['valid', 'lead_day', 'sust_mean', 'gust_peak', 'metar_peak', 'u_obs', 'v_obs', 'gfs_10m_spd',
-                 'gefs_wind_gust_surface_mean', 'ifs_ens_wind_gust_10m_mean', 'ifs_ens_speed_10m_mean']], on=['valid', 'lead_day'])
+                 'gefs_wind_gust_surface_mean', 'ifs_ens_wind_gust_10m_mean', 'ifs_ens_speed_10m_mean', 'init']], on=['valid', 'lead_day', 'init'])
 d = d.join(nbm[['wind_speed_10m', 'wind_gusts_10m', 'wind_direction_10m']].rename(columns=lambda c: 'nbm_' + c), on=['valid', 'lead_day'])
 mae = lambda a, b: float(np.nanmean(np.abs(a - b)))
 both = d.nbm_wind_gusts_10m.notna() & d.ifs_ens_wind_gust_10m_mean.notna()

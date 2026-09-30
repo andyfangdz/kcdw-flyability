@@ -10,7 +10,7 @@ from datetime import date
 from pathlib import Path
 
 OUT = Path('var/mos/obs')
-URL = ('https://mesonet.agron.iastate.edu/cgi-bin/request/asos1min.py?station=CDW&tz=UTC'
+URL = ('https://mesonet.agron.iastate.edu/cgi-bin/request/asos1min.py?station={station}&tz=UTC'
        '&year1={y1}&month1={m1}&day1=1&hour1=0&minute1=0&year2={y2}&month2={m2}&day2=1&hour2=0&minute2=0'
        '&vars=sknt&vars=drct&vars=gust_sknt&vars=gust_drct&sample=1min&what=download&delim=comma')
 
@@ -22,16 +22,18 @@ def months(start, end):
         y, m = (y + 1, 1) if m == 12 else (y, m + 1)
 
 
-def main(first=(2020, 10)):
+def main(first=(2020, 10), station='CDW', out=OUT):
+    out = Path(out)
+    out.mkdir(parents=True, exist_ok=True)
     today = date.today()
     for y, m in months(first, (today.year, today.month)):
-        path = OUT / f'{y}-{m:02d}.csv'
+        path = out / f'{y}-{m:02d}.csv'
         if path.exists() and (y, m) != (today.year, today.month):
             continue
         y2, m2 = (y + 1, 1) if m == 12 else (y, m + 1)
         for attempt in range(4):
             try:
-                text = urllib.request.urlopen(URL.format(y1=y, m1=m, y2=y2, m2=m2), timeout=300).read().decode()
+                text = urllib.request.urlopen(URL.format(station=station, y1=y, m1=m, y2=y2, m2=m2), timeout=300).read().decode()
                 break
             except Exception:
                 time.sleep(10 * (attempt + 1))
@@ -48,4 +50,9 @@ def main(first=(2020, 10)):
 
 
 if __name__ == '__main__':
-    main()
+    import sys
+    # Usage: fetch_obs.py [STATION OUT_DIR]; defaults to KCDW into var/mos/obs.
+    if len(sys.argv) == 3:
+        main(station=sys.argv[1], out=sys.argv[2])
+    else:
+        main()

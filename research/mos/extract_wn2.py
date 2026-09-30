@@ -7,6 +7,7 @@ total exceeds MAX_TOTAL_BYTES. Writes var/mos/models/wn2/YYYY-MM.parquet with
 member statistics per lead, in the same layout as extract_dynamical.py.
 """
 import json
+import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -25,7 +26,7 @@ LEADS = list(range(6, 199, 6))
 FIELDS = {'u10': '10m_u_component_of_wind', 'v10': '10m_v_component_of_wind', 'u100': '100m_u_component_of_wind',
           'v100': '100m_v_component_of_wind', 't2m': '2m_temperature', 'mslp': 'mean_sea_level_pressure'}
 MAX_RUN_BYTES = 1024 ** 3
-MAX_TOTAL_BYTES = 900 * 1024 ** 3
+MAX_TOTAL_BYTES = int(float(os.environ.get('MOS_MAX_TOTAL_GIB', '900')) * 1024 ** 3)
 CAP = 2 * 1024 ** 4  # must exceed BigQuery's unpruned pre-run estimate
 OUT = Path('var/mos/models/wn2')
 KNOTS = 3600 / 1852
@@ -71,10 +72,15 @@ def main(first='2020-10-01'):
     session = AuthorizedSession(credentials)
     OUT.mkdir(parents=True, exist_ok=True)
     spent = 0
-    inits = pd.date_range(first, datetime.now(timezone.utc).date(), freq='D', tz='UTC')
+    cycles = [int(c) for c in os.environ.get('MOS_CYCLES', '0').split(',')]
+    days = pd.date_range(first, datetime.now(timezone.utc).date(), freq='D', tz='UTC')
+    inits = pd.DatetimeIndex(sorted(d + pd.Timedelta(hours=c) for d in days for c in cycles))
+    inits = inits[inits <= pd.Timestamp.now(tz='UTC')]
+    out = OUT if cycles == [0] else OUT.parent / (OUT.name + '_c' + ''.join(f'{c:02d}' for c in cycles))  # extra cycles kept apart
+    out.mkdir(parents=True, exist_ok=True)
     current = pd.Timestamp.utcnow().strftime('%Y-%m')
     for month, group in pd.Series(inits, index=inits).groupby(inits.strftime('%Y-%m')):
-        path = OUT / f'{month}.parquet'
+        path = out / f'{month}.parquet'
         if path.exists() and month != current:
             continue
         started = time.time()
