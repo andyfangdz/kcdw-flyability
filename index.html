@@ -1,0 +1,31 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KCDW calibrated wind: research notes</title>
+<style>
+body{font:15px/1.5 system-ui,sans-serif;color:#0b0b0b;background:#fcfcfb;max-width:960px;margin:24px auto;padding:0 20px}
+h1{font-size:24px;margin:0 0 4px} h2{font-size:18px;margin:30px 0 6px} p,li{color:#52514e} p{max-width:780px}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0} .card{border:1px solid #e4e3df;border-radius:8px;padding:14px 16px;background:#fff}
+.card a{font-weight:600;font-size:16px} table{border-collapse:collapse;font-size:14px;margin:6px 0} th,td{padding:6px 10px;border-bottom:1px solid #e4e3df;text-align:left;vertical-align:top}
+thead th{color:#52514e;font-weight:600} td.us{font-weight:700;color:#0b0b0b} tbody th{font-weight:600}
+@media (max-width:700px){.cards{grid-template-columns:1fr}}
+</style></head><body>
+<h1>KCDW calibrated wind: research notes</h1>
+<p>A machine-learned calibration of many weather models' wind forecasts into hourly sustained wind, peak gust and direction at Essex County
+Airport (KCDW), and at 21 other airports around New York. NBM is used only as a benchmark, never as an input.</p>
+<div class="cards">
+<div class="card"><a href="mos-explainer/">What the KCDW model learned →</a><p>SHAP attributions, response curves, a beeswarm and the first tree of the production gust model.</p></div>
+<div class="card"><a href="mos-multi-explainer/">What the 22-station model learned →</a><p>How one model calibrates each airport differently: per-airport site effects, exposure by wind direction, held-out skill.</p></div>
+</div>
+<h2>How good is it</h2>
+<p>KCDW, 1–4 pm local, 15,439 identical hours (2024-11-14 to 2026-09-11), mean absolute error of the median forecast,
+scored on months each model never saw.</p>
+<table><thead><tr><th></th><th>Calibrated</th><th>NBM</th><th>ECMWF ENS mean</th><th>Better than NBM</th></tr></thead><tbody><tr><th scope="row">Peak gust (1-minute, 1-hour max)</th><td class="us">3.40 kt</td><td>4.17 kt</td><td>4.24 kt</td><td>18%</td></tr><tr><th scope="row">Sustained wind (hourly mean)</th><td class="us">1.67 kt</td><td>2.02 kt</td><td>–</td><td>17%</td></tr><tr><th scope="row">Direction (when ≥ 5 kt)</th><td class="us">22.0°</td><td>27.7°</td><td>–</td><td>21%</td></tr></tbody></table>
+<p>All 22 airports, held-out months: peak-gust error 3.44 kt versus 4.50 kt for the raw ECMWF ensemble mean (24% lower).
+NBM's archive here uses runs issued exactly 24N hours before each hour, fresher than the 00Z runs the calibration uses, so the NBM comparison is conservative.</p>
+<h2>Integrity checks</h2>
+<table><tbody><tr><th scope="row">Look-ahead in Open-Meteo archives (ICON, HRES, GEM)</th><td>Found: &quot;previous day N&quot; used runs up to ~18 h newer than the 00Z runs of every other input, worth 1.8% of gust accuracy. Fixed by removing them; aligned, they added nothing.</td></tr><tr><th scope="row">Training labels after a test forecast was issued</th><td>8-day embargo before the test year: +0.06% (negligible).</td></tr><tr><th scope="row">Leakage across cross-validation month boundaries</th><td>Purging 7 days around each test month: +0.4% (small).</td></tr><tr><th scope="row">WeatherNext 2 hindcast overlapping its own training (2022)</th><td>Masking 2022 made the forecast +0.4% worse, so no leak.</td></tr><tr><th scope="row">Observation-derived inputs</th><td>None among the inputs; every model input is a forecast from a 00Z run available before the forecast day.</td></tr><tr><th scope="row">Strict forward year</th><td>Trained only before Oct 2025, scored Oct 2025–Sep 2026: gust MAE 3.27 kt, no worse than cross-validation on the same hours (3.31 kt).</td></tr></tbody></table>
+<h2>What helps, and what does not</h2>
+<ul><li>More history helps, with diminishing returns: training on the last 1, 2, 3 and 4.3 years gives forward-year gust CRPS 2.502, 2.480, 2.460 and 2.450
+(-0.8%, -0.8%, -0.4% per step).</li>
+<li>Model gust fields: once winds and stability are known, the models' own gust diagnostics add almost nothing.</li>
+<li>Borrowing from other airports: the 22-station model ties the KCDW-only model at KCDW; its value is calibrating the other airports.</li></ul>
+<p>Research code: <code>research/mos</code> in the repository. Supplemental guidance, not an official aviation forecast.</p>
+</body></html>
