@@ -28,6 +28,8 @@ def one_minute():
     frames = [pd.read_csv(p, usecols=['valid(UTC)', 'sknt', 'drct', 'gust_sknt'], na_values=['M', '']) for p in sorted(glob.glob('var/mos/obs/*.csv'))]
     m = pd.concat(frames, ignore_index=True).rename(columns={'valid(UTC)': 'valid'})
     m['valid'] = pd.to_datetime(m['valid'])
+    for c in ('sknt', 'drct', 'gust_sknt'):
+        m[c] = pd.to_numeric(m[c], errors='coerce')  # the 1-minute archive carries occasional non-numeric codes
     m = m.dropna(subset=['sknt'])
     m = m[(m.sknt >= 0) & (m.sknt < 100) & (m.gust_sknt.isna() | ((m.gust_sknt >= m.sknt - 1) & (m.gust_sknt < 120)))]
     rad = np.radians(m.drct.fillna(0))
