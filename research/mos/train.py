@@ -19,7 +19,7 @@ import xgboost as xgb
 QUANTILES = np.array([0.1, 0.5, 0.9])
 ID = ['date', 'hour', 'lead_day', 'valid', 'init']
 TARGETS = ['sust_mean', 'sust_max', 'gust_peak', 'u_obs', 'v_obs', 'spread', 'metar_sknt', 'metar_drct', 'metar_gust',
-           'metar_peak', 'metar_gust_reported']
+           'metar_peak', 'metar_gust_reported', 'xw_sust_mean', 'xw_gust_peak']
 AFTERNOON = range(13, 17)
 
 

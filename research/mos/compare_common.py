@@ -11,7 +11,7 @@ LEVELS = np.round(np.arange(0.05, 0.96, 0.05), 2)
 TARGETS = ('gust_peak', 'sust_mean')
 ID = ['date', 'hour', 'lead_day', 'valid', 'init']
 OBS = ['sust_mean', 'sust_max', 'gust_peak', 'u_obs', 'v_obs', 'spread', 'metar_sknt', 'metar_drct', 'metar_gust', 'metar_peak',
-       'metar_gust_reported']
+       'metar_gust_reported', 'xw_sust_mean', 'xw_gust_peak']
 FOLDS = 5
 OUT = 'var/mos/compare'
 

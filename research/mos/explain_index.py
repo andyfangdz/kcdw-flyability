@@ -65,7 +65,7 @@ def main():
 <style>
 body{{font:15px/1.5 system-ui,sans-serif;color:{INK};background:#fcfcfb;max-width:960px;margin:24px auto;padding:0 20px}}
 h1{{font-size:24px;margin:0 0 4px}} h2{{font-size:18px;margin:30px 0 6px}} p,li{{color:{INK2}}} p{{max-width:780px}}
-.cards{{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}} .card{{border:1px solid {GRID};border-radius:8px;padding:14px 16px;background:#fff}}
+.cards{{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:18px 0}} .card{{border:1px solid {GRID};border-radius:8px;padding:14px 16px;background:#fff}}
 .card a{{font-weight:600;font-size:16px}} table{{border-collapse:collapse;font-size:14px;margin:6px 0}} th,td{{padding:6px 10px;border-bottom:1px solid {GRID};text-align:left;vertical-align:top}}
 thead th{{color:{INK2};font-weight:600}} td.us{{font-weight:700;color:{INK}}} tbody th{{font-weight:600}}
 @media (max-width:700px){{.cards{{grid-template-columns:1fr}}}}
@@ -76,6 +76,7 @@ Airport (KCDW), and at 21 other airports around New York. NBM is used only as a 
 <div class="cards">
 <div class="card"><a href="mos-explainer/">What the KCDW model learned →</a><p>SHAP attributions, response curves, a beeswarm and the first tree of the production gust model.</p></div>
 <div class="card"><a href="mos-multi-explainer/">What the 22-station model learned →</a><p>How one model calibrates each airport differently: per-airport site effects, exposure by wind direction, held-out skill.</p></div>
+<div class="card"><a href="reliability/">How reliable are the wind probabilities? →</a><p>Out-of-sample reliability curves for peak gust, sustained wind and the runway 04/22 crosswind, against climatology, the raw ECMWF and GEFS ensembles and NBM.</p></div>
 </div>
 <h2>How good is it</h2>
 <p>KCDW, 1–4 pm local, {bench["afternoon_hours"]:,} identical hours ({bench["period"][0]} to {bench["period"][1]}), mean absolute error of the median forecast

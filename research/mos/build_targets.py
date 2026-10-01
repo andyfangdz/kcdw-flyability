@@ -5,6 +5,8 @@ From IEM 1-minute ASOS (true values):
   gust_peak   highest 5-second gust in the hour (kt)
   spread      gust_peak - sust_mean
   u_obs/v_obs speed-weighted vector mean wind (for direction)
+  xw_sust_mean  mean over the hour's minutes of the runway 04/22 crosswind (wind x |sin(dir - 030)|, true)
+  xw_gust_peak  highest per-minute gust crosswind (the minute's gust, or wind, x |sin(dir - 030)|)
 From METARs (what is officially reported), dynamical.org ASOS parquet:
   metar_sknt, metar_drct  routine observation at about H:53
   metar_gust              reported gust anywhere in the hour (NaN when none)
@@ -19,6 +21,7 @@ import numpy as np
 import pandas as pd
 
 OUT = Path('var/mos/targets.parquet')
+RUNWAY_DEG = 30  # runway 04/22 true heading (030/210); the only crosswind that matters at KCDW for this pilot
 
 
 def one_minute():
@@ -30,8 +33,15 @@ def one_minute():
     rad = np.radians(m.drct.fillna(0))
     m['u'], m['v'] = -m.sknt * np.sin(rad), -m.sknt * np.cos(rad)
     m['hour'] = m.valid.dt.floor('h')
+    # Share of the wind across the runway from the minute's direction; a fully calm minute with no direction is 0,
+    # a minute with wind or gust but no direction is unknown.
+    calm = m.drct.isna() & (np.fmax(m.gust_sknt, m.sknt) == 0)
+    across = np.where(calm, 0.0, np.abs(np.sin(np.radians(m.drct - RUNWAY_DEG))))
+    m['xw'] = m.sknt * across
+    m['xw_gust'] = np.fmax(m.gust_sknt, m.sknt) * across
     g = m.groupby('hour').agg(n=('sknt', 'size'), sust_mean=('sknt', 'mean'), sust_max=('sknt', 'max'),
-                              gust_peak=('gust_sknt', 'max'), u_obs=('u', 'mean'), v_obs=('v', 'mean'))
+                              gust_peak=('gust_sknt', 'max'), u_obs=('u', 'mean'), v_obs=('v', 'mean'),
+                              xw_sust_mean=('xw', 'mean'), xw_gust_peak=('xw_gust', 'max'))
     g = g[g.n >= 45].drop(columns='n')
     g['gust_peak'] = np.maximum(g.gust_peak.fillna(g.sust_max), g.sust_max)
     g['spread'] = g.gust_peak - g.sust_mean
