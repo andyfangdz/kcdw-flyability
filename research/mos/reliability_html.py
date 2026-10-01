@@ -151,6 +151,10 @@ sustained wind, and the crosswind on runway 04/22. A reliable forecast sits on t
 should see it. Every point is out of sample (month-interleaved cross-validation, {hours:,} hours from 2021 to 2026, plus a forward year);
 bars are 90% intervals counted in days, since windy hours cluster on the same days. Points from fewer than three days are not drawn.</p>
 <p>{nav}</p>
+<p><strong>Which probability method?</strong> Three calibrated versions are compared: probabilities read from the quantile model, the same after an
+isotonic recalibration fitted only on held-out forecasts, and a dedicated classifier per threshold. Cross-validation favours the recalibrated
+version slightly, but in the forward year the recalibration does not hold up for rare thresholds (too few windy events to fit the mapping), and the
+plain quantile probabilities score best overall, with the classifiers last.</p>
 <h3>Skill against climatology at a glance (cross-validated, identical hours)</h3>
 <p>Brier skill score: 0 is no better than the usual frequency for that month and hour, 1 is perfect. Calibrated first, then the best
 raw ensemble (ECMWF or GEFS) and NBM dressed with its past errors.</p>
