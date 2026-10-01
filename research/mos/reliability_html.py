@@ -7,9 +7,10 @@ from explain_html import GRID, INK, INK2
 RARE_HOURS = 300  # fewer event hours than this in five years: too rare to judge reliability or skill
 # Fixed categorical order from the reference palette; a method keeps its colour in every section.
 COLORS = {'quantiles': '#2a78d6', 'classifier': '#eb6834', 'raw ECMWF ensemble': '#1baf7a', 'raw GEFS ensemble': '#eda100',
-          'NBM + its past errors': '#e87ba4', 'NBM (yes/no)': '#008300'}
+          'NBM + its past errors': '#e87ba4', 'NBM (yes/no)': '#008300', 'quantiles, recalibrated': '#4a3aa7'}
 LABELS = {'quantiles': 'Calibrated (quantile model)', 'classifier': 'Calibrated (threshold classifier)', 'raw ECMWF ensemble': 'Raw ECMWF ensemble',
-          'raw GEFS ensemble': 'Raw GEFS ensemble', 'NBM + its past errors': 'NBM + its past errors', 'NBM (yes/no)': 'NBM (yes/no)'}
+          'raw GEFS ensemble': 'Raw GEFS ensemble', 'NBM + its past errors': 'NBM + its past errors', 'NBM (yes/no)': 'NBM (yes/no)',
+          'quantiles, recalibrated': 'Calibrated (quantiles, recalibrated)'}
 POINTS_ONLY = {'NBM (yes/no)'}  # a yes/no forecast has only two probabilities: markers, no line
 
 
@@ -62,7 +63,8 @@ def panel(thr, res, size=300, pad=40, strip=46):
 def table(section, title):
     rows = []
     for thr, res in section.items():
-        for name in ('quantiles', 'classifier', 'raw ECMWF ensemble', 'raw GEFS ensemble', 'NBM + its past errors', 'NBM (yes/no)', 'climatology'):
+        for name in ('quantiles', 'quantiles, recalibrated', 'classifier', 'raw ECMWF ensemble', 'raw GEFS ensemble', 'NBM + its past errors',
+                     'NBM (yes/no)', 'climatology'):
             if name not in res:
                 continue
             r = res[name]

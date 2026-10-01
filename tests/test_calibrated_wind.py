@@ -57,6 +57,26 @@ class CalibratedWindTests(unittest.TestCase):
         self.assertIn('from 242°, with a true peak gust around 14 kt (80% range 12–17)', html)
         self.assertIn('versus 4.2 kt for NBM', html)
 
+    def test_crosswind_and_more_thresholds_render_and_validate(self):
+        extra = dict(xw_sust_kt=[2.0, 3.5, 5.0], xw_gust_kt=[6.0, 9.0, 12.0], p_gust_ge25=0.004, p_sust_ge15=0.001,
+                     p_xw_ge10=0.05, p_xw_ge15=0.01, p_xwgust_ge15=0.12, p_xwgust_ge20=0.03)
+        data = forecast()
+        for h in data['days']['2026-09-24']:
+            h.update(extra)
+        html = cw.render_calibrated(self.collect(data), NOW)
+        self.assertIn('Across runway 04/22 the crosswind should be about 4 kt with gusts around 9 kt (80% range up to 12)', html)
+        self.assertIn('of a gust of 15 kt or more: 12%', html)
+        self.assertIn('of 25 kt or more: &lt;1%', html)
+        self.assertIn('Crosswind gust 04/22', html)
+        for bad in ({'xw_gust_kt': [20.0, 25.0, 30.0]},  # a crosswind cannot exceed the wind
+                    {'p_gust_ge25': 0.5}):  # nor can a higher threshold be more likely
+            broken = forecast()
+            broken['days']['2026-09-24'][3].update(extra, **bad)
+            with self.assertRaises(ValueError):
+                self.collect(broken)
+        old = forecast()  # forecasts without the new fields still render
+        self.assertNotIn('Crosswind gust 04/22', cw.render_calibrated(self.collect(old), NOW))
+
     def test_issue_times_are_accepted_and_described(self):
         data = forecast()
         data['days']['2026-09-24'] = [hour(h, lead=0) for h in range(6, 22)]

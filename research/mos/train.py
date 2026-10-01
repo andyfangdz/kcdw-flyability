@@ -20,6 +20,23 @@ QUANTILES = np.array([0.1, 0.5, 0.9])
 ID = ['date', 'hour', 'lead_day', 'valid', 'init']
 TARGETS = ['sust_mean', 'sust_max', 'gust_peak', 'u_obs', 'v_obs', 'spread', 'metar_sknt', 'metar_drct', 'metar_gust',
            'metar_peak', 'metar_gust_reported', 'xw_sust_mean', 'xw_gust_peak']
+QUANTILE_TARGETS = ('sust_mean', 'gust_peak', 'metar_peak', 'xw_sust_mean', 'xw_gust_peak')
+# Threshold probabilities, each a dedicated classifier trained on hours where its observed column is known.
+# xw_* is the runway 04/22 crosswind (build_targets.py). Shared by this cross-validation, model.py and forecast.py.
+EXCEEDANCE = {'p_gust_ge20': ('gust_peak', 20), 'p_gust_ge25': ('gust_peak', 25), 'p_sust_ge15': ('sust_mean', 15),
+              'p_xw_ge10': ('xw_sust_mean', 10), 'p_xw_ge15': ('xw_sust_mean', 15), 'p_xwgust_ge15': ('xw_gust_peak', 15),
+              'p_xwgust_ge20': ('xw_gust_peak', 20), 'p_spread_ge10': ('spread', 10)}
+
+
+def exceedance_label(t, column, threshold):
+    """1.0 / 0.0 where the observation is known, NaN where it is not."""
+    v = t[column].to_numpy('float32')
+    return np.where(np.isnan(v), np.nan, (v >= threshold).astype('float32'))
+
+
+def crosswind(values, u, v, runway=30):
+    """Wind values across runway 04/22 (030/210 true), from the wind's u/v direction."""
+    return values * np.abs(np.sin(np.radians(np.degrees(np.arctan2(-u, -v)) - runway)))
 AFTERNOON = range(13, 17)
 
 
@@ -60,12 +77,14 @@ def main():
     print(f'{len(t)} rows, {len(features)} features, {t.date.min():%Y-%m-%d}..{t.date.max():%Y-%m-%d}, {args.folds} month-interleaved folds')
     results = {}
     preds = {}
-    for target in ('sust_mean', 'gust_peak', 'metar_peak'):
+    for target in QUANTILE_TARGETS:
         y = t[target].to_numpy('float32')
         ok = ~np.isnan(y)
         q = np.full((len(t), 3), np.nan)
         lin = np.full(len(t), np.nan)
-        raw = raw_value(t, 'sust' if target == 'sust_mean' else 'gust')
+        raw = raw_value(t, 'sust' if target in ('sust_mean', 'xw_sust_mean') else 'gust')
+        if target.startswith('xw_'):  # raw crosswind: the raw value across the runway at GFS's wind direction
+            raw = crosswind(raw, t.gfs_wind_u_10m.to_numpy(), t.gfs_wind_v_10m.to_numpy())
         for k in range(args.folds):
             tr, te = ok & (fold != k), fold == k
             q[te] = quantile_model(params).fit(X[tr], y[tr]).predict(X[te])
@@ -125,19 +144,20 @@ def main():
         entry[f'<=30 deg {name}'] = float(np.mean(err(d[ok], obs_dir[ok]) <= 30))
     results[('direction', 'sust >= 5 kt')] = entry
     # Threshold probabilities: dedicated classifiers vs raw thresholds, Brier on the same hours.
-    for name, y in (('1-min gust >= 20', (t.gust_peak >= 20).astype(float).to_numpy()),
-                    ('spread >= 10', (t.spread >= 10).astype(float).to_numpy()),
-                    ('METAR gust reported', t.metar_gust_reported.to_numpy('float32'))):
+    labels = {name: exceedance_label(t, column, threshold) for name, (column, threshold) in EXCEEDANCE.items()}
+    labels['p_metar_gust'] = t.metar_gust_reported.to_numpy('float32')
+    for name, y in labels.items():
         ok = ~np.isnan(y)
         p = np.full(len(t), np.nan)
         for k in range(args.folds):
             tr, te = ok & (fold != k), fold == k
             p[te] = xgb.XGBClassifier(tree_method='hist', eval_metric='logloss', **params).fit(X[tr], y[tr]).predict_proba(X[te])[:, 1]
-        clim = np.array([y[ok & (fold != k)].mean() for k in fold])
+        fold_rate = np.array([y[ok & (fold != k)].mean() for k in range(args.folds)])  # training-fold frequency
+        clim = fold_rate[fold]
         mask = ok & ~np.isnan(p)
         b, b0 = np.mean((p[mask] - y[mask]) ** 2), np.mean((clim[mask] - y[mask]) ** 2)
         entry = {'n': int(mask.sum()), 'base rate': float(y[mask].mean()), 'Brier skill xgb': float(1 - b / b0)}
-        if name.startswith('1-min'):
+        if name == 'p_gust_ge20':
             rawg = raw_value(t, 'gust')
             m2 = mask & ~np.isnan(rawg)
             entry['Brier skill raw gust>=20'] = float(1 - np.mean(((rawg[m2] >= 20) - y[m2]) ** 2) / np.mean((clim[m2] - y[m2]) ** 2))

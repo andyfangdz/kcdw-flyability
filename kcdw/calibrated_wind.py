@@ -24,6 +24,7 @@ MAX_AGE = timedelta(hours=36)
 HOURS = range(6, 22)
 TABLE_HOURS = range(9, 19)
 ISSUE_HOURS = (4, 11, 16, 22)  # UTC issue times of the calibrated forecast updates
+OPTIONAL_PROBABILITIES = ('p_gust_ge25', 'p_sust_ge15', 'p_xw_ge10', 'p_xw_ge15', 'p_xwgust_ge15', 'p_xwgust_ge20')
 NOTES = [
     'Trained on every hour from 6 a.m. to 9 p.m. since mid-2021 (about 190,000 hours), comparing each model\'s archived forecast with what KCDW actually measured.',
     '"Peak gust" is the strongest 5-second gust in the hour from the ASOS 1-minute record, so it counts gusts too small for a METAR to report. "METAR peak" is what the hourly and special reports would show: the reported gust, or the wind when no gust is reported.',
@@ -58,6 +59,18 @@ def _check_hour(h, day):
     _require(type(h['dir_deg']) is int and 0 <= h['dir_deg'] < 360 and _num(h['dir_confidence'], 0, 1))
     for key in ('p_gust_ge20', 'p_spread_ge10', 'p_metar_gust'):
         _require(_num(h[key], 0, 1))
+    # Optional (forecasts from 2026-10): runway 04/22 crosswind and more thresholds.
+    if 'xw_sust_kt' in h or 'xw_gust_kt' in h:
+        for key, total in (('xw_sust_kt', 'sust_kt'), ('xw_gust_kt', 'gust_kt')):
+            q = h[key]
+            _require(isinstance(q, list) and len(q) == 3 and all(_num(v, 0, 120) for v in q) and q[0] <= q[1] <= q[2])
+            _require(all(x <= w + 0.5 for x, w in zip(q, h[total])))  # a crosswind is part of the wind
+    for key in OPTIONAL_PROBABILITIES:
+        if key in h:
+            _require(_num(h[key], 0, 1))
+    for low, high in (('p_gust_ge20', 'p_gust_ge25'), ('p_xw_ge10', 'p_xw_ge15'), ('p_xwgust_ge15', 'p_xwgust_ge20')):
+        if low in h and high in h:
+            _require(h[high] <= h[low] + 1e-9)
 
 
 def collect_calibrated(snapshot, path, now):
@@ -119,7 +132,11 @@ def summary(packet, snapshot):
             'metar_peak_kt_median': max(h['metar_peak_kt'][1] for h in rows),
             'direction_deg': [h['dir_deg'] for h in rows],
             'max_p_gust_ge20': max(h['p_gust_ge20'] for h in rows), 'max_p_spread_ge10': max(h['p_spread_ge10'] for h in rows),
-            'max_p_metar_gust': max(h['p_metar_gust'] for h in rows)}
+            'max_p_metar_gust': max(h['p_metar_gust'] for h in rows),
+            **({'crosswind_sust_kt': [min(h['xw_sust_kt'][0] for h in rows), max(h['xw_sust_kt'][1] for h in rows), max(h['xw_sust_kt'][2] for h in rows)],
+                'crosswind_gust_kt': [min(h['xw_gust_kt'][0] for h in rows), max(h['xw_gust_kt'][1] for h in rows), max(h['xw_gust_kt'][2] for h in rows)]}
+               if all('xw_gust_kt' in h for h in rows) else {}),
+            **{f'max_{k}': max(h[k] for h in rows) for k in OPTIONAL_PROBABILITIES if all(k in h for h in rows)}}
 
 
 def calibrated_evidence(snapshot, now):
@@ -143,6 +160,17 @@ def _pct(p):
     return '&lt;1%' if p < 0.005 else f'{p:.0%}'
 
 
+def _crosswind_sentence(s):
+    if 'crosswind_gust_kt' not in s:
+        return ''
+    xs, xg = s['crosswind_sust_kt'], s['crosswind_gust_kt']
+    chances = [f'{label}: {_pct(s[key])}' for key, label in (('max_p_xw_ge10', 'a steady 10 kt or more'), ('max_p_xw_ge15', '15 kt or more'),
+                                                              ('max_p_xwgust_ge15', 'a gust of 15 kt or more'), ('max_p_xwgust_ge20', 'a gust of 20 kt or more'))
+               if key in s]
+    return (f' Across runway 04/22 the crosswind should be about {xs[1]:.0f} kt with gusts around {xg[1]:.0f} kt (80% range up to {xg[2]:.0f})'
+            + (f'; chance of a crosswind of {"; of ".join(chances)}.' if chances else '.'))
+
+
 def render_calibrated(snapshot, now):
     try:
         packet = validate_calibrated(snapshot.get('calibrated_wind'), snapshot)
@@ -157,18 +185,23 @@ def render_calibrated(snapshot, now):
     issued = parse_time(s['runs']).astimezone(TZ)
     lead = f'the newest runs available at {issued.strftime("%-I %p").lower().replace("am", "a.m.").replace("pm", "p.m.")} {issued:%A}'
     heading = f'{min(dirs):03d}°' if min(dirs) == max(dirs) else f'{min(dirs):03d}–{max(dirs):03d}°'
+    p25 = f'; of 25 kt or more: {_pct(s["max_p_gust_ge25"])}' if 'max_p_gust_ge25' in s else ''
     story = (f'<p>For {clock(first)}–{clock(last)}, the calibrated model expects about {s["sustained_kt"][1]:.0f} kt sustained from '
              f'{heading}, with a true peak gust around {s["peak_gust_kt"][1]:.0f} kt '
              f'(80% range {s["peak_gust_kt"][0]:.0f}–{s["peak_gust_kt"][2]:.0f}). The METAR would likely show about '
              f'{s["metar_peak_kt_median"]:.0f} kt; the chance it reports any gust is {_pct(s["max_p_metar_gust"])}. '
              f'Chance of a gust of 20 kt or more: {_pct(s["max_p_gust_ge20"])}'
-             f'{"" if limit == 20 else f" (your limit is {limit} kt)"}; of a gust spread of 10 kt or more: {_pct(s["max_p_spread_ge10"])}. '
+             f'{"" if limit == 20 else f" (your limit is {limit} kt)"}'
+             f'{p25}'
+             f'; of a gust spread of 10 kt or more: {_pct(s["max_p_spread_ge10"])}.{_crosswind_sentence(s)} '
              f'Based on {lead}.</p>')
+    crosswind = all('xw_gust_kt' in h and 'p_xwgust_ge15' in h for h in packet['hours'])
     body = ''.join(
         f'<tr{" data-flight" if h["hour"] in flight else ""}><th scope="row">{escape(clock(h["hour"]))}'
         f'{"<small>flight</small>" if h["hour"] in flight else ""}</th>'
         f'<td>{h["dir_deg"]:03d}°</td><td>{_q(h["sust_kt"])}</td><td>{_q(h["gust_kt"])}</td><td>{_q(h["metar_peak_kt"])}</td>'
-        f'<td>{_pct(h["p_gust_ge20"])}</td><td>{_pct(h["p_spread_ge10"])}</td><td>{_pct(h["p_metar_gust"])}</td></tr>'
+        f'<td>{_pct(h["p_gust_ge20"])}</td><td>{_pct(h["p_spread_ge10"])}</td><td>{_pct(h["p_metar_gust"])}</td>'
+        + (f'<td>{_q(h["xw_gust_kt"])}</td><td>{_pct(h["p_xwgust_ge15"])}</td>' if crosswind else '') + '</tr>'
         for h in packet['hours'] if h['hour'] in TABLE_HOURS)
     skill = packet.get('skill') or {}
     g, sus = skill.get('gust_mae_kt') or {}, skill.get('sust_mae_kt') or {}
@@ -183,5 +216,7 @@ def render_calibrated(snapshot, now):
             f'<div class="table-wrap"><table><caption>Median with the 80% range beneath it, in knots. Peak gust is the true 1-hour maximum; '
             f'METAR peak is what the reports would show.</caption><thead><tr><th scope="col">Local</th><th scope="col">From</th>'
             f'<th scope="col">Sustained</th><th scope="col">Peak gust</th><th scope="col">METAR peak</th><th scope="col">Gust ≥ 20</th>'
-            f'<th scope="col">Spread ≥ 10</th><th scope="col">METAR gust</th></tr></thead><tbody>{body}</tbody></table></div>{check}'
+            f'<th scope="col">Spread ≥ 10</th><th scope="col">METAR gust</th>'
+            + ('<th scope="col">Crosswind gust 04/22</th><th scope="col">Crosswind gust ≥ 15</th>' if crosswind else '')
+            + f'</tr></thead><tbody>{body}</tbody></table></div>{check}'
             f'<details><summary>How this is calibrated</summary><ul>{"".join("<li>" + escape(n) + "</li>" for n in NOTES)}</ul></details></section>')

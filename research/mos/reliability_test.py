@@ -5,7 +5,10 @@ Targets: the hour's 1-minute peak gust (10-30 kt), mean sustained wind (5-20 kt)
 (build_issue.py), production inputs and tree settings, one quantile model per target. Probabilities from:
   quantiles    a 23-level quantile model (1st-99th percentile), P(gust >= T) from its interpolated
                distribution, with an exponential tail beyond the 1st/99th fitted to the 95-99 spread
-  classifiers  one binary classifier per threshold (peak gust only, as production does for 20 kt)
+  classifiers  one binary classifier per threshold (as production does)
+  recalibrated the quantile probabilities through an isotonic map fitted on held-out forecasts only: in
+               cross-validation on the other folds' out-of-fold forecasts; for the forward year on training
+               months held out from a separately trained model (one month in seven)
   raw ensembles  ECMWF (2024 onward) and GEFS (2020 onward): mean and spread as a normal distribution;
                crosswinds use the ensemble-mean wind direction, so those baselines are approximate
   NBM          no probabilities in our archive: as a yes/no forecast, and dressed with its own past errors
@@ -25,6 +28,7 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 from scipy.stats import norm
+from sklearn.isotonic import IsotonicRegression
 from sklearn.metrics import roc_auc_score
 
 from forward_test import SPLIT
@@ -122,9 +126,20 @@ def nbm_dressed(nbm, y, train, test, threshold, target):
 
 
 SPECS = {'gust_peak': {'thresholds': (10, 15, 20, 25, 30), 'classifier': True},
-         'sust_mean': {'thresholds': (5, 10, 15, 20), 'classifier': False},
-         'xw_sust_mean': {'thresholds': (5, 10, 15), 'classifier': False},
-         'xw_gust_peak': {'thresholds': (10, 15, 20, 25), 'classifier': False}}
+         'sust_mean': {'thresholds': (5, 10, 15, 20), 'classifier': True},
+         'xw_sust_mean': {'thresholds': (5, 10, 15), 'classifier': True},
+         'xw_gust_peak': {'thresholds': (10, 15, 20, 25), 'classifier': True}}
+RECAL = 'quantiles, recalibrated'
+
+
+def isotonic(p_fit, o_fit, p_apply):
+    """Monotone map from forecast probability to observed frequency, fitted on held-out forecasts only."""
+    ok = ~np.isnan(p_fit)
+    iso = IsotonicRegression(y_min=0, y_max=1, out_of_bounds='clip').fit(p_fit[ok], o_fit[ok])
+    out = np.full(len(p_apply), np.nan)
+    good = ~np.isnan(p_apply)
+    out[good] = iso.predict(p_apply[good])
+    return out
 
 
 def wilson(k, n, z=1.645):
@@ -181,6 +196,8 @@ def scored(t, y, idx, probs, target, nbm):
         clim = probs[f'climatology_{thr}']
         v = nbm[target][idx]
         methods = {'quantiles': probs[f'quantiles_{thr}']}
+        if f'recal_{thr}' in probs:
+            methods[RECAL] = probs[f'recal_{thr}']
         if f'classifier_{thr}' in probs:
             methods['classifier'] = probs[f'classifier_{thr}']
         for name in ENSEMBLES:
@@ -228,12 +245,30 @@ def main():
             for key, v in part.items():
                 pooled.setdefault(key, []).append(v)
         idx = np.concatenate(idx)
+        merged = {k: np.concatenate(v) for k, v in pooled.items()}
+        fold_of = fold[idx]
+        for thr in SPECS[target]['thresholds']:
+            pq, o = merged[f'quantiles_{thr}'], (y[idx] >= thr).astype(float)
+            merged[f'recal_{thr}'] = np.full(len(idx), np.nan)
+            for k in range(5):
+                m = fold_of == k
+                merged[f'recal_{thr}'][m] = isotonic(pq[~m], o[~m], pq[m])
         print(f'{target}: cross-validation', flush=True)
-        cv = scored(t, y, idx, {k: np.concatenate(v) for k, v in pooled.items()}, target, nbm)
+        cv = scored(t, y, idx, merged, target, nbm)
         train = (t.init < SPLIT - pd.Timedelta(days=8)).to_numpy() & labelled
         test = morning & (t.init >= SPLIT).to_numpy() & labelled
         print(f'{target}: forward year', flush=True)
-        forward = scored(t, y, np.flatnonzero(test), probabilities(t, X, y, train, test, target, nbm), target, nbm)
+        probs = probabilities(t, X, y, train, test, target, nbm)
+        months = (t.date.dt.year * 12 + t.date.dt.month).to_numpy()
+        proper, calib = train & (months % 7 != 3), train & (months % 7 == 3) & morning
+        both = calib | test
+        q = fit_quantiles(X, y, proper, both)  # trained without the calibration months
+        order = np.flatnonzero(both)
+        in_calib = calib[order]
+        for thr in SPECS[target]['thresholds']:
+            p = exceed(q, thr)
+            probs[f'recal_{thr}'] = isotonic(p[in_calib], (y[order][in_calib] >= thr).astype(float), p[~in_calib])
+        forward = scored(t, y, np.flatnonzero(test), probs, target, nbm)
         result['targets'][target] = {'cv': cv, 'forward': forward}
         json.dump(result, open(path, 'w'), indent=1)
 

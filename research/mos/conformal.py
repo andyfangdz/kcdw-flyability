@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 ALPHA = 0.2
-TARGETS = ('sust_mean', 'gust_peak', 'metar_peak')
+TARGETS = ('sust_mean', 'gust_peak', 'metar_peak', 'xw_sust_mean', 'xw_gust_peak')
 
 
 def width(scores, alpha=ALPHA):
