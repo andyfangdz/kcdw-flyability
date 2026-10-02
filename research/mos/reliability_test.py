@@ -34,25 +34,11 @@ from sklearn.metrics import roc_auc_score
 from forward_test import SPLIT
 from model import SINCE, features
 
-LEVELS = np.array([0.01, 0.02] + list(np.round(np.arange(0.05, 0.96, 0.05), 2)) + [0.98, 0.99])
+from probability import LEVELS, exceed  # shared with production
 BINS = np.array([0, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.98, 1.0001])
 DEVICE = os.environ.get('MOS_DEVICE', 'cpu')
 COMMON = dict(tree_method='hist', device=DEVICE, n_estimators=500, learning_rate=0.05, max_depth=6, min_child_weight=50, subsample=0.8,
               colsample_bytree=0.6, reg_lambda=5.0, random_state=0)
-
-
-def exceed(q, threshold):
-    """P(y >= T) from sorted quantiles at LEVELS; linear inside, exponential tails outside the 1st/99th."""
-    p = np.empty(len(q))
-    for i, row in enumerate(q):
-        if threshold <= row[0]:
-            p[i] = 1 - LEVELS[0] * max(threshold, 0) / max(row[0], 1e-6)
-        elif threshold >= row[-1]:
-            scale = max((row[-1] - row[-5]) / np.log(5), 0.3)  # 95th-99th spread sets the tail decay
-            p[i] = (1 - LEVELS[-1]) * np.exp(-(threshold - row[-1]) / scale)
-        else:
-            p[i] = 1 - np.interp(threshold, row, LEVELS)
-    return np.clip(p, 0, 1)
 
 
 def fit_quantiles(X, y, train, test):

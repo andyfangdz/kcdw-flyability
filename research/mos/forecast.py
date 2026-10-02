@@ -3,7 +3,8 @@
 Uses the issue-time table (build_issue.py): for the latest issue time already reached (the 04, 11, 16
 and 22Z updates), every local hour 06-21 after it, out to 7 days, with each source's newest run
 published by then under the same publication-delay rule as training. Ranges are widened by the
-conformal widths per lead day (local days from the issue).
+conformal widths per lead day (local days from the issue). Threshold probabilities come from the 23-level
+quantile models (probability.py); spread and METAR-gust probabilities from their classifiers.
 """
 import json
 from datetime import datetime, timedelta, timezone
@@ -12,6 +13,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xgboost as xgb
+
+from probability import exceed
+from train import EXCEEDANCE
 
 ARTIFACTS = Path('var/mos/artifacts')
 OUT = Path('var/mos/forecast.json')
@@ -49,10 +53,20 @@ def main():
     for xw, total in (('xw_sust_mean', 'sust_mean'), ('xw_gust_peak', 'gust_peak')):  # separate models: crosswind <= the wind itself
         if xw in out and total in out:
             out[xw] = [[min(a, b) for a, b in zip(x, w)] for x, w in zip(out[xw], out[total])]
-    probs = meta.get('probabilities', ['p_gust_ge20', 'p_spread_ge10', 'p_metar_gust'])
+    distributions = {}
+    for target in meta.get('distributions', {}):  # one 23-level model per target gives every threshold, in order
+        booster = xgb.XGBRegressor(); booster.load_model(ARTIFACTS / f'{target}_levels.json')
+        distributions[target] = np.sort(booster.predict(X), axis=1)
+    probs = [name for name, (column, _) in EXCEEDANCE.items() if column in distributions]
     for name in probs:
+        column, threshold = EXCEEDANCE[name]
+        out[name] = exceed(distributions[column], threshold)
+    # Models from before the switch (meta 'probabilities') hold a classifier for every threshold.
+    classifiers = [n for n in meta.get('classifiers', meta.get('probabilities', ['p_gust_ge20', 'p_spread_ge10', 'p_metar_gust'])) if n not in probs]
+    for name in classifiers:
         clf = xgb.XGBClassifier(); clf.load_model(ARTIFACTS / f'{name}.json')
         out[name] = clf.predict_proba(X)[:, 1]
+    probs += classifiers
     # Separate classifiers can rank a higher threshold above a lower one; keep each family in order.
     for low, high in (('p_gust_ge20', 'p_gust_ge25'), ('p_xw_ge10', 'p_xw_ge15'), ('p_xwgust_ge15', 'p_xwgust_ge20')):
         if low in out and high in out:

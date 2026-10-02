@@ -10,19 +10,25 @@ Usage: var/mos-venv/bin/python research/mos/train.py [--folds 5] [--since 2021-0
 """
 import argparse
 import json
+import os
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import xgboost as xgb
 
+from probability import LEVELS, exceed
+
 QUANTILES = np.array([0.1, 0.5, 0.9])
 ID = ['date', 'hour', 'lead_day', 'valid', 'init']
 TARGETS = ['sust_mean', 'sust_max', 'gust_peak', 'u_obs', 'v_obs', 'spread', 'metar_sknt', 'metar_drct', 'metar_gust',
            'metar_peak', 'metar_gust_reported', 'xw_sust_mean', 'xw_gust_peak']
 QUANTILE_TARGETS = ('sust_mean', 'gust_peak', 'metar_peak', 'xw_sust_mean', 'xw_gust_peak')
-# Threshold probabilities, each a dedicated classifier trained on hours where its observed column is known.
-# xw_* is the runway 04/22 crosswind (build_targets.py). Shared by this cross-validation, model.py and forecast.py.
+# Threshold probabilities. Those on a DISTRIBUTION_TARGETS column are read from its 23-level quantile model
+# (probability.py), which beat dedicated classifiers out of sample (reliability_test.py); the rest (spread) are
+# classifiers trained on hours where the observed column is known. xw_* is the runway 04/22 crosswind
+# (build_targets.py). Shared by this cross-validation, model.py and forecast.py.
+DISTRIBUTION_TARGETS = ('gust_peak', 'sust_mean', 'xw_sust_mean', 'xw_gust_peak')
 EXCEEDANCE = {'p_gust_ge20': ('gust_peak', 20), 'p_gust_ge25': ('gust_peak', 25), 'p_sust_ge15': ('sust_mean', 15),
               'p_xw_ge10': ('xw_sust_mean', 10), 'p_xw_ge15': ('xw_sust_mean', 15), 'p_xwgust_ge15': ('xw_gust_peak', 15),
               'p_xwgust_ge20': ('xw_gust_peak', 20), 'p_spread_ge10': ('spread', 10)}
@@ -56,8 +62,11 @@ def pinball(y, q, alpha):
     return np.mean(np.maximum(alpha * d, (alpha - 1) * d))
 
 
-def quantile_model(params):
-    return xgb.XGBRegressor(objective='reg:quantileerror', quantile_alpha=QUANTILES, tree_method='hist', **params)
+DEVICE = os.environ.get('MOS_DEVICE', 'cpu')  # 'cuda' on the desktop GPU (scripts/mos_gpu.sh)
+
+
+def quantile_model(params, levels=QUANTILES):
+    return xgb.XGBRegressor(objective='reg:quantileerror', quantile_alpha=levels, tree_method='hist', device=DEVICE, **params)
 
 
 def main():
@@ -114,7 +123,7 @@ def main():
         y = t[comp].to_numpy('float32'); p = np.full(len(t), np.nan)
         for k in range(args.folds):
             tr, te = (fold != k) & ~np.isnan(y), fold == k
-            p[te] = xgb.XGBRegressor(tree_method='hist', **params).fit(X[tr], y[tr]).predict(X[te])
+            p[te] = xgb.XGBRegressor(tree_method='hist', device=DEVICE, **params).fit(X[tr], y[tr]).predict(X[te])
         uv[comp] = p
     methods['xgb u/v'] = np.degrees(np.arctan2(-uv['u_obs'], -uv['v_obs'])) % 360
     unit = {}
@@ -122,14 +131,14 @@ def main():
         p = np.full(len(t), np.nan)
         for k in range(args.folds):
             tr, te = (fold != k) & windy_obs, fold == k
-            p[te] = xgb.XGBRegressor(tree_method='hist', **params).fit(X[tr], y[tr]).predict(X[te])
+            p[te] = xgb.XGBRegressor(tree_method='hist', device=DEVICE, **params).fit(X[tr], y[tr]).predict(X[te])
         unit[name] = p
     methods['xgb unit vector'] = np.degrees(np.arctan2(unit['sin'], unit['cos'])) % 360
     sector = np.round(np.nan_to_num(obs_dir) / 22.5).astype(int) % 16
     probs = np.full((len(t), 16), np.nan)
     for k in range(args.folds):
         tr, te = (fold != k) & windy_obs, fold == k
-        model = xgb.XGBClassifier(tree_method='hist', objective='multi:softprob', num_class=16, **dict(params, n_estimators=150))
+        model = xgb.XGBClassifier(tree_method='hist', device=DEVICE, objective='multi:softprob', num_class=16, **dict(params, n_estimators=150))
         probs[te] = model.fit(X[tr], sector[tr]).predict_proba(X[te])
     vec = probs @ np.c_[np.sin(np.radians(np.arange(16) * 22.5)), np.cos(np.radians(np.arange(16) * 22.5))]
     methods['xgb 16-sector (probability-weighted)'] = np.degrees(np.arctan2(vec[:, 0], vec[:, 1])) % 360
@@ -143,15 +152,27 @@ def main():
         entry[f'MAE {name}'] = float(np.mean(err(d[ok], obs_dir[ok])))
         entry[f'<=30 deg {name}'] = float(np.mean(err(d[ok], obs_dir[ok]) <= 30))
     results[('direction', 'sust >= 5 kt')] = entry
-    # Threshold probabilities: dedicated classifiers vs raw thresholds, Brier on the same hours.
+    # Threshold probabilities as production makes them (quantile-derived, or a classifier), Brier on the same hours.
+    dist = {}
+    for target in DISTRIBUTION_TARGETS:
+        y = t[target].to_numpy('float32'); ok = ~np.isnan(y)
+        dist[target] = np.full((len(t), len(LEVELS)), np.nan)
+        for k in range(args.folds):
+            tr, te = ok & (fold != k), fold == k
+            dist[target][te] = np.sort(quantile_model(params, LEVELS).fit(X[tr], y[tr]).predict(X[te]), axis=1)
     labels = {name: exceedance_label(t, column, threshold) for name, (column, threshold) in EXCEEDANCE.items()}
     labels['p_metar_gust'] = t.metar_gust_reported.to_numpy('float32')
     for name, y in labels.items():
         ok = ~np.isnan(y)
         p = np.full(len(t), np.nan)
-        for k in range(args.folds):
-            tr, te = ok & (fold != k), fold == k
-            p[te] = xgb.XGBClassifier(tree_method='hist', eval_metric='logloss', **params).fit(X[tr], y[tr]).predict_proba(X[te])[:, 1]
+        column, threshold = EXCEEDANCE.get(name, (None, None))
+        if column in dist:
+            p = exceed(dist[column], threshold)
+        else:
+            for k in range(args.folds):
+                tr, te = ok & (fold != k), fold == k
+                p[te] = xgb.XGBClassifier(tree_method='hist', device=DEVICE, eval_metric='logloss', **params).fit(
+                    X[tr], y[tr]).predict_proba(X[te])[:, 1]
         fold_rate = np.array([y[ok & (fold != k)].mean() for k in range(args.folds)])  # training-fold frequency
         clim = fold_rate[fold]
         mask = ok & ~np.isnan(p)

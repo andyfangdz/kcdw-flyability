@@ -25,15 +25,20 @@ $PY research/mos/build_targets.py | head -1
 # Issue-time rows: each update (04/11/16/22Z) uses every source's newest run published by then (build_issue.py).
 $PY research/mos/build_issue.py | tail -1
 age() { [ -f "$1" ] && echo $(( $(date +%s) - $(stat -c %Y "$1") )) || echo 999999999; }
+# Training runs on the desktop GPU (scripts/mos_gpu.sh). If the desktop is unreachable the previous models stay
+# in use and the age checks retry at the next update.
 if [ "$(age var/mos/conformal.json)" -gt $((7 * 86400)) ]; then
-  log "weekly cross-validation"
-  $PY research/mos/train.py --trees 500 | tail -3
-  $PY research/mos/conformal.py | tail -1
-  $PY research/mos/evaluate.py | tail -1
+  log "weekly cross-validation (desktop GPU)"
+  if scripts/mos_gpu.sh train | tail -3; then
+    $PY research/mos/conformal.py | tail -1
+    $PY research/mos/evaluate.py | tail -1
+  else
+    log "WARNING: cross-validation on the desktop failed; keeping the previous widths and skill"
+  fi
 fi
 if [ "$(age var/mos/artifacts/meta.json)" -gt $((20 * 3600)) ]; then
-  log "daily retrain"
-  $PY research/mos/model.py
+  log "daily retrain (desktop GPU)"
+  scripts/mos_gpu.sh model || log "WARNING: retrain on the desktop failed; keeping the models trained $(stat -c %y var/mos/artifacts/meta.json | cut -c1-16)"
 fi
 $PY research/mos/forecast.py
 log done

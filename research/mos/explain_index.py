@@ -58,6 +58,13 @@ def main():
         a, b = r[base]['gust_peak'][key], r[alt]['gust_peak'][key]
         null.append(f'<li>{label}: gust CRPS {a:.3f} → {b:.3f} ({100 * (b - a) / a:+.1f}%).</li>')
     blends = json.load(open('var/mos/nn_arch_blends.json'))['gust_peak']
+    cvr = json.load(open('var/mos/cv-results.json'))
+    xs, xg = cvr['xw_sust_mean | all hours'], cvr['xw_gust_peak | all hours']
+    rel = json.load(open('var/mos/reliability.json'))['targets']
+    fw = lambda target, thr, m: rel[target]['forward'][thr][m]['bss_vs_climatology']
+    prob_rows = [(t, thr) for t, thr in (('gust_peak', '20'), ('gust_peak', '25'), ('xw_sust_mean', '10'), ('xw_gust_peak', '15'), ('xw_gust_peak', '20'))]
+    prob_text = '; '.join(f'{name} {fw(t, thr, "quantiles"):+.2f} against {fw(t, thr, "classifier"):+.2f} (classifier) and {fw(t, thr, "quantiles, recalibrated"):+.2f} (recalibrated)'
+                          for (t, thr), name in zip(prob_rows, ('gust ≥20 kt', 'gust ≥25 kt', 'runway 04/22 crosswind ≥10 kt', 'crosswind gust ≥15 kt', 'crosswind gust ≥20 kt')))
     scaling = json.load(open('var/mos-multi/scaling_nn.json'))
     c1, c4 = curve[0]['gust_peak_crps'], curve[-1]['gust_peak_crps']
     c2, c3 = curve[1]['gust_peak_crps'], curve[2]['gust_peak_crps']
@@ -82,6 +89,8 @@ Airport (KCDW), and at 21 other airports around New York. NBM is used only as a 
 <p>KCDW, 1–4 pm local, {bench["afternoon_hours"]:,} identical hours ({bench["period"][0]} to {bench["period"][1]}), mean absolute error of the median forecast
 from the 7 a.m. update, scored on months the model never saw.</p>
 <table><thead><tr><th></th><th>Calibrated</th><th>NBM</th><th>ECMWF ENS mean</th><th>Better than NBM</th></tr></thead><tbody>{rows}</tbody></table>
+<p>Runway 04/22 crosswind, all hours: median error {xs["MAE xgb p50"]:.2f} kt sustained and {xg["MAE xgb p50"]:.2f} kt in gusts, against
+{xs["MAE raw"]:.2f} and {xg["MAE raw"]:.2f} kt for the raw models. Reliability of the wind probabilities: <a href="reliability/">reliability curves</a>.</p>
 <p>All 22 airports, held-out months: peak-gust error {cal:.2f} kt versus {ens:.2f} kt for the raw ECMWF ensemble mean ({pct(cal, ens)} lower).
 NBM's archive here uses runs issued exactly 24N hours before each hour, fresher than most runs the 7 a.m. update has, so the NBM comparison is conservative.</p>
 <h2>Integrity checks</h2>
@@ -90,9 +99,13 @@ NBM's archive here uses runs issued exactly 24N hours before each hour, fresher 
 <ul><li>Same-day forecasts: using that day's own runs instead of the previous day's cut gust CRPS from {d_old["crps"]:.3f} to {d_new["crps"]:.3f}
 ({100 * (d_new["crps"] - d_old["crps"]) / d_old["crps"]:+.1f}%), and {100 * (d_new["crps_1_4pm"] - d_old["crps_1_4pm"]) / d_old["crps_1_4pm"]:+.1f}% for 1–4 pm (forward year).</li>
 <li>Each model's newest published run at every update (04, 11, 16, 22Z): {issue["all"]["gust_change_pct"]:+.1f}% gust MAE overall against the previous
-production, {issue["04Z"]["gust_change_pct"]:+.1f}% at the midnight update, which used to rely on the previous day's runs.</li></ul>
+production, {issue["04Z"]["gust_change_pct"]:+.1f}% at the midnight update, which used to rely on the previous day's runs.</li>
+<li>Probabilities read from a 23-level quantile model, which the live forecast now uses for every wind and crosswind threshold: in the forward year
+their Brier skill was {prob_text}.</li></ul>
 <h2>What did not help</h2>
 <ul>{"".join(null)}
+<li>Recalibrating those probabilities (isotonic, fitted on held-out forecasts): slightly better in cross-validation, but in the forward year no better
+for common thresholds and worse for rare ones, where too few windy events reach the calibration months.</li>
 <li>Neural networks: the best (attention across the forecast models) scored {100 * (blends["nn_sources"]["crps"] - blends["xgb"]["crps"]) / blends["xgb"]["crps"]:+.1f}% against
 XGBoost; averaged 50/50 with XGBoost it improved gust CRPS by {100 * (blends["xgb"]["crps"] - blends["xgb + sources"]["crps"]) / blends["xgb"]["crps"]:.1f}%, too little to justify a second model in production.</li>
 <li>Training on more airports: from 1 to 22 airports the station-hours grew {scaling[-1]["station_hours"] / scaling[0]["station_hours"]:.0f}× but the independent
@@ -101,7 +114,9 @@ days only {scaling[0]["independent_days"]:,} → {scaling[-1]["independent_days"
 <ul><li>More history helps, with diminishing returns: training on the last 1, 2, 3 and 4.3 years gives forward-year gust CRPS {c1:.3f}, {c2:.3f}, {c3:.3f} and {c4:.3f}
 ({100 * (c2 - c1) / c1:+.1f}%, {100 * (c3 - c2) / c2:+.1f}%, {100 * (c4 - c3) / c3:+.1f}% per step).</li>
 <li>Model gust fields: once winds and stability are known, the models' own gust diagnostics add almost nothing.</li>
-<li>Borrowing from other airports: the 22-station model ties the KCDW-only model at KCDW; its value is calibrating the other airports.</li></ul>
+<li>Borrowing from other airports: the 22-station model ties the KCDW-only model at KCDW; its value is calibrating the other airports.</li>
+<li>Training runs on a desktop GPU (RTX 5090): the daily retrain, including the four 23-level models, takes under 8 minutes there and would take
+over an hour on the server's CPU. If the desktop is off, the forecast keeps using the previous day's models.</li></ul>
 <p>Research code: <code>research/mos</code> in the repository. Supplemental guidance, not an official aviation forecast.</p>
 </body></html>'''
     open('research/mos/explain_index.html', 'w').write(page)
